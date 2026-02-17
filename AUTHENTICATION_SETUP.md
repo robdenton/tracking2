@@ -19,7 +19,7 @@ This app now uses Google OAuth authentication and only allows users with `@grano
    - Name: Marketing Activity Impact
    - Authorized redirect URIs:
      - `http://localhost:3000/api/auth/callback/google` (for local development)
-     - `https://your-vercel-url.vercel.app/api/auth/callback/google` (for production)
+     - `https://tracking2-dg0i31dlt-robdentons-projects.vercel.app/api/auth/callback/google` (for production)
 6. Save the **Client ID** and **Client Secret**
 
 ### 2. Set Environment Variables
@@ -46,11 +46,13 @@ openssl rand -base64 32
 Add these environment variables in Vercel Dashboard → Settings → Environment Variables:
 
 ```bash
-NEXTAUTH_SECRET=<same_secret_as_local_or_generate_new>
-NEXTAUTH_URL=https://your-vercel-url.vercel.app
-GOOGLE_CLIENT_ID=<your_client_id>
-GOOGLE_CLIENT_SECRET=<your_client_secret>
+NEXTAUTH_SECRET=<generate_with_openssl_rand_base64_32>
+NEXTAUTH_URL=https://tracking2-dg0i31dlt-robdentons-projects.vercel.app
+GOOGLE_CLIENT_ID=<your_google_client_id>
+GOOGLE_CLIENT_SECRET=<your_google_client_secret>
 ```
+
+**Note**: Your actual credentials are already configured in your local `.env` file and should be added to Vercel dashboard.
 
 ### 3. Test Authentication
 
