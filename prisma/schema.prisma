@@ -1,0 +1,126 @@
+// Prisma schema for Marketing Activity Impact
+// Uses SQLite locally; swap to postgresql for production.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Activity {
+  id                         String  @id @default(uuid())
+  activityType               String  @map("activity_type")
+  channel                    String
+  partnerName                String  @map("partner_name")
+  date                       String  // YYYY-MM-DD
+  status                     String  @default("live") // live, booked, canceled
+  costUsd                    Float?  @map("cost_usd")
+  deterministicClicks        Int?    @map("deterministic_clicks")
+  actualClicks               Int?    @map("actual_clicks")
+  deterministicTrackedSignups Int?   @map("deterministic_tracked_signups")
+  notes                      String?
+  metadata                   String? @map("metadata") // JSON: channel-specific bet metrics
+  contentUrl                 String? @map("content_url") // URL to the actual content (e.g. YouTube video)
+  channelUrl                 String? @map("channel_url") // URL to the partner's channel
+
+  contentViews               ContentView[]
+  linkedInEngagements        LinkedInEngagement[]
+
+  @@map("activities")
+}
+
+model DailyMetric {
+  date        String  // YYYY-MM-DD
+  channel     String
+  signups     Int
+  activations Int
+
+  @@id([date, channel])
+  @@map("daily_metrics")
+}
+
+model ContentView {
+  activityId  String  @map("activity_id")
+  date        String  // YYYY-MM-DD
+  viewCount   Int     @map("view_count")
+  activity    Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  @@id([activityId, date])
+  @@map("content_views")
+}
+
+model LinkedInEngagement {
+  activityId  String    @map("activity_id")
+  date        String    // YYYY-MM-DD (tracking date)
+  postDate    String?   @map("post_date") // When post was published
+  likes       Int?
+  comments    Int?
+  reposts     Int?
+  views       Int?      // Post impressions if visible
+  activity    Activity  @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  @@id([activityId, date])
+  @@map("linkedin_engagements")
+}
+
+// Imported YouTube videos that have been accepted for tracking
+model ImportedYouTubeVideo {
+  id              String   @id @default(uuid())
+  videoId         String   @unique  // YouTube video ID (e.g., dQw4w9WgXcQ)
+  title           String
+  channelTitle    String   @map("channel_title")
+  channelId       String   @map("channel_id")
+  publishedAt     String   // YYYY-MM-DD when video was published
+  url             String   // Full YouTube URL
+  thumbnailUrl    String?  @map("thumbnail_url")
+
+  importedDate    String   // YYYY-MM-DD when imported into system
+  status          String   @default("active") // active, archived
+
+  // Optional: link to Activity if this becomes a paid sponsorship
+  relatedActivityId String?  @map("related_activity_id")
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  importedVideoViews ImportedVideoView[]
+
+  @@map("imported_youtube_videos")
+}
+
+// Time-series view tracking for imported videos (follows ContentView pattern)
+model ImportedVideoView {
+  videoId    String  @map("video_id")
+  date       String  // YYYY-MM-DD
+  viewCount  Int     @map("view_count")
+  video      ImportedYouTubeVideo @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@id([videoId, date])
+  @@map("imported_video_views")
+}
+
+// Search results waiting for user review (accept/reject)
+model YouTubeSearchResult {
+  id              String   @id @default(uuid())
+  videoId         String   @map("video_id")
+  title           String
+  channelTitle    String   @map("channel_title")
+  channelId       String   @map("channel_id")
+  publishedAt     String   // YYYY-MM-DD
+  url             String
+  thumbnailUrl    String?  @map("thumbnail_url")
+  description     String?  // Video description snippet
+
+  searchQuery     String   @map("search_query") // e.g., "granola ai"
+  searchDate      String   @map("search_date")  // YYYY-MM-DD when found
+  status          String   @default("pending")  // pending, accepted, rejected
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([videoId, searchQuery]) // Prevent duplicate search results
+  @@map("youtube_search_results")
+}
