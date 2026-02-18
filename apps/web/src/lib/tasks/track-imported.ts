@@ -5,10 +5,8 @@
  * and stores them in the imported_video_views table for time-series analysis.
  */
 
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "../prisma";
 import { fetchViewCountAPI } from "@mai/core";
-
-const prisma = new PrismaClient();
 
 function log(msg: string) {
   const ts = new Date().toISOString().replace("T", " ").slice(0, 19);
@@ -77,8 +75,6 @@ export async function trackImportedViews(): Promise<{
     // Rate limiting: sleep 100ms between requests to avoid hitting API limits
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
-
-  await prisma.$disconnect();
 
   log(`\nTracking complete:`);
   log(`  Tracked: ${tracked}`);

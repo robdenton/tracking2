@@ -2,11 +2,17 @@
  * Scheduled YouTube Search Task Module
  *
  * Searches YouTube for mentions and saves results to database for user review.
+ *
+ * Key behaviours:
+ *  - Uses `publishedAfter` to only find videos uploaded since the last run
+ *    (falls back to 7 days on first run).
+ *  - Orders by date (newest first) so we always surface fresh uploads.
+ *  - Skips videos that are already in ImportedYouTubeVideo (accepted) OR
+ *    already in YouTubeSearchResult (pending/rejected) — so rejected videos
+ *    don't keep resurfacing.
  */
 
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { prisma } from "../prisma";
 
 function log(msg: string) {
   const ts = new Date().toISOString().replace("T", " ").slice(0, 19);
@@ -33,8 +39,13 @@ interface YouTubeSearchResultItem {
   description: string | null;
 }
 
+/**
+ * Search YouTube for videos matching `query`, published after `publishedAfter`.
+ * Results are ordered by date (newest first).
+ */
 async function searchYouTube(
-  query: string
+  query: string,
+  publishedAfter: string, // ISO-8601 datetime, e.g. "2026-02-11T00:00:00Z"
 ): Promise<YouTubeSearchResultItem[]> {
   const apiKey = process.env.YOUTUBE_API_KEY;
 
@@ -44,7 +55,17 @@ async function searchYouTube(
   }
 
   try {
-    const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&q=${encodeURIComponent(query)}&maxResults=50&key=${apiKey}`;
+    const params = new URLSearchParams({
+      part: "snippet",
+      type: "video",
+      q: query,
+      maxResults: "50",
+      order: "date", // newest first — find fresh uploads, not the same top-50
+      publishedAfter, // only videos after this timestamp
+      key: apiKey,
+    });
+
+    const url = `https://www.googleapis.com/youtube/v3/search?${params}`;
     const response = await fetch(url);
 
     if (!response.ok) {
@@ -77,34 +98,45 @@ async function searchYouTube(
 
 async function saveSearchResults(
   query: string,
-  results: YouTubeSearchResultItem[]
-): Promise<{ saved: number; skipped: number }> {
+  results: YouTubeSearchResultItem[],
+): Promise<{ saved: number; skippedImported: number; skippedExisting: number }> {
   const today = new Date().toISOString().slice(0, 10);
 
-  let skipped = 0;
+  let skippedImported = 0;
+  let skippedExisting = 0;
   let saved = 0;
 
   for (const result of results) {
-    // Check if already imported
+    // 1. Skip if already accepted into ImportedYouTubeVideo
     const existingImport = await prisma.importedYouTubeVideo.findUnique({
       where: { videoId: result.videoId },
     });
 
     if (existingImport) {
       log(`  Skipping ${result.videoId} - already imported`);
-      skipped++;
+      skippedImported++;
       continue;
     }
 
-    // Upsert search result
-    await prisma.youTubeSearchResult.upsert({
+    // 2. Skip if already in YouTubeSearchResult (pending or rejected)
+    const existingSearchResult = await prisma.youTubeSearchResult.findUnique({
       where: {
         videoId_searchQuery: {
           videoId: result.videoId,
           searchQuery: query,
         },
       },
-      create: {
+    });
+
+    if (existingSearchResult) {
+      log(`  Skipping ${result.videoId} - already in search results (${existingSearchResult.status})`);
+      skippedExisting++;
+      continue;
+    }
+
+    // 3. Genuinely new — create
+    await prisma.youTubeSearchResult.create({
+      data: {
         videoId: result.videoId,
         title: result.title,
         channelTitle: result.channelTitle,
@@ -117,17 +149,16 @@ async function saveSearchResults(
         searchDate: today,
         status: "pending",
       },
-      update: {
-        searchDate: today,
-      },
     });
 
     saved++;
   }
 
-  log(`Saved ${saved} new search results, skipped ${skipped} already imported`);
+  log(
+    `Saved ${saved} new, skipped ${skippedImported} imported + ${skippedExisting} already seen`,
+  );
 
-  return { saved, skipped };
+  return { saved, skippedImported, skippedExisting };
 }
 
 // ---------------------------------------------------------------------------
@@ -147,30 +178,57 @@ export async function searchAndSaveYouTubeResults(): Promise<{
     const query = process.env.YOUTUBE_SEARCH_QUERY || "granola ai";
     log(`Searching YouTube for: "${query}"`);
 
+    // Determine publishedAfter: use the most recent searchDate in the DB,
+    // or fall back to 7 days ago on first ever run.
+    const latestSearchResult = await prisma.youTubeSearchResult.findFirst({
+      where: { searchQuery: query },
+      orderBy: { searchDate: "desc" },
+      select: { searchDate: true },
+    });
+
+    let publishedAfter: string;
+    if (latestSearchResult) {
+      // Start from the last search date (at midnight UTC)
+      publishedAfter = `${latestSearchResult.searchDate}T00:00:00Z`;
+      log(`Using publishedAfter from last search: ${publishedAfter}`);
+    } else {
+      // First run — look back 7 days
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setUTCDate(sevenDaysAgo.getUTCDate() - 7);
+      publishedAfter = sevenDaysAgo.toISOString().split(".")[0] + "Z";
+      log(`First run — using publishedAfter: ${publishedAfter}`);
+    }
+
     // Perform search
-    const results = await searchYouTube(query);
+    const results = await searchYouTube(query, publishedAfter);
     log(`Found ${results.length} results from YouTube API`);
 
     if (results.length === 0) {
       log("No results to save");
-      await prisma.$disconnect();
       return { resultsFound: 0, saved: 0, skipped: 0 };
     }
 
     // Save to database
-    const { saved, skipped } = await saveSearchResults(query, results);
+    const { saved, skippedImported, skippedExisting } = await saveSearchResults(
+      query,
+      results,
+    );
 
     // Calculate duration
     const endTime = new Date();
-    const duration = ((endTime.getTime() - startTime.getTime()) / 1000).toFixed(2);
+    const duration = (
+      (endTime.getTime() - startTime.getTime()) /
+      1000
+    ).toFixed(2);
     log(`=== YouTube Search Daily Task Completed in ${duration}s ===`);
 
-    await prisma.$disconnect();
-
-    return { resultsFound: results.length, saved, skipped };
+    return {
+      resultsFound: results.length,
+      saved,
+      skipped: skippedImported + skippedExisting,
+    };
   } catch (err) {
     logError(`Fatal error in YouTube search: ${err}`);
-    await prisma.$disconnect();
     throw err;
   }
 }

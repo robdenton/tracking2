@@ -5,11 +5,9 @@
  * using Puppeteer for headless browser automation with serverless Chrome.
  */
 
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "../prisma";
 import chromium from "@sparticuz/chromium";
 import puppeteer from "puppeteer-core";
-
-const prisma = new PrismaClient();
 
 function log(msg: string) {
   const ts = new Date().toISOString().replace("T", " ").slice(0, 19);
@@ -218,7 +216,6 @@ export async function trackLinkedInEngagement(): Promise<{
 
   if (activities.length === 0) {
     log("No LinkedIn posts to track. Exiting.");
-    await prisma.$disconnect();
     return { tracked: 0, skipped: 0, errors: 0 };
   }
 
@@ -285,8 +282,6 @@ export async function trackLinkedInEngagement(): Promise<{
       continue;
     }
   }
-
-  await prisma.$disconnect();
 
   log(`\nTracking complete:`);
   log(`  Tracked: ${tracked}`);
