@@ -3,6 +3,10 @@ import { verifyCronSecret, unauthorizedResponse } from "@/lib/cron-auth";
 import { trackLinkedInEngagement } from "@/lib/tasks/track-linkedin";
 import { prisma } from "@/lib/prisma";
 
+// LinkedIn scraping involves launching a headless browser and visiting each post.
+// Give it 5 minutes to handle up to ~10 activities with navigation + delays.
+export const maxDuration = 300;
+
 export async function GET(request: NextRequest) {
   if (!verifyCronSecret(request)) {
     return unauthorizedResponse();

@@ -3,6 +3,9 @@
  *
  * Fetches engagement metrics (likes, comments, reposts, views) for LinkedIn posts
  * using Puppeteer for headless browser automation with serverless Chrome.
+ *
+ * Uses a single browser instance across all activities to reduce overhead and
+ * avoid Vercel function timeouts.
  */
 
 import { prisma } from "../prisma";
@@ -60,15 +63,17 @@ function normalizeRelativeDate(dateText: string): string | null {
     const unit = relativeMatch[2].toLowerCase();
 
     const date = new Date(today);
-    if (unit === 'd') date.setDate(date.getDate() - num);
-    else if (unit === 'w') date.setDate(date.getDate() - (num * 7));
-    else if (unit === 'm') date.setMonth(date.getMonth() - num);
-    else if (unit === 'y') date.setFullYear(date.getFullYear() - num);
+    if (unit === "d") date.setDate(date.getDate() - num);
+    else if (unit === "w") date.setDate(date.getDate() - num * 7);
+    else if (unit === "m") date.setMonth(date.getMonth() - num);
+    else if (unit === "y") date.setFullYear(date.getFullYear() - num);
 
     return date.toISOString().slice(0, 10);
   }
 
-  const absoluteWithYear = dateText.match(/([A-Z][a-z]{2,8})\s+(\d{1,2}),?\s+(\d{4})/i);
+  const absoluteWithYear = dateText.match(
+    /([A-Z][a-z]{2,8})\s+(\d{1,2}),?\s+(\d{4})/i,
+  );
   if (absoluteWithYear) {
     const monthName = absoluteWithYear[1];
     const day = absoluteWithYear[2];
@@ -102,27 +107,48 @@ function parseLinkedInMetrics(pageText: string): EngagementMetrics {
     views: null,
   };
 
-  const commentsMatch = pageText.match(/(\d+[,\d]*(?:\.\d+)?[KkMm]?)\s*[Cc]omments?/);
+  // Detect auth wall — LinkedIn redirects unauthenticated requests to login
+  const isAuthWall =
+    pageText.includes("Join LinkedIn") ||
+    pageText.includes("Sign in") ||
+    pageText.includes("authwall") ||
+    pageText.includes("Log in or sign up");
+  if (isAuthWall) {
+    log("  ⚠ Auth wall detected — LinkedIn requires login to view this post");
+    return metrics; // all nulls
+  }
+
+  const commentsMatch = pageText.match(
+    /(\d+[,\d]*(?:\.\d+)?[KkMm]?)\s*[Cc]omments?/,
+  );
   if (commentsMatch) {
     metrics.comments = parseNumber(commentsMatch[1]);
   }
 
-  const likesBeforeComments = pageText.match(/(\d+[,\d]*(?:\.\d+)?[KkMm]?)\s*\n\s*\d+[,\d]*(?:\.\d+)?[KkMm]?\s*[Cc]omments?/);
+  const likesBeforeComments = pageText.match(
+    /(\d+[,\d]*(?:\.\d+)?[KkMm]?)\s*\n\s*\d+[,\d]*(?:\.\d+)?[KkMm]?\s*[Cc]omments?/,
+  );
   if (likesBeforeComments) {
     metrics.likes = parseNumber(likesBeforeComments[1]);
   } else {
-    const likesMatch = pageText.match(/(\d+[,\d]*(?:\.\d+)?[KkMm]?)\s*(?:[Rr]eactions?|[Ll]ikes?)/);
+    const likesMatch = pageText.match(
+      /(\d+[,\d]*(?:\.\d+)?[KkMm]?)\s*(?:[Rr]eactions?|[Ll]ikes?)/,
+    );
     if (likesMatch) {
       metrics.likes = parseNumber(likesMatch[1]);
     }
   }
 
-  const repostsMatch = pageText.match(/(\d+[,\d]*(?:\.\d+)?[KkMm]?)\s*reposts?/i);
+  const repostsMatch = pageText.match(
+    /(\d+[,\d]*(?:\.\d+)?[KkMm]?)\s*reposts?/i,
+  );
   if (repostsMatch) {
     metrics.reposts = parseNumber(repostsMatch[1]);
   }
 
-  const viewsMatch = pageText.match(/(\d+[,\d]*(?:\.\d+)?[KkMm]?)\s*(?:views?|impressions?)/i);
+  const viewsMatch = pageText.match(
+    /(\d+[,\d]*(?:\.\d+)?[KkMm]?)\s*(?:views?|impressions?)/i,
+  );
   if (viewsMatch) {
     metrics.views = parseNumber(viewsMatch[1]);
   }
@@ -140,7 +166,9 @@ function parseLinkedInMetrics(pageText: string): EngagementMetrics {
   }
 
   if (!dateMatch) {
-    dateMatch = pageText.match(/(?:Posted|Edited|Published)\s+[•·]\s+(\d+[dwmy]\s+ago|[A-Z][a-z]{2,8}\s+\d{1,2})/i);
+    dateMatch = pageText.match(
+      /(?:Posted|Edited|Published)\s+[•·]\s+(\d+[dwmy]\s+ago|[A-Z][a-z]{2,8}\s+\d{1,2})/i,
+    );
   }
 
   if (dateMatch) {
@@ -149,46 +177,6 @@ function parseLinkedInMetrics(pageText: string): EngagementMetrics {
   }
 
   return metrics;
-}
-
-async function extractPostMetrics(
-  url: string,
-  activityDate: string | null
-): Promise<EngagementMetrics> {
-  const browser = await puppeteer.launch({
-    args: chromium.args,
-    defaultViewport: chromium.defaultViewport,
-    executablePath: await chromium.executablePath(),
-    headless: chromium.headless,
-  });
-
-  try {
-    const page = await browser.newPage();
-
-    await page.setUserAgent(
-      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-    );
-
-    log(`  Navigating to: ${url}`);
-    await page.goto(url, {
-      waitUntil: 'networkidle2',
-      timeout: 30000
-    });
-
-    await new Promise(resolve => setTimeout(resolve, 3000));
-
-    const pageText = await page.evaluate(() => document.body.innerText);
-
-    const metrics = parseLinkedInMetrics(pageText);
-
-    if (activityDate && activityDate.trim() !== '') {
-      metrics.postDate = activityDate;
-    }
-
-    return metrics;
-  } finally {
-    await browser.close();
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -223,64 +211,119 @@ export async function trackLinkedInEngagement(): Promise<{
   let skipped = 0;
   let errors = 0;
 
-  for (const activity of activities) {
-    if (!activity.contentUrl) {
-      skipped++;
-      continue;
-    }
+  // Launch a single browser instance shared across all activities.
+  // @sparticuz/chromium v143 + puppeteer-core v24:
+  //   headless: "shell" uses chrome-headless-shell (already in chromium.args)
+  //   puppeteer.defaultArgs merges chromium's serverless flags with puppeteer's defaults
+  log("Launching headless browser...");
+  const executablePath = await chromium.executablePath();
+  const browser = await puppeteer.launch({
+    args: puppeteer.defaultArgs({ args: chromium.args, headless: true }),
+    defaultViewport: { width: 1280, height: 800 },
+    executablePath,
+    headless: "shell",
+  });
+  log(`Browser launched (executablePath: ${executablePath})`);
 
-    log(`\nProcessing: ${activity.partnerName}`);
+  try {
+    for (const activity of activities) {
+      if (!activity.contentUrl) {
+        skipped++;
+        continue;
+      }
 
-    try {
-      const metrics = await extractPostMetrics(
-        activity.contentUrl,
-        activity.date
-      );
+      log(`\nProcessing: ${activity.partnerName} — ${activity.contentUrl}`);
 
-      log(`  Extracted metrics:`);
-      log(`    Likes: ${metrics.likes ?? 'N/A'}`);
-      log(`    Comments: ${metrics.comments ?? 'N/A'}`);
-      log(`    Reposts: ${metrics.reposts ?? 'N/A'}`);
-      log(`    Views: ${metrics.views ?? 'N/A'}`);
-      const dateSource = activity.date ? '(from Sheets)' : '(from DOM)';
-      log(`    Post Date: ${metrics.postDate ?? 'N/A'} ${metrics.postDate ? dateSource : ''}`);
+      try {
+        const page = await browser.newPage();
 
-      await prisma.linkedInEngagement.upsert({
-        where: {
-          activityId_date: {
+        await page.setUserAgent(
+          "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+        );
+
+        // Block images/fonts/css to speed up page loads
+        await page.setRequestInterception(true);
+        page.on("request", (req) => {
+          const type = req.resourceType();
+          if (["image", "stylesheet", "font", "media"].includes(type)) {
+            req.abort();
+          } else {
+            req.continue();
+          }
+        });
+
+        log(`  Navigating to: ${activity.contentUrl}`);
+        await page.goto(activity.contentUrl, {
+          waitUntil: "domcontentloaded",
+          timeout: 20000,
+        });
+
+        // Brief wait for any dynamic content
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+
+        const pageText = await page.evaluate(() => document.body.innerText);
+        await page.close();
+
+        // Log a short preview to help diagnose auth walls or unexpected pages
+        const preview = pageText.slice(0, 150).replace(/\n/g, " ");
+        log(`  Page preview: "${preview}"`);
+
+        const metrics = parseLinkedInMetrics(pageText);
+
+        // Always use the activity date from Sheets as the canonical post date
+        if (activity.date && activity.date.trim() !== "") {
+          metrics.postDate = activity.date;
+        }
+
+        log(`  Extracted: likes=${metrics.likes ?? "N/A"}, comments=${metrics.comments ?? "N/A"}, reposts=${metrics.reposts ?? "N/A"}, views=${metrics.views ?? "N/A"}`);
+
+        await prisma.linkedInEngagement.upsert({
+          where: {
+            activityId_date: {
+              activityId: activity.id,
+              date: today,
+            },
+          },
+          create: {
             activityId: activity.id,
             date: today,
+            postDate: metrics.postDate,
+            likes: metrics.likes,
+            comments: metrics.comments,
+            reposts: metrics.reposts,
+            views: metrics.views,
           },
-        },
-        create: {
-          activityId: activity.id,
-          date: today,
-          postDate: metrics.postDate,
-          likes: metrics.likes,
-          comments: metrics.comments,
-          reposts: metrics.reposts,
-          views: metrics.views,
-        },
-        update: {
-          postDate: metrics.postDate,
-          likes: metrics.likes,
-          comments: metrics.comments,
-          reposts: metrics.reposts,
-          views: metrics.views,
-        },
-      });
+          update: {
+            postDate: metrics.postDate,
+            likes: metrics.likes,
+            comments: metrics.comments,
+            reposts: metrics.reposts,
+            views: metrics.views,
+          },
+        });
 
-      log(`  ✓ Saved to database`);
-      tracked++;
+        log(`  ✓ Saved to database`);
+        tracked++;
 
-      if (activities.indexOf(activity) < activities.length - 1) {
-        await new Promise((resolve) => setTimeout(resolve, 3000));
+        // Brief pause between posts to avoid rate-limiting
+        if (activities.indexOf(activity) < activities.length - 1) {
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+        }
+      } catch (err) {
+        logError(
+          `Failed to process ${activity.partnerName}: ${err instanceof Error ? err.message : String(err)}`,
+        );
+        errors++;
+        // Clean up any pages that may have been left open before continuing
+        const pages = await browser.pages();
+        for (const p of pages.slice(1)) {
+          await p.close().catch(() => {});
+        }
       }
-    } catch (err) {
-      logError(`Failed to process ${activity.partnerName}: ${err}`);
-      errors++;
-      continue;
     }
+  } finally {
+    await browser.close();
+    log("Browser closed.");
   }
 
   log(`\nTracking complete:`);
