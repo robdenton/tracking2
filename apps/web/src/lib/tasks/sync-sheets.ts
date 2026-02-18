@@ -9,9 +9,7 @@
  * The sheet must be shared as "Anyone with the link can view".
  */
 
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { prisma } from "../prisma";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -598,54 +596,48 @@ export async function syncGoogleSheets(): Promise<{
   );
 
   // --- Step 4: Write to DB inside a transaction ---
+  // Use createMany for bulk inserts (4 queries instead of 555+) to avoid
+  // Prisma interactive-transaction timeouts on Vercel serverless.
   try {
     await prisma.$transaction(async (tx) => {
       // Clear existing data
       await tx.activity.deleteMany();
       await tx.dailyMetric.deleteMany();
 
-      // Insert activities
-      for (const act of allActivities) {
-        await tx.activity.create({
-          data: {
-            activityType: act.activityType,
-            channel: act.channel,
-            partnerName: act.partnerName,
-            date: act.date,
-            status: act.status,
-            costUsd: act.costUsd,
-            deterministicClicks: act.deterministicClicks,
-            actualClicks: act.actualClicks,
-            deterministicTrackedSignups: act.deterministicTrackedSignups,
-            notes: act.notes,
-            metadata: act.metadata,
-            contentUrl: act.contentUrl,
-            channelUrl: act.channelUrl,
-          },
-        });
-      }
+      // Bulk-insert activities
+      await tx.activity.createMany({
+        data: allActivities.map((act) => ({
+          activityType: act.activityType,
+          channel: act.channel,
+          partnerName: act.partnerName,
+          date: act.date,
+          status: act.status,
+          costUsd: act.costUsd,
+          deterministicClicks: act.deterministicClicks,
+          actualClicks: act.actualClicks,
+          deterministicTrackedSignups: act.deterministicTrackedSignups,
+          notes: act.notes,
+          metadata: act.metadata,
+          contentUrl: act.contentUrl,
+          channelUrl: act.channelUrl,
+        })),
+      });
 
-      // Insert daily metrics
-      for (const row of metricRows) {
-        const signups = intOrNull(row["signups"]) ?? 0;
-        const activations = intOrNull(row["activations"]) ?? 0;
-        await tx.dailyMetric.create({
-          data: {
-            date: row["date"],
-            channel: row["channel"],
-            signups,
-            activations,
-          },
-        });
-      }
+      // Bulk-insert daily metrics
+      await tx.dailyMetric.createMany({
+        data: metricRows.map((row) => ({
+          date: row["date"],
+          channel: row["channel"],
+          signups: intOrNull(row["signups"]) ?? 0,
+          activations: intOrNull(row["activations"]) ?? 0,
+        })),
+      });
     });
   } catch (err) {
     logError(
       `Database write failed: ${err instanceof Error ? err.message : err}`,
     );
     throw err;
-  } finally {
-    await prisma.$disconnect();
   }
 
   log(
