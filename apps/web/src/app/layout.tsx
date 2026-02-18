@@ -60,6 +60,12 @@ export default async function RootLayout({
                   >
                     Pipelines
                   </a>
+                  <a
+                    href="/measurement-explained"
+                    className="text-blue-600 dark:text-blue-400 hover:underline"
+                  >
+                    Measurement
+                  </a>
                 </nav>
               </div>
               {session?.user && <UserMenu user={session.user} />}
