@@ -309,6 +309,24 @@ export async function getImportedVideoById(id: string) {
 }
 
 // ---------------------------------------------------------------------------
+// Partner Functions
+// ---------------------------------------------------------------------------
+
+/**
+ * Get all ActivityReports for a specific partner (case-insensitive name match).
+ * Re-uses getAllReports() so decontamination and attribution are applied correctly.
+ */
+export async function getPartnerReports(
+  partnerName: string,
+): Promise<ActivityReport[]> {
+  const all = await getAllReports();
+  return all.filter(
+    (r) =>
+      r.activity.partnerName.toLowerCase() === partnerName.toLowerCase(),
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Pipeline Status Functions
 // ---------------------------------------------------------------------------
 

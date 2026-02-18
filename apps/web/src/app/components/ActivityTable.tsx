@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { ActivityReport } from "@mai/core";
+
 import {
   formatBetSummary,
   calculateEstimatedCPC,
@@ -175,7 +176,14 @@ export function ActivityTable({ reports, selectedChannel }: ActivityTableProps) 
               className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900"
             >
               <td className="py-2 pr-4 font-mono text-xs">{r.activity.date}</td>
-              <td className="py-2 pr-4">{r.activity.partnerName}</td>
+              <td className="py-2 pr-4">
+                <Link
+                  href={`/partners/${encodeURIComponent(r.activity.partnerName)}`}
+                  className="text-blue-600 dark:text-blue-400 hover:underline"
+                >
+                  {r.activity.partnerName}
+                </Link>
+              </td>
               <td className="py-2 pr-4 text-gray-500">{r.activity.channel}</td>
               <td className="py-2 pr-4">
                 <span
