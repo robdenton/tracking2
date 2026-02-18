@@ -307,3 +307,132 @@ export async function getImportedVideoById(id: string) {
     where: { id },
   });
 }
+
+// ---------------------------------------------------------------------------
+// Pipeline Status Functions
+// ---------------------------------------------------------------------------
+
+export interface PipelineConfig {
+  taskName: string;
+  label: string;
+  description: string;
+  /** UTC hour (0-23) */
+  scheduleHour: number;
+  /** UTC minute */
+  scheduleMinute: number;
+}
+
+export const PIPELINE_CONFIGS: PipelineConfig[] = [
+  {
+    taskName: "sync-sheets",
+    label: "Google Sheets Sync",
+    description: "Imports activities & daily metrics from Google Sheets",
+    scheduleHour: 7,
+    scheduleMinute: 0,
+  },
+  {
+    taskName: "track-youtube",
+    label: "YouTube View Tracking",
+    description: "Tracks view counts for YouTube activity videos",
+    scheduleHour: 8,
+    scheduleMinute: 0,
+  },
+  {
+    taskName: "track-imported",
+    label: "Imported Video Tracking",
+    description: "Tracks view counts for all imported YouTube videos",
+    scheduleHour: 8,
+    scheduleMinute: 15,
+  },
+  {
+    taskName: "track-linkedin",
+    label: "LinkedIn Engagement",
+    description: "Scrapes likes, comments, reposts & views from LinkedIn posts",
+    scheduleHour: 8,
+    scheduleMinute: 30,
+  },
+  {
+    taskName: "youtube-search",
+    label: "YouTube Search",
+    description: "Finds new Granola AI mentions on YouTube",
+    scheduleHour: 8,
+    scheduleMinute: 0,
+  },
+];
+
+/** Compute the next UTC run time for a given hour/minute schedule */
+function nextRunTime(scheduleHour: number, scheduleMinute: number): Date {
+  const now = new Date();
+  const next = new Date(
+    Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate(),
+      scheduleHour,
+      scheduleMinute,
+      0,
+      0
+    )
+  );
+  // If that time has already passed today, roll to tomorrow
+  if (next <= now) {
+    next.setUTCDate(next.getUTCDate() + 1);
+  }
+  return next;
+}
+
+export interface PipelineStatus {
+  config: PipelineConfig;
+  lastRun: {
+    id: string;
+    startedAt: Date;
+    completedAt: Date | null;
+    status: string;
+    resultJson: string | null;
+    errorMessage: string | null;
+  } | null;
+  nextRun: Date;
+}
+
+/**
+ * Get the latest execution status for each pipeline.
+ */
+export async function getPipelineStatuses(): Promise<PipelineStatus[]> {
+  // Fetch latest execution per task using DISTINCT ON (PostgreSQL)
+  const latestExecutions = await prisma.$queryRaw<
+    Array<{
+      id: string;
+      task_name: string;
+      started_at: Date;
+      completed_at: Date | null;
+      status: string;
+      result_json: string | null;
+      error_message: string | null;
+    }>
+  >`
+    SELECT DISTINCT ON (task_name)
+      id, task_name, started_at, completed_at, status, result_json, error_message
+    FROM cron_executions
+    ORDER BY task_name, started_at DESC
+  `;
+
+  const executionsByTask = new Map(latestExecutions.map((e) => [e.task_name, e]));
+
+  return PIPELINE_CONFIGS.map((config) => {
+    const row = executionsByTask.get(config.taskName);
+    return {
+      config,
+      lastRun: row
+        ? {
+            id: row.id,
+            startedAt: row.started_at,
+            completedAt: row.completed_at,
+            status: row.status,
+            resultJson: row.result_json,
+            errorMessage: row.error_message,
+          }
+        : null,
+      nextRun: nextRunTime(config.scheduleHour, config.scheduleMinute),
+    };
+  });
+}

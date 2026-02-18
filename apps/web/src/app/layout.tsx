@@ -54,6 +54,12 @@ export default async function RootLayout({
                   >
                     YouTube Import
                   </a>
+                  <a
+                    href="/pipelines"
+                    className="text-blue-600 dark:text-blue-400 hover:underline"
+                  >
+                    Pipelines
+                  </a>
                 </nav>
               </div>
               {session?.user && <UserMenu user={session.user} />}
