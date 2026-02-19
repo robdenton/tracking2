@@ -216,7 +216,13 @@ export async function trackLinkedInEngagement(): Promise<{
   //   headless: "shell" uses chrome-headless-shell (already in chromium.args)
   //   puppeteer.defaultArgs merges chromium's serverless flags with puppeteer's defaults
   log("Launching headless browser...");
-  const executablePath = await chromium.executablePath();
+  const remoteUrl =
+    process.env.CHROMIUM_REMOTE_EXEC_PATH ??
+    "https://github.com/Sparticuz/chromium/releases/download/v143.0.0/chromium-v143.0.0-pack.tar";
+  const executablePath =
+    process.env.NODE_ENV === "development"
+      ? undefined
+      : await chromium.executablePath(remoteUrl);
   const browser = await puppeteer.launch({
     args: puppeteer.defaultArgs({ args: chromium.args, headless: true }),
     defaultViewport: { width: 1280, height: 800 },

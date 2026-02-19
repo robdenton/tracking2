@@ -105,7 +105,18 @@ export async function scrapeLinkedInCompany(
   const feedUrl = normaliseCompanyUrl(companyUrl);
   log(`Scraping LinkedIn company feed: ${feedUrl}`);
 
-  const executablePath = await chromium.executablePath();
+  // On Vercel, the @sparticuz/chromium binary is not bundled with the function.
+  // We pass a remote URL so chromium downloads and caches it at runtime.
+  // The CHROMIUM_REMOTE_EXEC_PATH env var can override (e.g. for local use).
+  const remoteUrl =
+    process.env.CHROMIUM_REMOTE_EXEC_PATH ??
+    "https://github.com/Sparticuz/chromium/releases/download/v143.0.0/chromium-v143.0.0-pack.tar";
+
+  const executablePath =
+    process.env.NODE_ENV === "development"
+      ? undefined // use system Chrome in local dev if available
+      : await chromium.executablePath(remoteUrl);
+
   const browser = await puppeteer.launch({
     args: puppeteer.defaultArgs({ args: chromium.args, headless: true }),
     defaultViewport: { width: 1280, height: 900 },
