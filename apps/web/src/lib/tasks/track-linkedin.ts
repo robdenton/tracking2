@@ -218,7 +218,7 @@ export async function trackLinkedInEngagement(): Promise<{
   log("Launching headless browser...");
   const remoteUrl =
     process.env.CHROMIUM_REMOTE_EXEC_PATH ??
-    "https://github.com/Sparticuz/chromium/releases/download/v143.0.0/chromium-v143.0.0-pack.tar";
+    "https://github.com/Sparticuz/chromium/releases/download/v143.0.0/chromium-v143.0.0-pack.x64.tar";
   const executablePath =
     process.env.NODE_ENV === "development"
       ? undefined

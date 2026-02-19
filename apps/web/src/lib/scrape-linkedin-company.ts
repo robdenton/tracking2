@@ -110,7 +110,7 @@ export async function scrapeLinkedInCompany(
   // The CHROMIUM_REMOTE_EXEC_PATH env var can override (e.g. for local use).
   const remoteUrl =
     process.env.CHROMIUM_REMOTE_EXEC_PATH ??
-    "https://github.com/Sparticuz/chromium/releases/download/v143.0.0/chromium-v143.0.0-pack.tar";
+    "https://github.com/Sparticuz/chromium/releases/download/v143.0.0/chromium-v143.0.0-pack.x64.tar";
 
   const executablePath =
     process.env.NODE_ENV === "development"
@@ -142,7 +142,21 @@ export async function scrapeLinkedInCompany(
       }
     });
 
-    await page.goto(feedUrl, { waitUntil: "domcontentloaded", timeout: 25000 });
+    log(`  Navigating to: ${feedUrl}`);
+    const response = await page.goto(feedUrl, {
+      waitUntil: "domcontentloaded",
+      timeout: 30000,
+    });
+
+    const httpStatus = response?.status() ?? 0;
+    log(`  HTTP status: ${httpStatus}`);
+
+    // LinkedIn often returns 999 for bot detection or 404/403 for blocked requests.
+    // Don't throw — instead, continue and check the page content for auth wall or usable data.
+    if (httpStatus >= 400 && httpStatus !== 999) {
+      log(`  Non-success HTTP status ${httpStatus}, will check page content...`);
+    }
+
     // Wait for dynamic content to render
     await new Promise((r) => setTimeout(r, 4000));
 
