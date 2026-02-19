@@ -61,6 +61,12 @@ export default async function RootLayout({
                     Pipelines
                   </a>
                   <a
+                    href="/linkedin-analysis"
+                    className="text-blue-600 dark:text-blue-400 hover:underline"
+                  >
+                    LinkedIn Analysis
+                  </a>
+                  <a
                     href="/measurement-explained"
                     className="text-blue-600 dark:text-blue-400 hover:underline"
                   >
