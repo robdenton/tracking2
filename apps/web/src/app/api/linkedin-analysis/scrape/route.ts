@@ -1,13 +1,10 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import {
-  scrapeLinkedInCompany,
-  extractSlug,
-} from "@/lib/scrape-linkedin-company";
+import { parseLinkedInFeed, extractSlug } from "@/lib/parse-linkedin-feed";
 import { categorisePosts } from "@/lib/categorise-linkedin-posts";
 
-export const maxDuration = 300;
+export const maxDuration = 120;
 
 export async function POST(request: NextRequest) {
   const session = await auth();
@@ -15,14 +12,14 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: { url?: string; force?: boolean };
+  let body: { url?: string; pageText?: string; force?: boolean };
   try {
     body = await request.json();
   } catch {
     return Response.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { url, force = false } = body;
+  const { url, pageText, force = false } = body;
 
   if (!url || typeof url !== "string") {
     return Response.json({ error: "url is required" }, { status: 400 });
@@ -43,6 +40,13 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  if (!pageText || typeof pageText !== "string" || pageText.trim().length < 50) {
+    return Response.json(
+      { error: "pageText is required. Paste the full page text from the LinkedIn company posts page." },
+      { status: 400 }
+    );
+  }
+
   // Check for recent cached analysis (< 24 hours) unless force refresh
   if (!force) {
     const existing = await prisma.linkedInCompany.findUnique({
@@ -50,7 +54,7 @@ export async function POST(request: NextRequest) {
       include: { posts: true },
     });
 
-    if (existing) {
+    if (existing && existing.posts.length > 0) {
       const ageMs = Date.now() - existing.scrapedAt.getTime();
       const twentyFourHours = 24 * 60 * 60 * 1000;
       if (ageMs < twentyFourHours) {
@@ -65,45 +69,25 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Check Anthropic API key before starting the expensive scrape
+  // Check Anthropic API key
   if (!process.env.ANTHROPIC_API_KEY) {
     return Response.json(
       {
         error:
-          "ANTHROPIC_API_KEY is not configured. Add it to your .env file to enable post categorisation.",
+          "ANTHROPIC_API_KEY is not configured. Add it to your environment variables.",
       },
       { status: 503 }
     );
   }
 
-  // Scrape the company feed
-  let scrapeResult;
-  try {
-    scrapeResult = await scrapeLinkedInCompany(url);
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return Response.json(
-      { error: `Scraping failed: ${msg}` },
-      { status: 500 }
-    );
-  }
+  // Parse posts from raw page text
+  const parseResult = parseLinkedInFeed(pageText);
 
-  if (scrapeResult.authWall) {
+  if (parseResult.posts.length === 0) {
     return Response.json(
       {
         error:
-          "LinkedIn requires login to view this page. The scraper hit an authentication wall. Try again after ensuring the company page is publicly visible.",
-        authWall: true,
-      },
-      { status: 403 }
-    );
-  }
-
-  if (scrapeResult.posts.length === 0) {
-    return Response.json(
-      {
-        error:
-          "No posts were found on this page. The company may have no public posts, or the page structure could not be parsed.",
+          "No posts could be parsed from the pasted text. Make sure you copied the full page content from the LinkedIn company posts page (Cmd+A then Cmd+C).",
       },
       { status: 422 }
     );
@@ -112,7 +96,7 @@ export async function POST(request: NextRequest) {
   // Categorise posts with Claude
   let categorisedPosts;
   try {
-    categorisedPosts = await categorisePosts(scrapeResult.posts);
+    categorisedPosts = await categorisePosts(parseResult.posts);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     return Response.json(
@@ -121,17 +105,18 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Persist to database — delete old posts for this company and re-insert
+  // Persist to database
+  const companyName = parseResult.companyName ?? slug;
   const company = await prisma.linkedInCompany.upsert({
     where: { slug },
     create: {
       slug,
-      name: scrapeResult.companyName,
+      name: companyName,
       linkedinUrl: url,
       scrapedAt: new Date(),
     },
     update: {
-      name: scrapeResult.companyName ?? undefined,
+      name: companyName,
       linkedinUrl: url,
       scrapedAt: new Date(),
     },
@@ -147,11 +132,11 @@ export async function POST(request: NextRequest) {
       companyId: company.id,
       postText: p.postText,
       postDate: p.postDate,
-      postUrl: p.postUrl,
+      postUrl: null,
       likes: p.likes,
       comments: p.comments,
       reposts: p.reposts,
-      views: p.views,
+      views: null,
       category: p.category,
       categoryReasoning: p.categoryReasoning,
     })),
@@ -159,7 +144,7 @@ export async function POST(request: NextRequest) {
 
   return Response.json({
     companySlug: slug,
-    companyName: scrapeResult.companyName,
+    companyName,
     cached: false,
     scrapedAt: company.scrapedAt.toISOString(),
     postCount: categorisedPosts.length,

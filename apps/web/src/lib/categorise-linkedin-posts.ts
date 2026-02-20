@@ -2,13 +2,13 @@
  * LinkedIn Post Categorisation via Claude Haiku
  *
  * Uses the Anthropic API to assign a content category and one-sentence
- * reasoning to each scraped LinkedIn post.
+ * reasoning to each parsed LinkedIn post.
  */
 
 import Anthropic from "@anthropic-ai/sdk";
-import type { ScrapedPost } from "./scrape-linkedin-company";
+import type { ParsedPost } from "./parse-linkedin-feed";
 
-export interface CategorisedPost extends ScrapedPost {
+export interface CategorisedPost extends ParsedPost {
   category: string;
   categoryReasoning: string;
 }
@@ -82,11 +82,11 @@ async function categoriseOne(
 }
 
 /**
- * Categorises an array of scraped posts using Claude Haiku.
+ * Categorises an array of parsed posts using Claude Haiku.
  * Processes in batches of 5 concurrent requests.
  */
 export async function categorisePosts(
-  posts: ScrapedPost[]
+  posts: ParsedPost[]
 ): Promise<CategorisedPost[]> {
   const results: CategorisedPost[] = [];
   const batchSize = 5;
