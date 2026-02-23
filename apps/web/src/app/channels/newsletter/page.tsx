@@ -367,7 +367,21 @@ export default async function NewsletterChannelPage({
       </div>
 
       {/* CPA Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 overflow-visible">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6 overflow-visible">
+        <StatCard
+          label="Total Spend"
+          value={formatCurrency(totalCost)}
+          sub={`${activities.length} activities`}
+          tooltip="Total newsletter spend across all activities in the selected date range."
+          learnMoreHref="/measurement-explained#cpa"
+        />
+        <StatCard
+          label="Actual CPC"
+          value={totalActualClicks > 0 ? formatCurrency(totalCost / totalActualClicks) : "—"}
+          sub="Cost / Actual click"
+          tooltip="Total spend divided by total measured clicks in the selected date range. Reflects the blended cost per click across all newsletters."
+          learnMoreHref="/measurement-explained#newsletter"
+        />
         <StatCard
           label="Blended CPA"
           value={formatCurrency(blendedCpaSignup) ?? "—"}
