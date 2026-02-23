@@ -303,13 +303,13 @@ export default async function NewsletterChannelPage({
         </div>
         <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
           <div className="text-xs text-gray-500 mb-1">Incremental account created</div>
-          <div className="text-2xl font-mono font-semibold">{totalIncrementalSignups.toFixed(0)}</div>
-          <div className="text-xs text-gray-400 mt-1">Estimated</div>
+          <div className="text-2xl font-mono font-semibold">{Math.round(totalIncrementalSignups).toLocaleString()}</div>
+          <div className="text-xs text-gray-400 mt-1">Attributed</div>
         </div>
         <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
           <div className="text-xs text-gray-500 mb-1">Incremental NAU</div>
-          <div className="text-2xl font-mono font-semibold">{totalIncrementalActivations.toFixed(0)}</div>
-          <div className="text-xs text-gray-400 mt-1">Estimated</div>
+          <div className="text-2xl font-mono font-semibold">{Math.round(totalIncrementalActivations).toLocaleString()}</div>
+          <div className="text-xs text-gray-400 mt-1">Attributed</div>
         </div>
       </div>
 
