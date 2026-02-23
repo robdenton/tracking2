@@ -68,61 +68,25 @@ export function buildPostWindowDateMap(
 }
 
 /**
- * Calculate daily activations from metrics for attribution pooling.
+ * Count the number of days in a post-window (inclusive).
  */
-export function calculateDailyActivationsFromMetrics(
-  metrics: DailyMetric[],
-  channel: string,
-  dateRange: { start: string; end: string },
-): Map<string, number> {
-  const dailyActivations = new Map<string, number>();
-
-  const channelMetrics = metrics.filter(
-    (m) =>
-      m.channel === channel &&
-      m.date >= dateRange.start &&
-      m.date <= dateRange.end,
-  );
-
-  for (const metric of channelMetrics) {
-    dailyActivations.set(metric.date, metric.activations);
-  }
-
-  return dailyActivations;
+function postWindowDays(report: ActivityReport): number {
+  const start = new Date(report.postWindowStart);
+  const end = new Date(report.postWindowEnd);
+  return Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 }
-
-/**
- * Calculate daily signups from metrics for attribution pooling.
- */
-export function calculateDailySignupsFromMetrics(
-  metrics: DailyMetric[],
-  channel: string,
-  dateRange: { start: string; end: string },
-): Map<string, number> {
-  const dailySignups = new Map<string, number>();
-
-  const channelMetrics = metrics.filter(
-    (m) =>
-      m.channel === channel &&
-      m.date >= dateRange.start &&
-      m.date <= dateRange.end,
-  );
-
-  for (const metric of channelMetrics) {
-    dailySignups.set(metric.date, metric.signups);
-  }
-
-  return dailySignups;
-}
-
-/**
- * @deprecated Use calculateDailyActivationsFromMetrics instead
- */
-export const calculateDailyIncrementalFromMetrics = calculateDailyActivationsFromMetrics;
 
 /**
  * Apply proportional attribution to overlapping activities.
- * Uses clicks to distribute pooled incremental signups.
+ *
+ * Algorithm: For each day in an activity's post-window, we pool the
+ * pro-rated daily incremental from ALL overlapping activities (each
+ * activity contributes its total incremental ÷ post-window days).
+ * That pool is then redistributed proportionally by click share.
+ *
+ * This ensures we only ever redistribute true uplift (incremental),
+ * not total observed metrics, so attributed values are always a
+ * fraction of the actual uplift — never the full observed total.
  */
 export function applyProportionalAttribution(
   reports: ActivityReport[],
@@ -136,35 +100,14 @@ export function applyProportionalAttribution(
   // Build map of overlapping activities by date
   const dateMap = buildPostWindowDateMap(reports, config.channels);
 
-  // Calculate date range for metrics
-  const allDates = Array.from(dateMap.keys()).sort();
-  if (allDates.length === 0) {
-    return reports; // No overlapping activities
+  if (dateMap.size === 0) {
+    return reports; // No activities with positive incremental
   }
-
-  const dateRange = {
-    start: allDates[0],
-    end: allDates[allDates.length - 1],
-  };
 
   // Build a map of reports by activity ID for quick lookup
   const reportMap = new Map<string, ActivityReport>();
   for (const report of reports) {
     reportMap.set(report.activity.id, report);
-  }
-
-  // For each applicable channel, calculate daily activation and signup pools
-  const dailyActivationMaps = new Map<string, Map<string, number>>();
-  const dailySignupMaps = new Map<string, Map<string, number>>();
-  for (const channel of config.channels) {
-    dailyActivationMaps.set(
-      channel,
-      calculateDailyActivationsFromMetrics(metrics, channel, dateRange),
-    );
-    dailySignupMaps.set(
-      channel,
-      calculateDailySignupsFromMetrics(metrics, channel, dateRange),
-    );
   }
 
   // Process each report
@@ -178,7 +121,10 @@ export function applyProportionalAttribution(
     }
 
     // Skip if not live or no positive incremental (signups or activations)
-    if (report.activity.status !== "live" || (report.incremental <= 0 && report.incrementalActivations <= 0)) {
+    if (
+      report.activity.status !== "live" ||
+      (report.incremental <= 0 && report.incrementalActivations <= 0)
+    ) {
       attributedReports.push(report);
       continue;
     }
@@ -205,10 +151,15 @@ export function applyProportionalAttribution(
       continue;
     }
 
+    // Calculate this activity's daily pro-rated incremental
+    const myWindowDays = postWindowDays(report);
+    const myDailySignups = report.incremental / myWindowDays;
+    const myDailyActivations = report.incrementalActivations / myWindowDays;
+
     // Calculate attribution for each day in post-window
     const dailyShares: DailyAttributionShare[] = [];
-    let totalAttributedActivations = 0;
     let totalAttributedSignups = 0;
+    let totalAttributedActivations = 0;
 
     const startDate = new Date(report.postWindowStart);
     const endDate = new Date(report.postWindowEnd);
@@ -223,45 +174,42 @@ export function applyProportionalAttribution(
       // Get overlapping activities for this date
       const overlappingIds = dateMap.get(dateStr) || [];
       if (overlappingIds.length === 0) {
-        continue; // No activities on this date
+        // No tracked overlaps — this activity gets its own daily incremental
+        totalAttributedSignups += myDailySignups;
+        totalAttributedActivations += myDailyActivations;
+        continue;
       }
 
-      // Calculate total clicks from all overlapping activities
+      // Pool = sum of each overlapping activity's pro-rated daily incremental
+      let pooledSignups = 0;
+      let pooledActivations = 0;
       let totalClicks = 0;
-      const overlappingReports: ActivityReport[] = [];
 
       for (const activityId of overlappingIds) {
         const overlappingReport = reportMap.get(activityId);
         if (!overlappingReport) continue;
+
+        const windowDays = postWindowDays(overlappingReport);
+        pooledSignups += overlappingReport.incremental / windowDays;
+        pooledActivations += overlappingReport.incrementalActivations / windowDays;
 
         const { clicks: overlappingClicks } = getClicksForAttribution(
           overlappingReport.activity,
         );
         if (overlappingClicks != null && overlappingClicks > 0) {
           totalClicks += overlappingClicks;
-          overlappingReports.push(overlappingReport);
         }
       }
 
+      // Fall back to equal distribution if no click data
       if (totalClicks === 0) {
-        // All activities have zero clicks - fall back to equal distribution
-        totalClicks = overlappingReports.length;
+        totalClicks = overlappingIds.length;
       }
 
-      // Get pooled activations and signups for this date
-      const dailyActivationMap = dailyActivationMaps.get(
-        report.activity.channel,
-      );
-      const dailySignupMap = dailySignupMaps.get(
-        report.activity.channel,
-      );
-      const pooledActivations = dailyActivationMap?.get(dateStr) || 0;
-      const pooledSignups = dailySignupMap?.get(dateStr) || 0;
-
-      // Calculate this activity's share
+      // This activity's share of the pooled incremental
       const share = clicks / totalClicks;
-      const attributedActivations = pooledActivations * share;
       const attributedSignups = pooledSignups * share;
+      const attributedActivations = pooledActivations * share;
 
       dailyShares.push({
         date: dateStr,
@@ -275,8 +223,8 @@ export function applyProportionalAttribution(
         overlappingActivities: overlappingIds,
       });
 
-      totalAttributedActivations += attributedActivations;
       totalAttributedSignups += attributedSignups;
+      totalAttributedActivations += attributedActivations;
     }
 
     // Create new report with attribution for both signups and activations
@@ -298,4 +246,21 @@ export function applyProportionalAttribution(
   }
 
   return attributedReports;
+}
+
+/**
+ * @deprecated Use calculateDailyActivationsFromMetrics instead
+ */
+export function calculateDailyIncrementalFromMetrics(
+  metrics: DailyMetric[],
+  channel: string,
+  dateRange: { start: string; end: string },
+): Map<string, number> {
+  const result = new Map<string, number>();
+  for (const m of metrics) {
+    if (m.channel === channel && m.date >= dateRange.start && m.date <= dateRange.end) {
+      result.set(m.date, m.activations);
+    }
+  }
+  return result;
 }
