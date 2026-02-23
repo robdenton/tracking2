@@ -40,6 +40,7 @@ function aggregateToTimeSeries(
   reports: Array<{
     activity: { id: string; date: string };
     incremental: number;
+    incrementalActivations: number;
   }>,
   grouping: TimeSeriesGrouping
 ): TimeSeriesDataPoint[] {
@@ -64,20 +65,22 @@ function aggregateToTimeSeries(
     });
   }
 
-  // Group incremental values by period
-  const incrementalByPeriod = new Map<string, number>();
+  // Group incremental values by period — use the same pre-computed fields
+  // as the home page (report.incremental for signups, report.incrementalActivations)
+  const incrSignupsByPeriod = new Map<string, number>();
+  const incrActivationsByPeriod = new Map<string, number>();
 
   for (const report of reports) {
     const period = getPeriodKey(report.activity.date, grouping);
-    const incremental = report.incremental;
-    incrementalByPeriod.set(period, (incrementalByPeriod.get(period) || 0) + incremental);
+    incrSignupsByPeriod.set(period, (incrSignupsByPeriod.get(period) || 0) + report.incremental);
+    incrActivationsByPeriod.set(period, (incrActivationsByPeriod.get(period) || 0) + report.incrementalActivations);
   }
 
   // Combine into time series
   const allPeriods = new Set([
     ...clicksByPeriod.keys(),
     ...metricsByPeriod.keys(),
-    ...incrementalByPeriod.keys(),
+    ...incrSignupsByPeriod.keys(),
   ]);
 
   const timeSeries: TimeSeriesDataPoint[] = Array.from(allPeriods)
@@ -85,14 +88,10 @@ function aggregateToTimeSeries(
     .map((period) => {
       const signups = metricsByPeriod.get(period)?.signups || 0;
       const activations = metricsByPeriod.get(period)?.activations || 0;
-      const rawIncrementalSignups = incrementalByPeriod.get(period) || 0;
 
       // Cap incremental at actual to prevent double-counting from overlapping post-windows
-      const incrementalSignups = Math.min(rawIncrementalSignups, signups);
-
-      // Derive incremental activations using the period's activation rate
-      const activationRate = signups > 0 ? activations / signups : 0;
-      const incrementalActivations = Math.min(incrementalSignups * activationRate, activations);
+      const incrementalSignups = Math.min(incrSignupsByPeriod.get(period) || 0, signups);
+      const incrementalActivations = Math.min(incrActivationsByPeriod.get(period) || 0, activations);
 
       return {
         period,
@@ -120,6 +119,7 @@ function aggregateENAUTimeSeries(
   reports: Array<{
     activity: { id: string; date: string };
     incremental: number;
+    incrementalActivations: number;
   }>,
   grouping: TimeSeriesGrouping
 ): ENAUDataPoint[] {
@@ -144,20 +144,21 @@ function aggregateENAUTimeSeries(
     });
   }
 
-  // Group incremental values by period
-  const incrementalByPeriod = new Map<string, number>();
+  // Group incremental values by period — same pre-computed fields as home page
+  const incrSignupsByPeriod = new Map<string, number>();
+  const incrActivationsByPeriod = new Map<string, number>();
 
   for (const report of reports) {
     const period = getPeriodKey(report.activity.date, grouping);
-    const incremental = report.incremental;
-    incrementalByPeriod.set(period, (incrementalByPeriod.get(period) || 0) + incremental);
+    incrSignupsByPeriod.set(period, (incrSignupsByPeriod.get(period) || 0) + report.incremental);
+    incrActivationsByPeriod.set(period, (incrActivationsByPeriod.get(period) || 0) + report.incrementalActivations);
   }
 
   // Combine into time series
   const allPeriods = new Set([
     ...enauByPeriod.keys(),
     ...metricsByPeriod.keys(),
-    ...incrementalByPeriod.keys(),
+    ...incrSignupsByPeriod.keys(),
   ]);
 
   const timeSeries: ENAUDataPoint[] = Array.from(allPeriods)
@@ -165,11 +166,9 @@ function aggregateENAUTimeSeries(
     .map((period) => {
       const signups = metricsByPeriod.get(period)?.signups || 0;
       const activations = metricsByPeriod.get(period)?.activations || 0;
-      const rawIncrementalSignups = incrementalByPeriod.get(period) || 0;
 
-      const incrementalSignups = Math.min(rawIncrementalSignups, signups);
-      const activationRate = signups > 0 ? activations / signups : 0;
-      const incrementalActivations = Math.min(incrementalSignups * activationRate, activations);
+      const incrementalSignups = Math.min(incrSignupsByPeriod.get(period) || 0, signups);
+      const incrementalActivations = Math.min(incrActivationsByPeriod.get(period) || 0, activations);
 
       return {
         period,
