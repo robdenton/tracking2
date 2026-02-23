@@ -1,7 +1,9 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { getChannelAnalytics } from "@/lib/data";
 import { NewsletterChart } from "./chart";
 import { ENAUChart } from "./enau-chart";
+import { DateRangePicker } from "./date-range-picker";
 
 export const dynamic = "force-dynamic";
 
@@ -83,12 +85,14 @@ function aggregateToTimeSeries(
     .map((period) => {
       const signups = metricsByPeriod.get(period)?.signups || 0;
       const activations = metricsByPeriod.get(period)?.activations || 0;
-      const incrementalSignups = incrementalByPeriod.get(period) || 0;
+      const rawIncrementalSignups = incrementalByPeriod.get(period) || 0;
 
-      // Calculate incremental activations as a proportion
-      // If we have signups, use the activation rate to estimate incremental activations
+      // Cap incremental at actual to prevent double-counting from overlapping post-windows
+      const incrementalSignups = Math.min(rawIncrementalSignups, signups);
+
+      // Derive incremental activations using the period's activation rate
       const activationRate = signups > 0 ? activations / signups : 0;
-      const incrementalActivations = incrementalSignups * activationRate;
+      const incrementalActivations = Math.min(incrementalSignups * activationRate, activations);
 
       return {
         period,
@@ -161,11 +165,11 @@ function aggregateENAUTimeSeries(
     .map((period) => {
       const signups = metricsByPeriod.get(period)?.signups || 0;
       const activations = metricsByPeriod.get(period)?.activations || 0;
-      const incrementalSignups = incrementalByPeriod.get(period) || 0;
+      const rawIncrementalSignups = incrementalByPeriod.get(period) || 0;
 
-      // Calculate incremental activations as a proportion
+      const incrementalSignups = Math.min(rawIncrementalSignups, signups);
       const activationRate = signups > 0 ? activations / signups : 0;
-      const incrementalActivations = incrementalSignups * activationRate;
+      const incrementalActivations = Math.min(incrementalSignups * activationRate, activations);
 
       return {
         period,
@@ -201,15 +205,38 @@ function getWeekNumber(date: Date): number {
   return Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
 }
 
+function formatCurrency(value: number | null): string {
+  if (value === null) return "—";
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
+}
+
 export default async function NewsletterChannelPage({
   searchParams,
 }: {
-  searchParams: Promise<{ grouping?: string }>;
+  searchParams: Promise<{ grouping?: string; startDate?: string; endDate?: string }>;
 }) {
-  const { grouping = "monthly" } = await searchParams;
+  const { grouping = "monthly", startDate = "", endDate = "" } = await searchParams;
   const timeGrouping = (grouping === "weekly" ? "weekly" : "monthly") as TimeSeriesGrouping;
 
-  const { activities, dailyMetrics, reports } = await getChannelAnalytics("newsletter");
+  const { activities: allActivities, dailyMetrics: allDailyMetrics, reports: allReports } =
+    await getChannelAnalytics("newsletter");
+
+  // Apply date range filter to each data source
+  const activities = allActivities.filter((a) => {
+    if (startDate && a.date < startDate) return false;
+    if (endDate && a.date > endDate) return false;
+    return true;
+  });
+
+  const dailyMetrics = allDailyMetrics.filter((m) => {
+    if (startDate && m.date < startDate) return false;
+    if (endDate && m.date > endDate) return false;
+    return true;
+  });
+
+  // Reports are keyed by activity date; filter to activities in range
+  const activityIdsInRange = new Set(activities.map((a) => a.id));
+  const reports = allReports.filter((r) => activityIdsInRange.has(r.activity.id));
 
   const timeSeries = aggregateToTimeSeries(activities, dailyMetrics, reports, timeGrouping);
   const enauTimeSeries = aggregateENAUTimeSeries(activities, dailyMetrics, reports, timeGrouping);
@@ -217,9 +244,19 @@ export default async function NewsletterChannelPage({
   const totalActualClicks = timeSeries.reduce((sum, d) => sum + d.actualClicks, 0);
   const totalSignups = timeSeries.reduce((sum, d) => sum + d.signups, 0);
   const totalActivations = timeSeries.reduce((sum, d) => sum + d.activations, 0);
-  const totalIncrementalSignups = timeSeries.reduce((sum, d) => sum + d.incrementalSignups, 0);
-  const totalIncrementalActivations = timeSeries.reduce((sum, d) => sum + d.incrementalActivations, 0);
+  // Cap incremental at actual — overlapping activity post-windows can cause
+  // double-counting of the same daily signups/activations across activities.
+  const rawIncrementalSignups = timeSeries.reduce((sum, d) => sum + d.incrementalSignups, 0);
+  const rawIncrementalActivations = timeSeries.reduce((sum, d) => sum + d.incrementalActivations, 0);
+  const totalIncrementalSignups = Math.min(rawIncrementalSignups, totalSignups);
+  const totalIncrementalActivations = Math.min(rawIncrementalActivations, totalActivations);
   const totalENAU = enauTimeSeries.reduce((sum, d) => sum + d.eNAU, 0);
+
+  const totalCost = activities.reduce((sum, a) => sum + (a.costUsd ?? 0), 0);
+  const blendedCpaSignup = totalSignups > 0 ? totalCost / totalSignups : null;
+  const blendedCpaActivation = totalActivations > 0 ? totalCost / totalActivations : null;
+  const incrementalCpaSignup = totalIncrementalSignups > 0 ? totalCost / totalIncrementalSignups : null;
+  const incrementalCpaActivation = totalIncrementalActivations > 0 ? totalCost / totalIncrementalActivations : null;
 
   return (
     <div className="max-w-6xl">
@@ -231,12 +268,17 @@ export default async function NewsletterChannelPage({
       </Link>
 
       <h1 className="text-2xl font-bold mb-1">Newsletter Channel Analytics</h1>
-      <p className="text-sm text-gray-500 mb-6">
+      <p className="text-sm text-gray-500 mb-4">
         Aggregated performance across all newsletter activities
       </p>
 
+      {/* Date Range Picker */}
+      <Suspense>
+        <DateRangePicker startDate={startDate} endDate={endDate} />
+      </Suspense>
+
       {/* Summary Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-7 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-4">
         <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
           <div className="text-xs text-gray-500 mb-1">Total Activities</div>
           <div className="text-2xl font-mono font-semibold">{activities.length}</div>
@@ -272,10 +314,34 @@ export default async function NewsletterChannelPage({
         </div>
       </div>
 
+      {/* CPA Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+          <div className="text-xs text-gray-500 mb-1">Blended CPA</div>
+          <div className="text-2xl font-mono font-semibold">{formatCurrency(blendedCpaSignup)}</div>
+          <div className="text-xs text-gray-400 mt-1">Cost / Total Signups</div>
+        </div>
+        <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+          <div className="text-xs text-gray-500 mb-1">Blended Cost per Activation</div>
+          <div className="text-2xl font-mono font-semibold">{formatCurrency(blendedCpaActivation)}</div>
+          <div className="text-xs text-gray-400 mt-1">Cost / Total Activations</div>
+        </div>
+        <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+          <div className="text-xs text-gray-500 mb-1">Incremental CPA</div>
+          <div className="text-2xl font-mono font-semibold">{formatCurrency(incrementalCpaSignup)}</div>
+          <div className="text-xs text-gray-400 mt-1">Cost / Incr. Signups</div>
+        </div>
+        <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+          <div className="text-xs text-gray-500 mb-1">Incremental Cost per Activation</div>
+          <div className="text-2xl font-mono font-semibold">{formatCurrency(incrementalCpaActivation)}</div>
+          <div className="text-xs text-gray-400 mt-1">Cost / Incr. Activations</div>
+        </div>
+      </div>
+
       {/* Time Grouping Toggle */}
       <div className="flex gap-2 mb-4">
         <Link
-          href="?grouping=weekly"
+          href={`?grouping=weekly${startDate ? `&startDate=${startDate}` : ""}${endDate ? `&endDate=${endDate}` : ""}`}
           className={`px-3 py-1 rounded text-sm ${
             timeGrouping === "weekly"
               ? "bg-blue-600 text-white"
@@ -285,7 +351,7 @@ export default async function NewsletterChannelPage({
           Weekly
         </Link>
         <Link
-          href="?grouping=monthly"
+          href={`?grouping=monthly${startDate ? `&startDate=${startDate}` : ""}${endDate ? `&endDate=${endDate}` : ""}`}
           className={`px-3 py-1 rounded text-sm ${
             timeGrouping === "monthly"
               ? "bg-blue-600 text-white"
