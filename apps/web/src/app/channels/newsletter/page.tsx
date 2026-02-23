@@ -21,18 +21,16 @@ function StatCard({
 }) {
   return (
     <div className="group relative border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-      {/* Tooltip trigger */}
-      <div className="absolute top-2 right-2">
+      {/* Tooltip trigger — positioned so the bubble escapes the card upward */}
+      <div className="absolute top-2 right-2 z-10">
         <span className="text-gray-300 dark:text-gray-600 group-hover:text-gray-500 dark:group-hover:text-gray-400 cursor-help text-xs select-none">
           ⓘ
         </span>
-        {/* Tooltip bubble */}
-        <div className="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-150 absolute right-0 top-5 z-10 w-56 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg p-3 text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
+        {/* Tooltip bubble — opens upward to avoid grid clipping */}
+        <div className="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-150 absolute right-0 bottom-6 z-50 w-60 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-xl p-3 text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
           {tooltip}
           <a
             href={learnMoreHref}
-            target="_blank"
-            rel="noopener noreferrer"
             className="pointer-events-auto block mt-2 text-blue-600 dark:text-blue-400 hover:underline font-medium"
           >
             Learn more →
@@ -318,7 +316,7 @@ export default async function NewsletterChannelPage({
       </Suspense>
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-4 overflow-visible">
         <StatCard
           label="Total Activities"
           value={activities.length.toString()}
@@ -369,7 +367,7 @@ export default async function NewsletterChannelPage({
       </div>
 
       {/* CPA Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 overflow-visible">
         <StatCard
           label="Blended CPA"
           value={formatCurrency(blendedCpaSignup) ?? "—"}
