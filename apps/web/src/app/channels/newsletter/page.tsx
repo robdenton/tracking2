@@ -20,9 +20,9 @@ function StatCard({
   learnMoreHref: string;
 }) {
   return (
-    <div className="group relative border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-      {/* Tooltip trigger — positioned so the bubble escapes the card upward */}
-      <div className="absolute top-2 right-2 z-10">
+    <div className="relative border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+      {/* Tooltip — group scoped to the icon only, not the whole card */}
+      <div className="group absolute top-2 right-2 z-10">
         <span className="text-gray-300 dark:text-gray-600 group-hover:text-gray-500 dark:group-hover:text-gray-400 cursor-help text-xs select-none">
           ⓘ
         </span>
