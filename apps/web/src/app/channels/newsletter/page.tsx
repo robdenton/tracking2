@@ -5,6 +5,47 @@ import { NewsletterChart } from "./chart";
 import { ENAUChart } from "./enau-chart";
 import { DateRangePicker } from "./date-range-picker";
 
+/** Stat card with an info tooltip and optional sub-label */
+function StatCard({
+  label,
+  value,
+  sub,
+  tooltip,
+  learnMoreHref,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  tooltip: string;
+  learnMoreHref: string;
+}) {
+  return (
+    <div className="group relative border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+      {/* Tooltip trigger */}
+      <div className="absolute top-2 right-2">
+        <span className="text-gray-300 dark:text-gray-600 group-hover:text-gray-500 dark:group-hover:text-gray-400 cursor-help text-xs select-none">
+          ⓘ
+        </span>
+        {/* Tooltip bubble */}
+        <div className="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-150 absolute right-0 top-5 z-10 w-56 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg p-3 text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
+          {tooltip}
+          <a
+            href={learnMoreHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="pointer-events-auto block mt-2 text-blue-600 dark:text-blue-400 hover:underline font-medium"
+          >
+            Learn more →
+          </a>
+        </div>
+      </div>
+      <div className="text-xs text-gray-500 mb-1 pr-4">{label}</div>
+      <div className="text-2xl font-mono font-semibold">{value}</div>
+      {sub && <div className="text-xs text-gray-400 mt-1">{sub}</div>}
+    </div>
+  );
+}
+
 export const dynamic = "force-dynamic";
 
 type TimeSeriesGrouping = "weekly" | "monthly";
@@ -278,63 +319,85 @@ export default async function NewsletterChannelPage({
 
       {/* Summary Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-4">
-        <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-          <div className="text-xs text-gray-500 mb-1">Total Activities</div>
-          <div className="text-2xl font-mono font-semibold">{activities.length}</div>
-        </div>
-        <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-          <div className="text-xs text-gray-500 mb-1">Actual Clicks</div>
-          <div className="text-2xl font-mono font-semibold">{totalActualClicks.toLocaleString()}</div>
-        </div>
-        <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-          <div className="text-xs text-gray-500 mb-1">eNAU</div>
-          <div className="text-2xl font-mono font-semibold">{totalENAU.toLocaleString()}</div>
-          <div className="text-xs text-gray-400 mt-1">Estimated</div>
-        </div>
-        <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-          <div className="text-xs text-gray-500 mb-1">Account created</div>
-          <div className="text-2xl font-mono font-semibold">{totalSignups.toLocaleString()}</div>
-          <div className="text-xs text-gray-400 mt-1">Actual</div>
-        </div>
-        <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-          <div className="text-xs text-gray-500 mb-1">NAU</div>
-          <div className="text-2xl font-mono font-semibold">{totalActivations.toLocaleString()}</div>
-          <div className="text-xs text-gray-400 mt-1">Actual</div>
-        </div>
-        <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-          <div className="text-xs text-gray-500 mb-1">Incremental account created</div>
-          <div className="text-2xl font-mono font-semibold">{Math.round(totalIncrementalSignups).toLocaleString()}</div>
-          <div className="text-xs text-gray-400 mt-1">Attributed</div>
-        </div>
-        <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-          <div className="text-xs text-gray-500 mb-1">Incremental NAU</div>
-          <div className="text-2xl font-mono font-semibold">{Math.round(totalIncrementalActivations).toLocaleString()}</div>
-          <div className="text-xs text-gray-400 mt-1">Attributed</div>
-        </div>
+        <StatCard
+          label="Total Activities"
+          value={activities.length.toString()}
+          tooltip="Number of newsletter sends in the selected date range."
+          learnMoreHref="/measurement-explained#newsletter"
+        />
+        <StatCard
+          label="Actual Clicks"
+          value={totalActualClicks.toLocaleString()}
+          tooltip="Total measured clicks across all newsletter activities. Used to distribute credit when post-windows overlap."
+          learnMoreHref="/measurement-explained#newsletter"
+        />
+        <StatCard
+          label="eNAU"
+          value={totalENAU.toLocaleString()}
+          sub="Estimated"
+          tooltip="Estimated New Activated Users: clicks × historical click-to-activation rate. A forward-looking estimate before observed activation data is available."
+          learnMoreHref="/measurement-explained#enau"
+        />
+        <StatCard
+          label="Account created"
+          value={totalSignups.toLocaleString()}
+          sub="Actual"
+          tooltip="Total Granola accounts created during the post-windows of all newsletter activities. This is the raw observed count, not adjusted for baseline."
+          learnMoreHref="/measurement-explained#account-created"
+        />
+        <StatCard
+          label="NAU"
+          value={totalActivations.toLocaleString()}
+          sub="Actual"
+          tooltip="New Activated Users: accounts that completed activation (paid or trial) during the post-windows. Raw observed count, not adjusted for baseline."
+          learnMoreHref="/measurement-explained#nau"
+        />
+        <StatCard
+          label="Incremental account created"
+          value={Math.round(totalIncrementalSignups).toLocaleString()}
+          sub="Attributed"
+          tooltip="Accounts created above the expected baseline, attributed to newsletters. Uses a 2-day post-window uplift model with proportional credit-splitting when sends overlap."
+          learnMoreHref="/measurement-explained#incremental-account-created"
+        />
+        <StatCard
+          label="Incremental NAU"
+          value={Math.round(totalIncrementalActivations).toLocaleString()}
+          sub="Attributed"
+          tooltip="Activations above the expected baseline, attributed to newsletters. Same uplift methodology as incremental account created, applied to activation events."
+          learnMoreHref="/measurement-explained#incremental-nau"
+        />
       </div>
 
       {/* CPA Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-          <div className="text-xs text-gray-500 mb-1">Blended CPA</div>
-          <div className="text-2xl font-mono font-semibold">{formatCurrency(blendedCpaSignup)}</div>
-          <div className="text-xs text-gray-400 mt-1">Cost / Account created</div>
-        </div>
-        <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-          <div className="text-xs text-gray-500 mb-1">Blended Cost per NAU</div>
-          <div className="text-2xl font-mono font-semibold">{formatCurrency(blendedCpaActivation)}</div>
-          <div className="text-xs text-gray-400 mt-1">Cost / Total NAU</div>
-        </div>
-        <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-          <div className="text-xs text-gray-500 mb-1">Incremental CPA</div>
-          <div className="text-2xl font-mono font-semibold">{formatCurrency(incrementalCpaSignup)}</div>
-          <div className="text-xs text-gray-400 mt-1">Cost / Incr. Account created</div>
-        </div>
-        <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-          <div className="text-xs text-gray-500 mb-1">Incremental Cost per NAU</div>
-          <div className="text-2xl font-mono font-semibold">{formatCurrency(incrementalCpaActivation)}</div>
-          <div className="text-xs text-gray-400 mt-1">Cost / Incr. NAU</div>
-        </div>
+        <StatCard
+          label="Blended CPA"
+          value={formatCurrency(blendedCpaSignup) ?? "—"}
+          sub="Cost / Account created"
+          tooltip="Total newsletter spend divided by all accounts created in post-windows. Blended (not incremental) — does not subtract baseline."
+          learnMoreHref="/measurement-explained#cpa"
+        />
+        <StatCard
+          label="Blended Cost per NAU"
+          value={formatCurrency(blendedCpaActivation) ?? "—"}
+          sub="Cost / Total NAU"
+          tooltip="Total newsletter spend divided by all NAU in post-windows. Blended — does not subtract baseline."
+          learnMoreHref="/measurement-explained#cpa"
+        />
+        <StatCard
+          label="Incremental CPA"
+          value={formatCurrency(incrementalCpaSignup) ?? "—"}
+          sub="Cost / Incr. Account created"
+          tooltip="Total newsletter spend divided by incremental accounts created. This is the true cost of an additional signup driven by newsletters."
+          learnMoreHref="/measurement-explained#cpa"
+        />
+        <StatCard
+          label="Incremental Cost per NAU"
+          value={formatCurrency(incrementalCpaActivation) ?? "—"}
+          sub="Cost / Incr. NAU"
+          tooltip="Total newsletter spend divided by incremental NAU. The true cost of an additional activation driven by newsletters."
+          learnMoreHref="/measurement-explained#cpa"
+        />
       </div>
 
       {/* Time Grouping Toggle */}

@@ -15,11 +15,12 @@
 export const dynamic = "force-dynamic";
 
 // ─── Bump this whenever the content changes ───────────────────────────────────
-const LAST_UPDATED = "18 February 2026";
+const LAST_UPDATED = "23 February 2026";
 // ─────────────────────────────────────────────────────────────────────────────
 
 const tocItems = [
   { href: "#overview", label: "Overview" },
+  { href: "#metrics", label: "Metric definitions" },
   { href: "#newsletter", label: "Newsletter" },
   { href: "#youtube", label: "YouTube" },
   { href: "#linkedin", label: "LinkedIn" },
@@ -236,6 +237,120 @@ export default function MeasurementExplainedPage() {
       </div>
 
       {/* ══════════════════════════════════════════════════════════════════
+          METRIC DEFINITIONS
+      ══════════════════════════════════════════════════════════════════ */}
+      <SectionHeading id="metrics" emoji="📊" title="Metric definitions" />
+
+      <Para>
+        These are the core metrics shown on the newsletter analytics page. Each
+        has a specific definition — understanding the difference between the
+        &ldquo;actual&rdquo; and &ldquo;attributed&rdquo; variants is key to
+        reading the data correctly.
+      </Para>
+
+      <SubHeading title="Account created" />
+      <div
+        id="account-created"
+        className="scroll-mt-6"
+      />
+      <Para>
+        The total number of Granola accounts created during the post-windows of
+        all newsletter activities in the selected period. This is the raw
+        observed count — it includes signups that would have happened anyway
+        without the newsletter. It is <strong>not</strong> adjusted for baseline.
+      </Para>
+      <Callout label="Example">
+        If your baseline is 30 signups/day and 50 people signed up on the day of
+        a send, &ldquo;Account created&rdquo; shows 50. The incremental figure
+        would show 20.
+      </Callout>
+
+      <SubHeading title="NAU (New Activated User)" />
+      <div
+        id="nau"
+        className="scroll-mt-6"
+      />
+      <Para>
+        A New Activated User is an account that completed the activation
+        event (paying or entering a free trial) during the post-window of a
+        newsletter activity. Like &ldquo;Account created&rdquo;, this is the raw
+        observed count — not adjusted for baseline. The activation rate
+        (NAU ÷ Account created) reflects the quality of signups driven by
+        a newsletter send.
+      </Para>
+
+      <SubHeading title="eNAU (Estimated NAU)" />
+      <div
+        id="enau"
+        className="scroll-mt-6"
+      />
+      <Para>
+        A forward-looking estimate of activations calculated as{" "}
+        <strong>clicks × historical click-to-activation rate</strong>. It is
+        used to project impact before observed activation data is available (e.g.
+        for very recent sends). Once post-window activation data is collected,
+        the actual NAU figure supersedes eNAU.
+      </Para>
+
+      <SubHeading title="Incremental account created" />
+      <div
+        id="incremental-account-created"
+        className="scroll-mt-6"
+      />
+      <Para>
+        The number of accounts created <strong>above the expected baseline</strong>,
+        attributed to newsletter activity. The model takes the 14-day pre-send
+        average, multiplies by the 2-day post-window, and subtracts from the
+        observed total. The remainder is the uplift.
+      </Para>
+      <Para>
+        When multiple newsletters have overlapping 2-day post-windows, the
+        combined uplift is split proportionally by click count — each newsletter
+        receives a share of the pooled incremental equal to its share of total
+        clicks. This prevents double-counting.
+      </Para>
+      <Callout label="Formula">
+        incremental = max(0, observed &minus; (baseline avg &times; 2 days))<br />
+        When overlapping: each newsletter&rsquo;s share = its clicks ÷ total clicks across overlapping sends
+      </Callout>
+
+      <SubHeading title="Incremental NAU" />
+      <div
+        id="incremental-nau"
+        className="scroll-mt-6"
+      />
+      <Para>
+        The number of activations above the expected baseline, attributed to
+        newsletter activity. Uses exactly the same uplift and proportional
+        attribution methodology as incremental account created, but applied to
+        activation events rather than signup events. Incremental NAU will always
+        be ≤ incremental account created for a given period.
+      </Para>
+
+      <SubHeading title="CPA metrics" />
+      <div
+        id="cpa"
+        className="scroll-mt-6"
+      />
+      <Para>
+        Two variants are shown for each conversion type:
+      </Para>
+      <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 mb-3 space-y-1 ml-1">
+        <li>
+          <strong>Blended CPA</strong> — total spend ÷ total accounts created (or
+          NAU) in post-windows. This includes baseline signups that would have
+          happened anyway, so it understates the true cost of a newsletter-driven
+          conversion.
+        </li>
+        <li>
+          <strong>Incremental CPA</strong> — total spend ÷ incremental accounts
+          created (or NAU). This is the true marginal cost: how much did each
+          additional signup or activation cost, above what would have happened
+          without the newsletter?
+        </li>
+      </ul>
+
+      {/* ══════════════════════════════════════════════════════════════════
           NEWSLETTER
       ══════════════════════════════════════════════════════════════════ */}
       <SectionHeading id="newsletter" emoji="✉️" title="Newsletter" />
@@ -259,11 +374,19 @@ export default function MeasurementExplainedPage() {
       <SubHeading title="Proportional attribution" />
       <Para>
         When two or more newsletters have overlapping post windows (e.g. two
-        sends within 2 days of each other), the model splits credit
-        proportionally based on click counts. If Newsletter A had 1,000 clicks
-        and Newsletter B had 500, A gets ⅔ of the shared incremental and B gets
-        ⅓. The model uses <strong>actual measured clicks</strong> first, then
-        falls back to <strong>estimated clicks</strong> if actual aren&rsquo;t available.
+        sends within 2 days of each other), the model avoids double-counting by
+        splitting credit proportionally by click share. For each overlapping day,
+        it pools each newsletter&rsquo;s pro-rated daily incremental (total
+        incremental ÷ post-window days) and redistributes the pool by click
+        share. If Newsletter A had 1,000 clicks and Newsletter B had 500, A gets
+        ⅔ of the shared incremental and B gets ⅓. Activities that do{" "}
+        <em>not</em> overlap get their own incremental back unchanged.
+      </Para>
+      <Para>
+        The model uses <strong>actual measured clicks</strong> first, falling
+        back to <strong>deterministic estimated clicks</strong>, then{" "}
+        <strong>metadata estimated clicks</strong>. Activities with no click data
+        receive zero attributed incremental.
       </Para>
 
       <SubHeading title="Baseline decontamination" />
