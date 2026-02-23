@@ -21,6 +21,7 @@ type SortColumn =
   | "actualCPC"
   | "estimatedClicks"
   | "actualClicks"
+  | "clickConversion"
   | "cpa"
   | "incremental";
 type SortDirection = "asc" | "desc";
@@ -28,9 +29,11 @@ type SortDirection = "asc" | "desc";
 interface ActivityTableProps {
   reports: ActivityReport[];
   selectedChannel: string | null;
+  /** Pooled click→incremental NAU rate across all live newsletters, for vs-avg display */
+  clickConversionAvg?: number;
 }
 
-export function ActivityTable({ reports, selectedChannel }: ActivityTableProps) {
+export function ActivityTable({ reports, selectedChannel, clickConversionAvg }: ActivityTableProps) {
   const [sortColumn, setSortColumn] = useState<SortColumn>("date");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
@@ -76,6 +79,14 @@ export function ActivityTable({ reports, selectedChannel }: ActivityTableProps) 
       case "actualClicks":
         aVal = a.activity.actualClicks ?? 0;
         bVal = b.activity.actualClicks ?? 0;
+        break;
+      case "clickConversion":
+        aVal = (a.activity.actualClicks ?? 0) > 0
+          ? a.incrementalActivations / (a.activity.actualClicks as number)
+          : 0;
+        bVal = (b.activity.actualClicks ?? 0) > 0
+          ? b.incrementalActivations / (b.activity.actualClicks as number)
+          : 0;
         break;
       case "cpa":
         aVal = calculateCPA({ costUsd: a.activity.costUsd, incremental: a.incrementalActivations }) ?? Infinity;
@@ -148,6 +159,9 @@ export function ActivityTable({ reports, selectedChannel }: ActivityTableProps) 
               <SortableHeader column="actualClicks" align="right">
                 Actual Clicks
               </SortableHeader>
+              <SortableHeader column="clickConversion" align="right">
+                Click → Incr. NAU %
+              </SortableHeader>
             </>
           ) : (
             <>
@@ -215,6 +229,21 @@ export function ActivityTable({ reports, selectedChannel }: ActivityTableProps) 
                   </td>
                   <td className="py-2 pr-4 text-right font-mono text-gray-500">
                     {r.activity.actualClicks?.toLocaleString() ?? "—"}
+                  </td>
+                  <td className="py-2 pr-4 text-right font-mono">
+                    {(() => {
+                      const clicks = r.activity.actualClicks ?? 0;
+                      if (clicks === 0 || r.incrementalActivations <= 0) {
+                        return <span className="text-gray-400">—</span>;
+                      }
+                      const rate = r.incrementalActivations / clicks;
+                      const aboveAvg = clickConversionAvg != null && rate >= clickConversionAvg;
+                      return (
+                        <span className={aboveAvg ? "text-green-600 dark:text-green-400 font-semibold" : "text-gray-500"}>
+                          {(rate * 100).toFixed(1)}%
+                        </span>
+                      );
+                    })()}
                   </td>
                 </>
               ) : (

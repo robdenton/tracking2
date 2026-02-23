@@ -22,6 +22,24 @@ export default async function HomePage({
     ? allReports.filter((r) => r.activity.channel === channel)
     : allReports;
 
+  // Compute pooled click→incremental NAU conversion rate across all live newsletters
+  const newsletterReports = allReports.filter(
+    (r) =>
+      r.activity.channel === "newsletter" &&
+      r.activity.status === "live" &&
+      (r.activity.actualClicks ?? 0) > 0,
+  );
+  const _totalNLClicks = newsletterReports.reduce(
+    (s, r) => s + (r.activity.actualClicks ?? 0),
+    0,
+  );
+  const _totalNLIncrNAU = newsletterReports.reduce(
+    (s, r) => s + r.incrementalActivations,
+    0,
+  );
+  const newsletterClickConversionAvg =
+    _totalNLClicks > 0 ? _totalNLIncrNAU / _totalNLClicks : undefined;
+
   return (
     <div>
       <h1 className="text-2xl font-bold mb-1">Activity Impact Summary</h1>
@@ -42,7 +60,11 @@ export default async function HomePage({
         </p>
       ) : (
         <div className="overflow-x-auto">
-          <ActivityTable reports={reports} selectedChannel={channel ?? null} />
+          <ActivityTable
+            reports={reports}
+            selectedChannel={channel ?? null}
+            clickConversionAvg={newsletterClickConversionAvg}
+          />
         </div>
       )}
     </div>

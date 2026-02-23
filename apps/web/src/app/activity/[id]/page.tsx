@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getReportById, getContentViews, getLinkedInEngagements } from "@/lib/data";
+import { getReportById, getAllReports, getContentViews, getLinkedInEngagements } from "@/lib/data";
 import type { Confidence } from "@mai/core";
 import { getBetLabels, formatBetValue, formatCompact, calculateCPA, formatCPA } from "../../format";
 
@@ -45,9 +45,20 @@ export default async function ActivityDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const report = await getReportById(id);
+  const [report, allReports] = await Promise.all([getReportById(id), getAllReports()]);
 
   if (!report) notFound();
+
+  // Compute pooled click→incremental NAU conversion rate across all live newsletters
+  const nlReports = allReports.filter(
+    (r) =>
+      r.activity.channel === "newsletter" &&
+      r.activity.status === "live" &&
+      (r.activity.actualClicks ?? 0) > 0,
+  );
+  const _nlTotalClicks = nlReports.reduce((s, r) => s + (r.activity.actualClicks ?? 0), 0);
+  const _nlTotalIncrNAU = nlReports.reduce((s, r) => s + r.incrementalActivations, 0);
+  const nlClickConversionAvg = _nlTotalClicks > 0 ? _nlTotalIncrNAU / _nlTotalClicks : null;
 
   const { activity } = report;
   const betLabels = getBetLabels(activity.channel);
@@ -361,6 +372,17 @@ export default async function ActivityDetailPage({
                   activity.deterministicClicks != null && activity.deterministicClicks > 0
                     ? `vs $${(activity.costUsd / activity.deterministicClicks).toFixed(2)} est.`
                     : "Cost per click"
+                }
+              />
+            )}
+            {activity.actualClicks != null && activity.actualClicks > 0 && report.incrementalActivations > 0 && (
+              <StatCard
+                label="Click → Incr. NAU"
+                value={`${((report.incrementalActivations / activity.actualClicks) * 100).toFixed(1)}%`}
+                sub={
+                  nlClickConversionAvg != null
+                    ? `vs ${(nlClickConversionAvg * 100).toFixed(1)}% avg`
+                    : "conversion rate"
                 }
               />
             )}
