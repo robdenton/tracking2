@@ -49,6 +49,12 @@ export default async function RootLayout({
                     Newsletter Analytics
                   </a>
                   <a
+                    href="/channels/podcast"
+                    className="text-blue-600 dark:text-blue-400 hover:underline"
+                  >
+                    Podcast Analytics
+                  </a>
+                  <a
                     href="/youtube-import"
                     className="text-blue-600 dark:text-blue-400 hover:underline"
                   >

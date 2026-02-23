@@ -32,11 +32,15 @@ function buildMetricsMap(
 /**
  * Get channel-specific post window days.
  * Newsletters use a 2-day window (day of send + 1 day after).
+ * Podcasts use a 5-day window.
  * Other channels use the default from config.
  */
 function getPostWindowDays(channel: string, defaultDays: number): number {
   if (channel === "newsletter") {
     return 2;
+  }
+  if (channel === "podcast") {
+    return 5;
   }
   return defaultDays;
 }

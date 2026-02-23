@@ -31,10 +31,14 @@ function getDailyIncrementalContribution(
 
 /**
  * Get channel-specific post window days (same logic as uplift.ts).
+ * Newsletters: 2 days. Podcasts: 5 days. Others: default from config.
  */
 function getPostWindowDays(channel: string, defaultDays: number): number {
   if (channel === "newsletter") {
     return 2;
+  }
+  if (channel === "podcast") {
+    return 5;
   }
   return defaultDays;
 }
