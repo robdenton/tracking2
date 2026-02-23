@@ -292,24 +292,24 @@ export default async function NewsletterChannelPage({
           <div className="text-xs text-gray-400 mt-1">Estimated</div>
         </div>
         <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-          <div className="text-xs text-gray-500 mb-1">Signups</div>
+          <div className="text-xs text-gray-500 mb-1">Account created</div>
           <div className="text-2xl font-mono font-semibold">{totalSignups.toLocaleString()}</div>
           <div className="text-xs text-gray-400 mt-1">Actual</div>
         </div>
         <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-          <div className="text-xs text-gray-500 mb-1">Activations</div>
+          <div className="text-xs text-gray-500 mb-1">NAU</div>
           <div className="text-2xl font-mono font-semibold">{totalActivations.toLocaleString()}</div>
           <div className="text-xs text-gray-400 mt-1">Actual</div>
         </div>
         <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-          <div className="text-xs text-gray-500 mb-1">Incremental Signups</div>
+          <div className="text-xs text-gray-500 mb-1">Incremental account created</div>
           <div className="text-2xl font-mono font-semibold">{totalIncrementalSignups.toFixed(0)}</div>
-          <div className="text-xs text-gray-400 mt-1">Attributed</div>
+          <div className="text-xs text-gray-400 mt-1">Estimated</div>
         </div>
         <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-          <div className="text-xs text-gray-500 mb-1">Incremental Activations</div>
+          <div className="text-xs text-gray-500 mb-1">Incremental NAU</div>
           <div className="text-2xl font-mono font-semibold">{totalIncrementalActivations.toFixed(0)}</div>
-          <div className="text-xs text-gray-400 mt-1">Attributed</div>
+          <div className="text-xs text-gray-400 mt-1">Estimated</div>
         </div>
       </div>
 
@@ -318,22 +318,22 @@ export default async function NewsletterChannelPage({
         <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
           <div className="text-xs text-gray-500 mb-1">Blended CPA</div>
           <div className="text-2xl font-mono font-semibold">{formatCurrency(blendedCpaSignup)}</div>
-          <div className="text-xs text-gray-400 mt-1">Cost / Total Signups</div>
+          <div className="text-xs text-gray-400 mt-1">Cost / Account created</div>
         </div>
         <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-          <div className="text-xs text-gray-500 mb-1">Blended Cost per Activation</div>
+          <div className="text-xs text-gray-500 mb-1">Blended Cost per NAU</div>
           <div className="text-2xl font-mono font-semibold">{formatCurrency(blendedCpaActivation)}</div>
-          <div className="text-xs text-gray-400 mt-1">Cost / Total Activations</div>
+          <div className="text-xs text-gray-400 mt-1">Cost / Total NAU</div>
         </div>
         <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
           <div className="text-xs text-gray-500 mb-1">Incremental CPA</div>
           <div className="text-2xl font-mono font-semibold">{formatCurrency(incrementalCpaSignup)}</div>
-          <div className="text-xs text-gray-400 mt-1">Cost / Incr. Signups</div>
+          <div className="text-xs text-gray-400 mt-1">Cost / Incr. Account created</div>
         </div>
         <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-          <div className="text-xs text-gray-500 mb-1">Incremental Cost per Activation</div>
+          <div className="text-xs text-gray-500 mb-1">Incremental Cost per NAU</div>
           <div className="text-2xl font-mono font-semibold">{formatCurrency(incrementalCpaActivation)}</div>
-          <div className="text-xs text-gray-400 mt-1">Cost / Incr. Activations</div>
+          <div className="text-xs text-gray-400 mt-1">Cost / Incr. NAU</div>
         </div>
       </div>
 
@@ -361,13 +361,13 @@ export default async function NewsletterChannelPage({
         </Link>
       </div>
 
-      {/* Clicks vs Signups/Activations Chart */}
+      {/* Clicks vs Account created/NAU Chart */}
       <div className="mb-8">
         <h2 className="text-sm font-semibold mb-3">Actual Clicks vs Performance</h2>
         <NewsletterChart data={timeSeries} grouping={timeGrouping} />
       </div>
 
-      {/* eNAU vs Actual Signups/Activations Chart */}
+      {/* eNAU vs Actual Account created/NAU Chart */}
       <div className="mb-8">
         <h2 className="text-sm font-semibold mb-3">eNAU (Estimated Activated Users) vs Actual</h2>
         <ENAUChart data={enauTimeSeries} grouping={timeGrouping} />
@@ -382,10 +382,10 @@ export default async function NewsletterChannelPage({
               <tr className="border-b border-gray-300 dark:border-gray-700 text-left">
                 <th className="py-2 pr-4 font-medium">Period</th>
                 <th className="py-2 pr-4 font-medium text-right">Actual Clicks</th>
-                <th className="py-2 pr-4 font-medium text-right">Signups</th>
-                <th className="py-2 pr-4 font-medium text-right">Activations</th>
-                <th className="py-2 pr-4 font-medium text-right">Incr. Signups</th>
-                <th className="py-2 pr-4 font-medium text-right">Incr. Activations</th>
+                <th className="py-2 pr-4 font-medium text-right">Account created</th>
+                <th className="py-2 pr-4 font-medium text-right">NAU</th>
+                <th className="py-2 pr-4 font-medium text-right">Incr. Account created</th>
+                <th className="py-2 pr-4 font-medium text-right">Incr. NAU</th>
                 <th className="py-2 font-medium text-right">Click-to-Signup %</th>
               </tr>
             </thead>
@@ -436,11 +436,11 @@ export default async function NewsletterChannelPage({
               <tr className="border-b border-gray-300 dark:border-gray-700 text-left">
                 <th className="py-2 pr-4 font-medium">Period</th>
                 <th className="py-2 pr-4 font-medium text-right">eNAU (Est.)</th>
-                <th className="py-2 pr-4 font-medium text-right">Signups (Actual)</th>
-                <th className="py-2 pr-4 font-medium text-right">Activations (Actual)</th>
-                <th className="py-2 pr-4 font-medium text-right">Incr. Signups</th>
-                <th className="py-2 pr-4 font-medium text-right">Incr. Activations</th>
-                <th className="py-2 font-medium text-right">eNAU vs Activations</th>
+                <th className="py-2 pr-4 font-medium text-right">Account created (Actual)</th>
+                <th className="py-2 pr-4 font-medium text-right">NAU (Actual)</th>
+                <th className="py-2 pr-4 font-medium text-right">Incr. Account created</th>
+                <th className="py-2 pr-4 font-medium text-right">Incr. NAU</th>
+                <th className="py-2 font-medium text-right">eNAU vs NAU</th>
               </tr>
             </thead>
             <tbody>

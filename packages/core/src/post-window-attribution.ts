@@ -68,17 +68,15 @@ export function buildPostWindowDateMap(
 }
 
 /**
- * Calculate daily incremental signups from metrics.
- * This pools the signups to be distributed proportionally.
+ * Calculate daily activations from metrics for attribution pooling.
  */
-export function calculateDailyIncrementalFromMetrics(
+export function calculateDailyActivationsFromMetrics(
   metrics: DailyMetric[],
   channel: string,
   dateRange: { start: string; end: string },
 ): Map<string, number> {
-  const dailyIncremental = new Map<string, number>();
+  const dailyActivations = new Map<string, number>();
 
-  // Filter metrics to channel and date range
   const channelMetrics = metrics.filter(
     (m) =>
       m.channel === channel &&
@@ -86,16 +84,41 @@ export function calculateDailyIncrementalFromMetrics(
       m.date <= dateRange.end,
   );
 
-  // For each date, the incremental is just the signup count
-  // Use activations instead of signups for attribution
-  // (In a more sophisticated version, we'd subtract baseline, but
-  // that's already done in the activity reports)
   for (const metric of channelMetrics) {
-    dailyIncremental.set(metric.date, metric.activations);
+    dailyActivations.set(metric.date, metric.activations);
   }
 
-  return dailyIncremental;
+  return dailyActivations;
 }
+
+/**
+ * Calculate daily signups from metrics for attribution pooling.
+ */
+export function calculateDailySignupsFromMetrics(
+  metrics: DailyMetric[],
+  channel: string,
+  dateRange: { start: string; end: string },
+): Map<string, number> {
+  const dailySignups = new Map<string, number>();
+
+  const channelMetrics = metrics.filter(
+    (m) =>
+      m.channel === channel &&
+      m.date >= dateRange.start &&
+      m.date <= dateRange.end,
+  );
+
+  for (const metric of channelMetrics) {
+    dailySignups.set(metric.date, metric.signups);
+  }
+
+  return dailySignups;
+}
+
+/**
+ * @deprecated Use calculateDailyActivationsFromMetrics instead
+ */
+export const calculateDailyIncrementalFromMetrics = calculateDailyActivationsFromMetrics;
 
 /**
  * Apply proportional attribution to overlapping activities.
@@ -130,12 +153,17 @@ export function applyProportionalAttribution(
     reportMap.set(report.activity.id, report);
   }
 
-  // For each applicable channel, calculate daily incremental
-  const dailyIncrementalMaps = new Map<string, Map<string, number>>();
+  // For each applicable channel, calculate daily activation and signup pools
+  const dailyActivationMaps = new Map<string, Map<string, number>>();
+  const dailySignupMaps = new Map<string, Map<string, number>>();
   for (const channel of config.channels) {
-    dailyIncrementalMaps.set(
+    dailyActivationMaps.set(
       channel,
-      calculateDailyIncrementalFromMetrics(metrics, channel, dateRange),
+      calculateDailyActivationsFromMetrics(metrics, channel, dateRange),
+    );
+    dailySignupMaps.set(
+      channel,
+      calculateDailySignupsFromMetrics(metrics, channel, dateRange),
     );
   }
 
@@ -149,8 +177,8 @@ export function applyProportionalAttribution(
       continue;
     }
 
-    // Skip if not live or no positive incremental activations
-    if (report.activity.status !== "live" || report.incrementalActivations <= 0) {
+    // Skip if not live or no positive incremental (signups or activations)
+    if (report.activity.status !== "live" || (report.incremental <= 0 && report.incrementalActivations <= 0)) {
       attributedReports.push(report);
       continue;
     }
@@ -161,9 +189,12 @@ export function applyProportionalAttribution(
       // No click data - assign zero attribution
       attributedReports.push({
         ...report,
+        incremental: 0,
         incrementalActivations: 0,
         postWindowAttribution: {
           enabled: true,
+          rawIncrementalSignups: report.incremental,
+          attributedIncrementalSignups: 0,
           rawIncremental: report.incrementalActivations,
           attributedIncremental: 0,
           dailyShares: [],
@@ -176,7 +207,8 @@ export function applyProportionalAttribution(
 
     // Calculate attribution for each day in post-window
     const dailyShares: DailyAttributionShare[] = [];
-    let totalAttributed = 0;
+    let totalAttributedActivations = 0;
+    let totalAttributedSignups = 0;
 
     const startDate = new Date(report.postWindowStart);
     const endDate = new Date(report.postWindowEnd);
@@ -216,37 +248,48 @@ export function applyProportionalAttribution(
         totalClicks = overlappingReports.length;
       }
 
-      // Get pooled incremental for this date
-      const dailyIncrementalMap = dailyIncrementalMaps.get(
+      // Get pooled activations and signups for this date
+      const dailyActivationMap = dailyActivationMaps.get(
         report.activity.channel,
       );
-      const pooledIncremental = dailyIncrementalMap?.get(dateStr) || 0;
+      const dailySignupMap = dailySignupMaps.get(
+        report.activity.channel,
+      );
+      const pooledActivations = dailyActivationMap?.get(dateStr) || 0;
+      const pooledSignups = dailySignupMap?.get(dateStr) || 0;
 
       // Calculate this activity's share
       const share = clicks / totalClicks;
-      const attributed = pooledIncremental * share;
+      const attributedActivations = pooledActivations * share;
+      const attributedSignups = pooledSignups * share;
 
       dailyShares.push({
         date: dateStr,
-        pooledIncremental,
+        pooledIncremental: pooledActivations,
+        pooledSignups,
         myClicks: clicks,
         totalClicks,
         share,
-        attributed,
+        attributed: attributedActivations,
+        attributedSignups,
         overlappingActivities: overlappingIds,
       });
 
-      totalAttributed += attributed;
+      totalAttributedActivations += attributedActivations;
+      totalAttributedSignups += attributedSignups;
     }
 
-    // Create new report with attribution
+    // Create new report with attribution for both signups and activations
     attributedReports.push({
       ...report,
-      incrementalActivations: totalAttributed,
+      incremental: totalAttributedSignups,
+      incrementalActivations: totalAttributedActivations,
       postWindowAttribution: {
         enabled: true,
+        rawIncrementalSignups: report.incremental,
+        attributedIncrementalSignups: totalAttributedSignups,
         rawIncremental: report.incrementalActivations,
-        attributedIncremental: totalAttributed,
+        attributedIncremental: totalAttributedActivations,
         dailyShares,
         clicksUsed: clicks,
         clicksSource: source,

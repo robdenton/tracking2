@@ -31,7 +31,11 @@ describe("post-window-attribution", () => {
   });
 
   // Helper to create test activity report
-  const makeReport = (activity: Activity, incremental: number): ActivityReport => ({
+  const makeReport = (
+    activity: Activity,
+    incremental: number,
+    incrementalActivations: number = 0,
+  ): ActivityReport => ({
     activity,
     baselineWindowStart: "2024-01-01",
     baselineWindowEnd: "2024-01-14",
@@ -47,6 +51,9 @@ describe("post-window-attribution", () => {
     observedTotal: incremental + 10,
     expectedTotal: 10,
     incremental,
+    observedActivations: incrementalActivations + 5,
+    expectedActivations: 5,
+    incrementalActivations,
     floorSignups: 0,
     confidence: "MED",
     confidenceExplanation: "Test",
@@ -140,7 +147,7 @@ describe("post-window-attribution", () => {
   describe("applyProportionalAttribution", () => {
     it("does nothing when disabled", () => {
       const a1 = makeActivity("a1", "2024-01-15", 500);
-      const reports = [makeReport(a1, 10)];
+      const reports = [makeReport(a1, 10, 8)];
       const metrics: DailyMetric[] = [];
       const config: PostWindowAttributionConfig = {
         enabled: false,
@@ -150,22 +157,23 @@ describe("post-window-attribution", () => {
       const result = applyProportionalAttribution(reports, metrics, config);
 
       expect(result[0].incremental).toBe(10); // unchanged
+      expect(result[0].incrementalActivations).toBe(8); // unchanged
       expect(result[0].postWindowAttribution).toBeUndefined();
     });
 
-    it("applies proportional attribution for two overlapping activities", () => {
+    it("applies proportional attribution for both signups and activations", () => {
       const a1 = makeActivity("a1", "2024-01-15", 500); // 500 clicks
       const a2 = makeActivity("a2", "2024-01-16", 300); // 300 clicks
       const reports = [
-        makeReport(a1, 10), // raw incremental
-        makeReport(a2, 10), // raw incremental
+        makeReport(a1, 10, 8),
+        makeReport(a2, 10, 8),
       ];
 
-      // Metrics showing 5 signups on each day
+      // Metrics showing signups and activations on each day
       const metrics: DailyMetric[] = [
-        { date: "2024-01-15", channel: "newsletter", signups: 5, activations: 0 },
-        { date: "2024-01-16", channel: "newsletter", signups: 5, activations: 0 },
-        { date: "2024-01-17", channel: "newsletter", signups: 5, activations: 0 },
+        { date: "2024-01-15", channel: "newsletter", signups: 5, activations: 3 },
+        { date: "2024-01-16", channel: "newsletter", signups: 5, activations: 3 },
+        { date: "2024-01-17", channel: "newsletter", signups: 5, activations: 3 },
       ];
 
       const config: PostWindowAttributionConfig = {
@@ -175,23 +183,28 @@ describe("post-window-attribution", () => {
 
       const result = applyProportionalAttribution(reports, metrics, config);
 
-      // a1: gets 100% of Jan 15 (5), 500/(500+300) of Jan 16 (5)
-      // = 5 + (500/800)*5 = 5 + 3.125 = 8.125
+      // a1: gets 100% of Jan 15, 500/(500+300) of Jan 16
+      // signups: 5 + (500/800)*5 = 5 + 3.125 = 8.125
+      // activations: 3 + (500/800)*3 = 3 + 1.875 = 4.875
       expect(result[0].incremental).toBeCloseTo(8.125, 2);
-      expect(result[0].postWindowAttribution?.rawIncremental).toBe(10);
+      expect(result[0].incrementalActivations).toBeCloseTo(4.875, 2);
+      expect(result[0].postWindowAttribution?.rawIncrementalSignups).toBe(10);
+      expect(result[0].postWindowAttribution?.rawIncremental).toBe(8);
       expect(result[0].postWindowAttribution?.clicksSource).toBe("actual");
 
-      // a2: gets 300/(500+300) of Jan 16 (5), 100% of Jan 17 (5)
-      // = (300/800)*5 + 5 = 1.875 + 5 = 6.875
+      // a2: gets 300/(500+300) of Jan 16, 100% of Jan 17
+      // signups: (300/800)*5 + 5 = 1.875 + 5 = 6.875
+      // activations: (300/800)*3 + 3 = 1.125 + 3 = 4.125
       expect(result[1].incremental).toBeCloseTo(6.875, 2);
+      expect(result[1].incrementalActivations).toBeCloseTo(4.125, 2);
     });
 
-    it("assigns zero when activity has no clicks", () => {
+    it("assigns zero for both signups and activations when no clicks", () => {
       const a1 = makeActivity("a1", "2024-01-15", null, null);
       a1.metadata = null; // No clicks at all
-      const reports = [makeReport(a1, 10)];
+      const reports = [makeReport(a1, 10, 8)];
       const metrics: DailyMetric[] = [
-        { date: "2024-01-15", channel: "newsletter", signups: 5, activations: 0 },
+        { date: "2024-01-15", channel: "newsletter", signups: 5, activations: 3 },
       ];
       const config: PostWindowAttributionConfig = {
         enabled: true,
@@ -201,15 +214,18 @@ describe("post-window-attribution", () => {
       const result = applyProportionalAttribution(reports, metrics, config);
 
       expect(result[0].incremental).toBe(0);
+      expect(result[0].incrementalActivations).toBe(0);
       expect(result[0].postWindowAttribution?.clicksUsed).toBeNull();
+      expect(result[0].postWindowAttribution?.rawIncrementalSignups).toBe(10);
+      expect(result[0].postWindowAttribution?.rawIncremental).toBe(8);
     });
 
     it("handles single activity correctly", () => {
       const a1 = makeActivity("a1", "2024-01-15", 500);
-      const reports = [makeReport(a1, 10)];
+      const reports = [makeReport(a1, 10, 6)];
       const metrics: DailyMetric[] = [
-        { date: "2024-01-15", channel: "newsletter", signups: 5, activations: 0 },
-        { date: "2024-01-16", channel: "newsletter", signups: 5, activations: 0 },
+        { date: "2024-01-15", channel: "newsletter", signups: 5, activations: 3 },
+        { date: "2024-01-16", channel: "newsletter", signups: 5, activations: 3 },
       ];
       const config: PostWindowAttributionConfig = {
         enabled: true,
@@ -218,8 +234,11 @@ describe("post-window-attribution", () => {
 
       const result = applyProportionalAttribution(reports, metrics, config);
 
-      // Single activity gets 100% of both days: 5 + 5 = 10
+      // Single activity gets 100% of both days
+      // signups: 5 + 5 = 10
+      // activations: 3 + 3 = 6
       expect(result[0].incremental).toBe(10);
+      expect(result[0].incrementalActivations).toBe(6);
       expect(result[0].postWindowAttribution?.dailyShares).toHaveLength(2);
       expect(result[0].postWindowAttribution?.dailyShares[0].share).toBe(1.0);
       expect(result[0].postWindowAttribution?.dailyShares[1].share).toBe(1.0);
@@ -228,7 +247,7 @@ describe("post-window-attribution", () => {
     it("respects channel filter", () => {
       const a1 = makeActivity("a1", "2024-01-15", 500);
       a1.channel = "youtube"; // Different channel
-      const reports = [makeReport(a1, 10)];
+      const reports = [makeReport(a1, 10, 8)];
       const metrics: DailyMetric[] = [];
       const config: PostWindowAttributionConfig = {
         enabled: true,
@@ -238,6 +257,7 @@ describe("post-window-attribution", () => {
       const result = applyProportionalAttribution(reports, metrics, config);
 
       expect(result[0].incremental).toBe(10); // unchanged
+      expect(result[0].incrementalActivations).toBe(8); // unchanged
       expect(result[0].postWindowAttribution).toBeUndefined();
     });
   });

@@ -85,8 +85,10 @@ export interface ActivityReport {
   // Post-window proportional attribution
   postWindowAttribution?: {
     enabled: boolean;
-    rawIncremental: number; // Original incremental before attribution
-    attributedIncremental: number; // Final incremental after attribution
+    rawIncrementalSignups: number; // Original incremental signups before attribution
+    attributedIncrementalSignups: number; // Final incremental signups after attribution
+    rawIncremental: number; // Original incremental activations before attribution
+    attributedIncremental: number; // Final incremental activations after attribution
     dailyShares: DailyAttributionShare[];
     clicksUsed: number | null; // Which clicks value was used
     clicksSource: "actual" | "deterministic" | "estimated" | null;
@@ -120,11 +122,13 @@ export interface DecontaminatedBaseline {
 /** Daily attribution share details */
 export interface DailyAttributionShare {
   date: string;
-  pooledIncremental: number; // Total incremental for this date (from metrics)
+  pooledIncremental: number; // Total activations for this date (from metrics)
+  pooledSignups: number; // Total signups for this date (from metrics)
   myClicks: number; // This activity's clicks
   totalClicks: number; // Sum of all overlapping activities' clicks
   share: number; // myClicks / totalClicks
-  attributed: number; // pooledIncremental × share
+  attributed: number; // pooledIncremental (activations) × share
+  attributedSignups: number; // pooledSignups × share
   overlappingActivities: string[]; // Activity IDs sharing this date
 }
 

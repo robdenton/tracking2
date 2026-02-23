@@ -372,13 +372,19 @@ export default async function ActivityDetailPage({
       {activity.channel === "newsletter" && report.postWindowAttribution && (
         <div className="mb-8">
           <h2 className="text-sm font-semibold mb-3">Attribution Details</h2>
-          <div className="text-xs text-gray-500 mb-3">
-            Raw incremental: {report.postWindowAttribution.rawIncremental.toFixed(1)} activations
-            → Attributed: {report.postWindowAttribution.attributedIncremental.toFixed(1)} activations
+          <div className="text-xs text-gray-500 mb-3 space-y-1">
+            <div>
+              Account created: {report.postWindowAttribution.rawIncrementalSignups?.toFixed(1) ?? "—"} raw
+              → {report.postWindowAttribution.attributedIncrementalSignups?.toFixed(1) ?? "—"} attributed
+            </div>
+            <div>
+              NAU: {report.postWindowAttribution.rawIncremental.toFixed(1)} raw
+              → {report.postWindowAttribution.attributedIncremental.toFixed(1)} attributed
+            </div>
             {report.postWindowAttribution.clicksSource && (
-              <span>
-                {" "}(using {report.postWindowAttribution.clicksSource} clicks: {report.postWindowAttribution.clicksUsed?.toLocaleString()})
-              </span>
+              <div>
+                Using {report.postWindowAttribution.clicksSource} clicks: {report.postWindowAttribution.clicksUsed?.toLocaleString()}
+              </div>
             )}
           </div>
 
