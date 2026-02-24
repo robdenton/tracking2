@@ -81,7 +81,7 @@ Aggregate by partner: `SUM(attributed_incremental_activations)`
 
 2. **No proportional attribution in ad-hoc queries**: The live app applies click-share credit splitting when multiple newsletters' post-windows overlap the same day. The ad-hoc computation does not. Partners that ran during high-activity periods (e.g. Techscoop running alongside TLDR + Revenue Brew) may show inflated incremental NAU — flag explicitly.
 
-3. **Zero uplift ≠ definitively no effect**: Could be Jan 1 timing (low organic activity suppresses the signal), insufficient baseline data, or overlapping sends absorbing the credit. Always note this for zero results.
+3. **Zero uplift ≠ definitively no effect**: Could be Jan 1 timing (low organic activity suppresses the signal), insufficient baseline data, or overlapping sends absorbing the credit. Always note this for zero results. Consider the variables both seasonally or from the data to suggest a hypothesis only if one is available. 
 
 4. **Post-window caveats**: Most recent sends (within last 2 days) have incomplete post-window data — flag as "too early to measure".
 
@@ -91,24 +91,24 @@ Aggregate by partner: `SUM(attributed_incremental_activations)`
 
 ### 🟢 Scale
 Commit to recurring spend. Criteria — all of:
-- ≥ 2 sends with data
+- ≥ 1 sends with data
 - Measured incremental NAU > 0
-- Incremental CPA < $200
+- Incremental CPA < $120
 - CPC is competitive relative to portfolio average (use as a signal of audience efficiency)
 
 ### 🟡 Continue Testing
 One more send needed. Criteria — any of:
-- Only 1 send with positive signal
-- 2 sends with mixed results (e.g. CPC trending down, signal improving)
+- ≥ 2 sends with mixed results (e.g. CPC trending down, signal improving)
+- Incremental CPA between $120 and $300 with a reason to believe we can reach $120
 - Good click volume but post-window too recent to measure
-- Strong eNAU CPA but measured uplift not yet confirmed
+- Low CPC or high number of clicks but no uplift measureable yet
 
 ### 🔴 Do Not Repeat
 Cut from future planning. Criteria — any of:
 - Zero measured uplift across ≥ 2 sends
-- Incremental CPA > $500 with no plausible path to improvement
+- Incremental CPA > $300 with no plausible path to improvement
 - Very high CPC with no corresponding uplift signal (expensive clicks that don't convert)
-- Obvious ICP mismatch (e.g. DevOps/engineering audiences for Granola)
+- Obvious ICP mismatch (e.g. student audiences for Granola). Our ICP is knowledge workers, especially in tech
 - Suspicious attribution artefact — note explicitly and do not use for decision-making
 
 **Always note edge cases explicitly** rather than forcing into a category.
@@ -121,7 +121,7 @@ Cut from future planning. Criteria — any of:
 ```
 Period: [start] to [end]
 Total Spend: $X | Sends: N | Partners: N | Blended CPC: $X
-eNAU (estimated): N | Measured Incremental NAU: N
+Total NAU: N | Blended CPA: N | Incremental NAU: N | Incremental NAU CPA: N
 ```
 **Note**: The "Measured Incremental NAU" headline can be read from either the newsletter analytics page or by summing `attributed_incremental_activations` from the DB — they now agree exactly under the new channel-baseline model. No separate period-level cap is applied.
 
@@ -129,20 +129,20 @@ eNAU (estimated): N | Measured Incremental NAU: N
 3–5 sentences. The "so what": overall performance direction, the single biggest finding, and the key reallocation recommendation. Lead with the insight, not the data.
 
 ### 2. 🟢 Scale
-Table: Partner | Sends | Spend | Actual Clicks | CPC | Incr. NAU | CPA
+Table: Partner | Sends | Spend | Actual Clicks | CPC | Conv % | Incr. NAU | CPA
 Then 2–4 sentences per partner — what specifically makes it a scale decision, any nuance.
 
 ### 3. 🟡 Continue Testing
 Same table format. One paragraph per partner explaining the signal and what the next send needs to confirm.
 
 ### 4. 🔴 Do Not Repeat
-Condensed table: Partner | Sends | Spend | Actual Clicks | CPC | Incr. NAU | Reason (one line)
+Condensed table: Partner | Sends | Spend | Actual Clicks | CPC | Conv % | Incr. NAU | CPA | Reason (one line)
 No extended narrative — keep this section tight.
 
 ### 5. ⚠️ Anomalies & Investigation Flags
 Always include this section. Surface any activities that warrant investigation before budget decisions are made. Anomaly types to check automatically:
 
-**a) High clicks, near-zero iNAU** — Actual clicks > 30 but attributed iNAU < 1. Signals ICP mismatch (clicks that don't convert), timing issues (holiday send), or attribution blind spots (send on a zero-pool day). For each flag: state clicks, CPA, confidence, and a hypothesis for the miss.
+**a) High clicks, near-zero iNAU** — Actual clicks > 30 but attributed iNAU < 1. Signals ICP mismatch (clicks that don't convert), timing issues (holiday send), or attribution blind spots (send on a zero-pool day). For each flag: state clicks, CPA, and a hypothesis for the miss.
 
 **b) Zero/null actual clicks on paid sends** — `actual_clicks IS NULL` or 0 on a live send with `cost_usd > 0`. Click data is missing from the Google Sheet. The iNAU figure is unreliable (falls back to equal-share attribution). Flag the specific sends and note that the verdict is pending click data entry.
 
@@ -161,7 +161,7 @@ For each anomaly: state the partner, date, the specific numbers that triggered t
 Three-tier table:
 | Tier | Partners | Rationale |
 |------|----------|-----------|
-| Core (recurring) | ... | Proven, book now |
+| Core (recurring) | ... | Proven — add to recurring plan |
 | Build (2nd send) | ... | Confirm signal |
 | Pause | ... | Insufficient data or negative |
 
@@ -173,6 +173,12 @@ Three-tier table:
 - Use absolute numbers ($, NAU) not just percentages
 - Flag uncertainty explicitly — don't oversell weak signals
 - Keep the report skimmable: headers, tables, short paragraphs
+- **Tone: direct, calm, matter-of-fact.** Avoid enthusiasm markers and editorialising.
+  - ❌ "real, above-baseline signal" → ✅ state the number and let it speak
+  - ❌ "makes the prioritisation stark" → ✅ remove the framing, state the conclusion directly
+  - ❌ "locked in as recurring buys immediately" / "book now" → ✅ "recurring partners" or "add to recurring plan"
+  - ❌ "the single clearest decision in this report" → ✅ state why it qualifies, let the reader draw the conclusion
+  - ❌ "compelling", "clean", "genuinely good" → ✅ describe what the data shows, not how it feels
 
 ---
 
@@ -187,3 +193,4 @@ Three-tier table:
 | 2026-02-24 | Estimated clicks (deterministic_clicks) should be ignored in the report — only useful for post-campaign delivery auditing vs projection, not for decisions. Actual clicks and actual CPC are the primary upper-funnel metrics. CPC should be the cross-newsletter comparison metric and a key success signal. | Removed "Total estimated clicks" and "Click delivery %" from Pass 1 metrics and report tables. Added CPC as a key metric. Updated decision framework to reference CPC instead of click delivery %. Updated Scale/Test/Cut table columns to include Actual Clicks and CPC, removing Click Delivery. |
 | 2026-02-24 | Per-activity incremental figures must sum to the portfolio total, which must never exceed actual daily newsletter NAU. The old per-activity-baseline model could assign overlapping activities independent baselines for the same days, letting their sum exceed actual NAU. The period-level Math.min cap in the chart layer was a symptom, not a fix. | Redesigned core measurement model: replaced per-activity 14-day pre-window baselines with a single channel-level daily baseline. For each post-window date D: pool[D] = max(0, observed[D] − channel_baseline[D]), split among all activities active on D by click share. Per-activity figures now sum exactly to the portfolio total, which is bounded by actual daily NAU. Math.min cap removed from aggregateToTimeSeries(). Standing rule updated: DB sum and app page now agree — either source is reliable for the portfolio headline. |
 | 2026-02-24 | Reports should surface anomalies — activities with high clicks and no conversions, missing click data, anomalous CPC, or high spend with near-zero iNAU — to flag data quality issues and inform which activities need further investigation before budget decisions. | Added Section 5 "Anomalies & Investigation Flags" to the report structure. Five anomaly types defined: (a) high clicks + near-zero iNAU, (b) zero/null clicks on paid sends, (c) large eNAU forecast miss, (d) anomalous CPC, (e) high spend + near-zero iNAU. Each flagged activity should include the specific numbers, a hypothesis for the miss, and a recommended action. Previous Section 5 "Strategic Observations" renumbered to Section 6; "Recommended Portfolio" to Section 7. |
+| 2026-02-24 | Tone too enthusiastic and overconfident; remove confidence column from report tables. Examples: "real, above-baseline signal", "makes the prioritisation stark", "locked in as recurring buys immediately", "book now". | Expanded Tone and Style section with explicit anti-patterns and ✅/❌ examples. Removed "confidence" from anomaly (a) flag instructions. Updated Recommended Portfolio example row from "Proven, book now" to "Proven — add to recurring plan". |
