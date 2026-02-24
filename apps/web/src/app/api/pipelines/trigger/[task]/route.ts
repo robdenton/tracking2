@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { syncGoogleSheets } from "@/lib/tasks/sync-sheets";
+import { recomputeAttribution } from "@/lib/tasks/recompute-attribution";
 import { trackYouTubeViews } from "@/lib/tasks/track-youtube";
 import { trackImportedViews } from "@/lib/tasks/track-imported";
 import { trackLinkedInEngagement } from "@/lib/tasks/track-linkedin";
@@ -9,6 +10,7 @@ import { searchAndSaveYouTubeResults } from "@/lib/tasks/youtube-search";
 
 type TaskName =
   | "sync-sheets"
+  | "recompute-attribution"
   | "track-youtube"
   | "track-imported"
   | "track-linkedin"
@@ -18,6 +20,8 @@ async function runTask(taskName: TaskName) {
   switch (taskName) {
     case "sync-sheets":
       return syncGoogleSheets();
+    case "recompute-attribution":
+      return recomputeAttribution();
     case "track-youtube":
       return trackYouTubeViews();
     case "track-imported":
@@ -33,6 +37,7 @@ async function runTask(taskName: TaskName) {
 
 const VALID_TASKS: TaskName[] = [
   "sync-sheets",
+  "recompute-attribution",
   "track-youtube",
   "track-imported",
   "track-linkedin",
