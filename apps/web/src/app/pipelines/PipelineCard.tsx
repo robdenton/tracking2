@@ -45,6 +45,8 @@ function formatResultSummary(taskName: string, resultJson: string | null): strin
         return `${r.tracked ?? 0} tracked · ${r.skipped ?? 0} skipped · ${r.errors ?? 0} errors`;
       case "youtube-search":
         return `${r.resultsFound ?? 0} found · ${r.saved ?? 0} new · ${r.skipped ?? 0} known`;
+      case "sync-dub":
+        return `${r.stored ?? 0} rows upserted · ${r.errors ?? 0} errors`;
       default:
         return "";
     }

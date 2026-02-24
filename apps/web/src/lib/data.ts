@@ -381,6 +381,13 @@ export const PIPELINE_CONFIGS: PipelineConfig[] = [
     scheduleHour: 8,
     scheduleMinute: 0,
   },
+  {
+    taskName: "sync-dub",
+    label: "Dub Analytics Sync",
+    description: "Imports daily click counts per Dub short link for cross-reference with sheet data",
+    scheduleHour: 7,
+    scheduleMinute: 0,
+  },
 ];
 
 /** Compute the next UTC run time for a given hour/minute schedule */
