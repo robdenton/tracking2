@@ -28,8 +28,43 @@ model Activity {
 
   contentViews               ContentView[]
   linkedInEngagements        LinkedInEngagement[]
+  uplift                     ActivityUplift?
 
   @@map("activities")
+}
+
+model ActivityUplift {
+  activityId                       String   @id @map("activity_id")
+  computedAt                       DateTime @default(now()) @map("computed_at")
+
+  // Baseline
+  baselineWindowStart              String   @map("baseline_window_start")
+  baselineWindowEnd                String   @map("baseline_window_end")
+  baselineAvg                      Float    @map("baseline_avg")
+
+  // Raw uplift (before proportional attribution)
+  rawIncrementalSignups            Float    @map("raw_incremental_signups")
+  rawIncrementalActivations        Float    @map("raw_incremental_activations")
+
+  // Attributed uplift (after click-share splitting — the canonical figures)
+  attributedIncrementalSignups     Float    @map("attributed_incremental_signups")
+  attributedIncrementalActivations Float    @map("attributed_incremental_activations")
+
+  // Attribution metadata
+  clicksUsed                       Int?     @map("clicks_used")
+  clicksSource                     String?  @map("clicks_source") // "actual" | "deterministic" | "estimated"
+
+  // Confidence
+  confidence                       String
+  confidenceExplanation            String   @map("confidence_explanation")
+
+  // JSON blobs for detail-page display
+  dailySharesJson                  String?  @map("daily_shares_json") // DailyAttributionShare[]
+  dailyDataJson                    String?  @map("daily_data_json")   // DayDataPoint[]
+
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  @@map("activity_uplifts")
 }
 
 model DailyMetric {

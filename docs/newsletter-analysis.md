@@ -9,7 +9,33 @@ This document is the **living brief** for newsletter analysis reports. When feed
 - **Always use production Neon Postgres** — never local SQLite (`dev.db`)
 - Connection: ask user for `DATABASE_URL` if not in session context (it lives in Vercel environment variables)
 - Prisma client location: `node_modules/@prisma/client/index.js` (project root)
-- Query pattern: use a `.mjs` script with top-level `await`, `NODE_PATH` set to `node_modules`
+- Query pattern: use a `.ts` script with `npx tsx`, run from project root
+
+### Pre-computed attributed values — use `activity_uplifts` table
+
+As of 2026-02-23, a new `activity_uplifts` table stores the fully attributed incremental NAU per activity. **Use this table for all analyses** — do not re-implement the uplift algorithm ad-hoc.
+
+```sql
+SELECT
+  a.partner_name,
+  COUNT(*) AS sends,
+  SUM(a.cost_usd) AS spend,
+  SUM(au.attributed_incremental_activations) AS incremental_nau,
+  SUM(a.cost_usd) / NULLIF(SUM(au.attributed_incremental_activations), 0) AS incremental_cpa,
+  SUM(a.actual_clicks) AS actual_clicks
+FROM activities a
+JOIN activity_uplifts au ON au.activity_id = a.id
+WHERE a.channel = 'newsletter'
+  AND a.status = 'live'
+  AND a.date >= '2026-01-01'
+GROUP BY a.partner_name
+ORDER BY incremental_nau DESC;
+```
+
+**Note on the two incremental NAU figures:**
+- `activity_uplifts.attributed_incremental_activations` — per-activity pre-cap attributed figure (sum ≈ 1,359 for Jan–Feb 2026). This is the algorithm's output after proportional click-share splitting.
+- Newsletter analytics page total (≈ 1,000) — same algorithm, but with an additional period-level cap: `min(incremental, total_actual_activations_in_period)`. The cap prevents a period's attributed total from exceeding what was actually observed. The difference (~359) reflects periods where the attribution algorithm's pool exceeded the observed cap.
+- For partner-level decisions, use `attributed_incremental_activations` from the DB. For the portfolio-level total in the CEO update header, use the number from the newsletter analytics page.
 
 ### Filters
 - `channel = 'newsletter'`
@@ -35,17 +61,16 @@ Run two passes: one for raw activity data, one for uplift calculation.
 | eNAU CPA | `spend / eNAU` |
 | List size | MAX of `metadata->>'send'` |
 
-### Pass 2 — Uplift calculation (from `activities` + `daily_metrics`)
-For each activity, compute:
-- **Baseline avg** = mean of `activations` in the 14 days before the send date (from `daily_metrics` where `channel = 'newsletter'`)
-- **Post-window** = 2 days (day of send + 1 day after)
-- **Observed activations** = SUM of `activations` in the post-window
-- **Expected activations** = `baseline_avg × 2`
-- **Incremental NAU** = `max(0, observed - expected)`
+### Pass 2 — Uplift (from `activity_uplifts` table — pre-computed)
+Do **not** recompute uplift ad-hoc. Read from `activity_uplifts` which is populated after every sync:
+- `attributed_incremental_activations` — canonical per-activity attributed incremental NAU (proportional click-share split already applied)
+- `attributed_incremental_signups` — same for signups
+- `raw_incremental_activations` — before attribution split (for comparison / debugging only)
+- `confidence` — `HIGH`, `MED`, or `LOW` confidence in the signal
 
-Aggregate by partner: SUM of incremental NAU across all sends.
+Aggregate by partner: `SUM(attributed_incremental_activations)`
 
-**Incremental CPA** = `total spend / total incremental NAU`
+**Incremental CPA** = `SUM(cost_usd) / SUM(attributed_incremental_activations)`
 
 ---
 

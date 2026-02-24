@@ -6,76 +6,78 @@ import {
   getConfig,
   applyProportionalAttribution,
 } from "@mai/core";
-import type { Activity, DailyMetric, ActivityReport } from "@mai/core";
+import type { Activity, DailyMetric, ActivityReport, DailyAttributionShare, DayDataPoint } from "@mai/core";
 import { decontaminateBaselines } from "@mai/core/baseline-decontamination";
+import { toActivity, toDailyMetric } from "./mappers";
 
-/** Map Prisma Activity row to core Activity type */
-function toActivity(row: {
-  id: string;
-  activityType: string;
-  channel: string;
-  partnerName: string;
-  date: string;
-  status: string;
-  costUsd: number | null;
-  deterministicClicks: number | null;
-  actualClicks: number | null;
-  deterministicTrackedSignups: number | null;
-  notes: string | null;
-  metadata: string | null;
-  contentUrl: string | null;
-  channelUrl: string | null;
-}): Activity {
-  let metadata: Record<string, number> | null = null;
-  if (row.metadata) {
-    try {
-      metadata = JSON.parse(row.metadata);
-    } catch {
-      metadata = null;
-    }
-  }
-  return {
-    id: row.id,
-    activityType: row.activityType,
-    channel: row.channel,
-    partnerName: row.partnerName,
-    date: row.date,
-    status: row.status,
-    costUsd: row.costUsd,
-    deterministicClicks: row.deterministicClicks,
-    actualClicks: row.actualClicks,
-    deterministicTrackedSignups: row.deterministicTrackedSignups,
-    notes: row.notes,
-    metadata,
-    contentUrl: row.contentUrl,
-    channelUrl: row.channelUrl,
-  };
+/** Prisma ActivityUplift row (minimal shape we need) */
+interface StoredUplift {
+  activityId: string;
+  baselineWindowStart: string;
+  baselineWindowEnd: string;
+  baselineAvg: number;
+  rawIncrementalSignups: number;
+  rawIncrementalActivations: number;
+  attributedIncrementalSignups: number;
+  attributedIncrementalActivations: number;
+  clicksUsed: number | null;
+  clicksSource: string | null;
+  confidence: string;
+  confidenceExplanation: string;
+  dailySharesJson: string | null;
+  dailyDataJson: string | null;
 }
 
-/** Map Prisma DailyMetric row to core DailyMetric type */
-function toDailyMetric(row: {
-  date: string;
-  channel: string;
-  signups: number;
-  activations: number;
-}): DailyMetric {
+/**
+ * Apply stored uplift values to a computed ActivityReport.
+ * Overwrites the attribution-dependent fields with the pre-computed,
+ * consistently attributed values from the activity_uplifts table.
+ */
+function applyStoredUplift(report: ActivityReport, stored: StoredUplift): ActivityReport {
+  const dailyShares: DailyAttributionShare[] = stored.dailySharesJson
+    ? JSON.parse(stored.dailySharesJson)
+    : [];
+
+  const dailyData: DayDataPoint[] = stored.dailyDataJson
+    ? JSON.parse(stored.dailyDataJson)
+    : report.dailyData;
+
   return {
-    date: row.date,
-    channel: row.channel,
-    signups: row.signups,
-    activations: row.activations,
+    ...report,
+    // Overwrite with stored attributed values
+    incremental: stored.attributedIncrementalSignups,
+    incrementalActivations: stored.attributedIncrementalActivations,
+    // Restore stored daily data
+    dailyData,
+    // Populate postWindowAttribution from stored metadata
+    postWindowAttribution: {
+      enabled: true,
+      rawIncrementalSignups: stored.rawIncrementalSignups,
+      attributedIncrementalSignups: stored.attributedIncrementalSignups,
+      rawIncremental: stored.rawIncrementalActivations,
+      attributedIncremental: stored.attributedIncrementalActivations,
+      dailyShares,
+      clicksUsed: stored.clicksUsed,
+      clicksSource: stored.clicksSource as "actual" | "deterministic" | "estimated" | null,
+    },
   };
 }
 
 export async function getAllReports(): Promise<ActivityReport[]> {
-  const [activityRows, metricRows] = await Promise.all([
+  const [activityRows, metricRows, upliftRows] = await Promise.all([
     prisma.activity.findMany({ orderBy: { date: "asc" } }),
     prisma.dailyMetric.findMany({ orderBy: { date: "asc" } }),
+    prisma.activityUplift.findMany(),
   ]);
 
   const activities = activityRows.map(toActivity);
   const allMetrics = metricRows.map(toDailyMetric);
   const config = getConfig();
+
+  // Index stored uplifts by activity ID
+  const upliftById = new Map<string, StoredUplift>(
+    upliftRows.map((u) => [u.activityId, u as StoredUplift]),
+  );
 
   // Build a channel-indexed lookup map for metrics
   const metricsByChannel = new Map<string, DailyMetric[]>();
@@ -107,13 +109,33 @@ export async function getAllReports(): Promise<ActivityReport[]> {
     allReports.push(...channelReports);
   }
 
-  // Apply proportional attribution if enabled
-  const finalReports = config.postWindowAttribution?.enabled
-    ? applyProportionalAttribution(allReports, allMetrics, config.postWindowAttribution)
-    : allReports;
+  // Apply stored attributed values where available; fall back to in-memory
+  // proportional attribution for activities without a stored uplift record
+  // (e.g., on first run before a sync has completed).
+  const reportsWithStoredUplifts = allReports.map((report) => {
+    const stored = upliftById.get(report.activity.id);
+    return stored ? applyStoredUplift(report, stored) : report;
+  });
+
+  const activitiesWithoutUplift = reportsWithStoredUplifts.filter(
+    (r) => !upliftById.has(r.activity.id),
+  );
+
+  // Only run in-memory attribution for activities missing stored uplifts
+  if (activitiesWithoutUplift.length > 0 && config.postWindowAttribution?.enabled) {
+    const attributed = applyProportionalAttribution(
+      activitiesWithoutUplift,
+      allMetrics,
+      config.postWindowAttribution,
+    );
+    const attributedById = new Map(attributed.map((r) => [r.activity.id, r]));
+    return reportsWithStoredUplifts
+      .map((r) => attributedById.get(r.activity.id) ?? r)
+      .sort((a, b) => a.activity.date.localeCompare(b.activity.date));
+  }
 
   // Sort by date to maintain original order
-  return finalReports.sort(
+  return reportsWithStoredUplifts.sort(
     (a, b) => a.activity.date.localeCompare(b.activity.date),
   );
 }
@@ -121,7 +143,10 @@ export async function getAllReports(): Promise<ActivityReport[]> {
 export async function getReportById(
   id: string,
 ): Promise<ActivityReport | null> {
-  const activityRow = await prisma.activity.findUnique({ where: { id } });
+  const [activityRow, storedUplift] = await Promise.all([
+    prisma.activity.findUnique({ where: { id } }),
+    prisma.activityUplift.findUnique({ where: { activityId: id } }),
+  ]);
   if (!activityRow) return null;
 
   const activity = toActivity(activityRow);
@@ -142,7 +167,10 @@ export async function getReportById(
   const allActivities = allActivityRows.map(toActivity);
   const config = getConfig();
 
-  // If decontamination enabled, run full algorithm for the channel
+  // Run full decontamination to get the per-day baseline/post-window breakdown
+  // needed for the detail page timeline and confidence display.
+  let computedReport: ActivityReport;
+
   if (config.decontamination?.enabled) {
     const reportsMap = decontaminateBaselines(
       allActivities,
@@ -151,26 +179,36 @@ export async function getReportById(
       computeActivityReportWithCleanedBaseline,
       computeActivityReport,
     );
-
-    // Apply attribution if enabled
-    if (config.postWindowAttribution?.enabled) {
-      const reportsArray = Array.from(reportsMap.values());
-      const attributedReports = applyProportionalAttribution(
-        reportsArray,
-        metrics,
-        config.postWindowAttribution
-      );
-      const attributedMap = new Map(
-        attributedReports.map(r => [r.activity.id, r])
-      );
-      return attributedMap.get(id) || null;
-    }
-
-    return reportsMap.get(id) || null;
+    computedReport = reportsMap.get(id) ?? computeActivityReport(activity, metrics, config);
+  } else {
+    computedReport = computeActivityReport(activity, metrics, config);
   }
 
-  // Otherwise, single activity calculation
-  return computeActivityReport(activity, metrics, config);
+  // If we have stored attributed values, apply them over the computed report.
+  // This ensures the canonical attributed incremental figures match what was
+  // computed at sync time, while retaining the full daily breakdown from
+  // in-memory computation (needed for the detail page chart).
+  if (storedUplift) {
+    return applyStoredUplift(computedReport, storedUplift as StoredUplift);
+  }
+
+  // Fall back: no stored uplift (e.g., first run before sync) — apply in-memory attribution
+  if (config.postWindowAttribution?.enabled) {
+    const reportsArray = config.decontamination?.enabled
+      ? Array.from(
+          decontaminateBaselines(allActivities, metrics, config, computeActivityReportWithCleanedBaseline, computeActivityReport).values()
+        )
+      : allActivities.map((a) => computeActivityReport(a, metrics, config));
+
+    const attributedReports = applyProportionalAttribution(
+      reportsArray,
+      metrics,
+      config.postWindowAttribution,
+    );
+    return attributedReports.find((r) => r.activity.id === id) ?? null;
+  }
+
+  return computedReport;
 }
 
 /** Fetch content view tracking data for an activity */
@@ -191,7 +229,7 @@ export async function getLinkedInEngagements(activityId: string) {
 
 /** Fetch aggregated channel analytics */
 export async function getChannelAnalytics(channel: string) {
-  const [activityRows, metricRows] = await Promise.all([
+  const [activityRows, metricRows, upliftRows] = await Promise.all([
     prisma.activity.findMany({
       where: { channel, status: "live" },
       orderBy: { date: "asc" },
@@ -200,19 +238,45 @@ export async function getChannelAnalytics(channel: string) {
       where: { channel },
       orderBy: { date: "asc" },
     }),
+    prisma.activityUplift.findMany({
+      where: { activity: { channel, status: "live" } },
+    }),
   ]);
 
   const activities = activityRows.map(toActivity);
   const dailyMetrics = metricRows.map(toDailyMetric);
   const config = getConfig();
 
-  // Compute reports with decontamination and attribution
+  // Index stored uplifts by activity ID
+  const upliftById = new Map<string, StoredUplift>(
+    upliftRows.map((u) => [u.activityId, u as StoredUplift]),
+  );
+
+  // Compute reports with decontamination
   const reports = computeAllReports(activities, dailyMetrics, config);
 
-  // Apply proportional attribution if enabled
-  const finalReports = config.postWindowAttribution?.enabled
-    ? applyProportionalAttribution(reports, dailyMetrics, config.postWindowAttribution)
-    : reports;
+  // Apply stored attributed values where available; fall back to in-memory attribution
+  const reportsWithStoredUplifts = reports.map((report) => {
+    const stored = upliftById.get(report.activity.id);
+    return stored ? applyStoredUplift(report, stored) : report;
+  });
+
+  const activitiesWithoutUplift = reportsWithStoredUplifts.filter(
+    (r) => !upliftById.has(r.activity.id),
+  );
+
+  let finalReports = reportsWithStoredUplifts;
+  if (activitiesWithoutUplift.length > 0 && config.postWindowAttribution?.enabled) {
+    const attributed = applyProportionalAttribution(
+      activitiesWithoutUplift,
+      dailyMetrics,
+      config.postWindowAttribution,
+    );
+    const attributedById = new Map(attributed.map((r) => [r.activity.id, r]));
+    finalReports = reportsWithStoredUplifts.map(
+      (r) => attributedById.get(r.activity.id) ?? r,
+    );
+  }
 
   return {
     activities,
@@ -347,6 +411,13 @@ export const PIPELINE_CONFIGS: PipelineConfig[] = [
     description: "Imports activities & daily metrics from Google Sheets",
     scheduleHour: 7,
     scheduleMinute: 0,
+  },
+  {
+    taskName: "recompute-attribution",
+    label: "Attribution Recompute",
+    description: "Recomputes proportional incremental NAU and persists to database (runs inline after sync)",
+    scheduleHour: 7,
+    scheduleMinute: 5,
   },
   {
     taskName: "track-youtube",
