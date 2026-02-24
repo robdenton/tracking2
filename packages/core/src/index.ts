@@ -14,6 +14,7 @@ export type {
 
 export {
   mean,
+  median,
   stddev,
   computeExpectedTotal,
   computeIncremental,

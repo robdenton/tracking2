@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   mean,
+  median,
   stddev,
   computeExpectedTotal,
   computeIncremental,
@@ -22,6 +23,44 @@ describe("mean", () => {
 
   it("handles decimals", () => {
     expect(mean([1, 2])).toBe(1.5);
+  });
+});
+
+describe("median", () => {
+  it("returns 0 for empty array", () => {
+    expect(median([])).toBe(0);
+  });
+
+  it("returns the single value for a single-element array", () => {
+    expect(median([5])).toBe(5);
+  });
+
+  it("returns middle value for odd-length array", () => {
+    expect(median([1, 3, 5])).toBe(3);
+  });
+
+  it("returns average of two middle values for even-length array", () => {
+    expect(median([1, 3, 5, 7])).toBe(4);
+  });
+
+  it("handles unsorted input", () => {
+    expect(median([5, 1, 3])).toBe(3);
+  });
+
+  it("does not mutate the input array", () => {
+    const input = [3, 1, 2];
+    median(input);
+    expect(input).toEqual([3, 1, 2]);
+  });
+
+  it("matches expected result for actual clean-day activations data", () => {
+    const cleanDayActivations = [0, 1, 2, 4, 4, 6, 7, 8, 10, 10, 12, 14, 24, 41];
+    expect(median(cleanDayActivations)).toBe(7.5);
+  });
+
+  it("matches expected result for actual clean-day signups data", () => {
+    const cleanDaySignups = [2, 5, 9, 10, 10, 13, 14, 14, 15, 19, 25, 33, 44, 96];
+    expect(median(cleanDaySignups)).toBe(14);
   });
 });
 

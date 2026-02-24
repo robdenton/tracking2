@@ -128,9 +128,10 @@ function aggregateToTimeSeries(
       const signups = metricsByPeriod.get(period)?.signups || 0;
       const activations = metricsByPeriod.get(period)?.activations || 0;
 
-      // Cap incremental at actual to prevent double-counting from overlapping post-windows
-      const incrementalSignups = Math.min(incrSignupsByPeriod.get(period) || 0, signups);
-      const incrementalActivations = Math.min(incrActivationsByPeriod.get(period) || 0, activations);
+      // Per-activity figures are already bounded by the daily pool (≤ actual daily NAU)
+      // by construction in the new channel-baseline model. No separate cap needed.
+      const incrementalSignups = incrSignupsByPeriod.get(period) || 0;
+      const incrementalActivations = incrActivationsByPeriod.get(period) || 0;
 
       return {
         period,
@@ -206,8 +207,8 @@ function aggregateENAUTimeSeries(
       const signups = metricsByPeriod.get(period)?.signups || 0;
       const activations = metricsByPeriod.get(period)?.activations || 0;
 
-      const incrementalSignups = Math.min(incrSignupsByPeriod.get(period) || 0, signups);
-      const incrementalActivations = Math.min(incrActivationsByPeriod.get(period) || 0, activations);
+      const incrementalSignups = incrSignupsByPeriod.get(period) || 0;
+      const incrementalActivations = incrActivationsByPeriod.get(period) || 0;
 
       return {
         period,
@@ -282,12 +283,9 @@ export default async function NewsletterChannelPage({
   const totalActualClicks = timeSeries.reduce((sum, d) => sum + d.actualClicks, 0);
   const totalSignups = timeSeries.reduce((sum, d) => sum + d.signups, 0);
   const totalActivations = timeSeries.reduce((sum, d) => sum + d.activations, 0);
-  // Cap incremental at actual — overlapping activity post-windows can cause
-  // double-counting of the same daily signups/activations across activities.
-  const rawIncrementalSignups = timeSeries.reduce((sum, d) => sum + d.incrementalSignups, 0);
-  const rawIncrementalActivations = timeSeries.reduce((sum, d) => sum + d.incrementalActivations, 0);
-  const totalIncrementalSignups = Math.min(rawIncrementalSignups, totalSignups);
-  const totalIncrementalActivations = Math.min(rawIncrementalActivations, totalActivations);
+  // Per-activity figures are already bounded by the channel-level daily pool — no cap needed.
+  const totalIncrementalSignups = timeSeries.reduce((sum, d) => sum + d.incrementalSignups, 0);
+  const totalIncrementalActivations = timeSeries.reduce((sum, d) => sum + d.incrementalActivations, 0);
   const totalENAU = enauTimeSeries.reduce((sum, d) => sum + d.eNAU, 0);
 
   const totalCost = activities.reduce((sum, a) => sum + (a.costUsd ?? 0), 0);

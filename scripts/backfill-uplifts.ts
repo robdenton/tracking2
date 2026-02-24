@@ -7,11 +7,7 @@
  */
 
 import { PrismaClient } from "@prisma/client";
-import {
-  computeAllReports,
-  getConfig,
-  applyProportionalAttribution,
-} from "@mai/core";
+import { computeAllReports, getConfig } from "@mai/core";
 import type { Activity, DailyMetric } from "@mai/core";
 
 const prisma = new PrismaClient();
@@ -79,6 +75,8 @@ async function main() {
     activitiesByChannel.get(a.channel)!.push(a);
   }
 
+  // computeAllReports() uses the single channel-level daily baseline model and
+  // returns fully attributed figures inline — no separate applyProportionalAttribution() step.
   const allReports = [];
   for (const [channel, channelActivities] of activitiesByChannel) {
     const channelMetrics = metricsByChannel.get(channel) ?? [];
@@ -93,20 +91,11 @@ async function main() {
     allReports.push(...channelReports);
   }
 
-  console.log(`Applying proportional attribution...`);
-  const finalReports = config.postWindowAttribution?.enabled
-    ? applyProportionalAttribution(
-        allReports,
-        allMetrics,
-        config.postWindowAttribution
-      )
-    : allReports;
-
-  console.log(`Writing ${finalReports.length} uplift records...`);
+  console.log(`Writing ${allReports.length} uplift records...`);
   await prisma.activityUplift.deleteMany();
 
   await prisma.activityUplift.createMany({
-    data: finalReports.map((report) => {
+    data: allReports.map((report) => {
       const attr = report.postWindowAttribution;
       return {
         activityId: report.activity.id,
@@ -135,7 +124,7 @@ async function main() {
   });
 
   const elapsed = Date.now() - startedAt;
-  console.log(`✅ Backfilled ${finalReports.length} activity uplifts in ${elapsed}ms`);
+  console.log(`✅ Backfilled ${allReports.length} activity uplifts in ${elapsed}ms`);
 
   // Sanity check — newsletter attributed incremental NAU total
   const nlResult = await prisma.$queryRaw<Array<{ total: number }>>`

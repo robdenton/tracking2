@@ -1,13 +1,6 @@
 import { prisma } from "./prisma";
-import {
-  computeAllReports,
-  computeActivityReport,
-  computeActivityReportWithCleanedBaseline,
-  getConfig,
-  applyProportionalAttribution,
-} from "@mai/core";
+import { computeAllReports, getConfig } from "@mai/core";
 import type { Activity, DailyMetric, ActivityReport, DailyAttributionShare, DayDataPoint } from "@mai/core";
-import { decontaminateBaselines } from "@mai/core/baseline-decontamination";
 import { toActivity, toDailyMetric } from "./mappers";
 
 /** Prisma ActivityUplift row (minimal shape we need) */
@@ -109,30 +102,13 @@ export async function getAllReports(): Promise<ActivityReport[]> {
     allReports.push(...channelReports);
   }
 
-  // Apply stored attributed values where available; fall back to in-memory
-  // proportional attribution for activities without a stored uplift record
-  // (e.g., on first run before a sync has completed).
+  // Apply stored attributed values where available. Activities without a stored
+  // uplift record (e.g., first run before a sync) retain their computeAllReports()
+  // values, which already include channel-baseline attribution inline.
   const reportsWithStoredUplifts = allReports.map((report) => {
     const stored = upliftById.get(report.activity.id);
     return stored ? applyStoredUplift(report, stored) : report;
   });
-
-  const activitiesWithoutUplift = reportsWithStoredUplifts.filter(
-    (r) => !upliftById.has(r.activity.id),
-  );
-
-  // Only run in-memory attribution for activities missing stored uplifts
-  if (activitiesWithoutUplift.length > 0 && config.postWindowAttribution?.enabled) {
-    const attributed = applyProportionalAttribution(
-      activitiesWithoutUplift,
-      allMetrics,
-      config.postWindowAttribution,
-    );
-    const attributedById = new Map(attributed.map((r) => [r.activity.id, r]));
-    return reportsWithStoredUplifts
-      .map((r) => attributedById.get(r.activity.id) ?? r)
-      .sort((a, b) => a.activity.date.localeCompare(b.activity.date));
-  }
 
   // Sort by date to maintain original order
   return reportsWithStoredUplifts.sort(
@@ -167,45 +143,18 @@ export async function getReportById(
   const allActivities = allActivityRows.map(toActivity);
   const config = getConfig();
 
-  // Run full decontamination to get the per-day baseline/post-window breakdown
-  // needed for the detail page timeline and confidence display.
-  let computedReport: ActivityReport;
-
-  if (config.decontamination?.enabled) {
-    const reportsMap = decontaminateBaselines(
-      allActivities,
-      metrics,
-      config,
-      computeActivityReportWithCleanedBaseline,
-      computeActivityReport,
-    );
-    computedReport = reportsMap.get(id) ?? computeActivityReport(activity, metrics, config);
-  } else {
-    computedReport = computeActivityReport(activity, metrics, config);
-  }
+  // Run computeAllReports() to get the full channel-baseline report including
+  // the per-day dailyData breakdown needed for the activity detail page chart.
+  const allReports = computeAllReports(allActivities, metrics, config);
+  const computedReport = allReports.find((r) => r.activity.id === id);
+  if (!computedReport) return null;
 
   // If we have stored attributed values, apply them over the computed report.
   // This ensures the canonical attributed incremental figures match what was
-  // computed at sync time, while retaining the full daily breakdown from
+  // stored at sync time, while retaining the fresh dailyData from the
   // in-memory computation (needed for the detail page chart).
   if (storedUplift) {
     return applyStoredUplift(computedReport, storedUplift as StoredUplift);
-  }
-
-  // Fall back: no stored uplift (e.g., first run before sync) — apply in-memory attribution
-  if (config.postWindowAttribution?.enabled) {
-    const reportsArray = config.decontamination?.enabled
-      ? Array.from(
-          decontaminateBaselines(allActivities, metrics, config, computeActivityReportWithCleanedBaseline, computeActivityReport).values()
-        )
-      : allActivities.map((a) => computeActivityReport(a, metrics, config));
-
-    const attributedReports = applyProportionalAttribution(
-      reportsArray,
-      metrics,
-      config.postWindowAttribution,
-    );
-    return attributedReports.find((r) => r.activity.id === id) ?? null;
   }
 
   return computedReport;
@@ -255,28 +204,13 @@ export async function getChannelAnalytics(channel: string) {
   // Compute reports with decontamination
   const reports = computeAllReports(activities, dailyMetrics, config);
 
-  // Apply stored attributed values where available; fall back to in-memory attribution
-  const reportsWithStoredUplifts = reports.map((report) => {
+  // Apply stored attributed values where available. Activities without a stored
+  // uplift record retain their computeAllReports() values, which already include
+  // channel-baseline attribution inline.
+  const finalReports = reports.map((report) => {
     const stored = upliftById.get(report.activity.id);
     return stored ? applyStoredUplift(report, stored) : report;
   });
-
-  const activitiesWithoutUplift = reportsWithStoredUplifts.filter(
-    (r) => !upliftById.has(r.activity.id),
-  );
-
-  let finalReports = reportsWithStoredUplifts;
-  if (activitiesWithoutUplift.length > 0 && config.postWindowAttribution?.enabled) {
-    const attributed = applyProportionalAttribution(
-      activitiesWithoutUplift,
-      dailyMetrics,
-      config.postWindowAttribution,
-    );
-    const attributedById = new Map(attributed.map((r) => [r.activity.id, r]));
-    finalReports = reportsWithStoredUplifts.map(
-      (r) => attributedById.get(r.activity.id) ?? r,
-    );
-  }
 
   return {
     activities,

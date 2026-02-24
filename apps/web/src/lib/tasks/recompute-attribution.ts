@@ -11,11 +11,7 @@
  */
 
 import { prisma } from "../prisma";
-import {
-  computeAllReports,
-  getConfig,
-  applyProportionalAttribution,
-} from "@mai/core";
+import { computeAllReports, getConfig } from "@mai/core";
 import type { Activity, DailyMetric } from "@mai/core";
 import { toActivity, toDailyMetric } from "../mappers";
 
@@ -55,18 +51,15 @@ export async function recomputeAttribution(): Promise<RecomputeResult> {
     activitiesByChannel.get(activity.channel)!.push(activity);
   }
 
-  // Run decontamination per channel
+  // Compute reports per channel. computeAllReports() uses the single channel-level
+  // daily baseline model and returns fully attributed figures inline — no separate
+  // applyProportionalAttribution() step is needed.
   const allReports = [];
   for (const [channel, channelActivities] of activitiesByChannel) {
     const channelMetrics = metricsByChannel.get(channel) ?? [];
     const channelReports = computeAllReports(channelActivities, channelMetrics, config);
     allReports.push(...channelReports);
   }
-
-  // Apply proportional attribution across all channels (newsletter only by default)
-  const finalReports = config.postWindowAttribution?.enabled
-    ? applyProportionalAttribution(allReports, allMetrics, config.postWindowAttribution)
-    : allReports;
 
   // Delete existing uplift records and write fresh ones.
   // Note: because the sync pipeline does a full delete+reinsert of activities,
@@ -75,7 +68,7 @@ export async function recomputeAttribution(): Promise<RecomputeResult> {
   await prisma.activityUplift.deleteMany();
 
   await prisma.activityUplift.createMany({
-    data: finalReports.map((report) => {
+    data: allReports.map((report) => {
       const attr = report.postWindowAttribution;
 
       // Raw values = what was measured before click-share splitting
@@ -84,9 +77,8 @@ export async function recomputeAttribution(): Promise<RecomputeResult> {
       const rawIncrementalActivations =
         attr?.rawIncremental ?? report.incrementalActivations;
 
-      // Attributed values = canonical figures after click-share splitting
-      // After applyProportionalAttribution(), report.incremental and
-      // report.incrementalActivations are already the attributed values.
+      // Attributed values = canonical figures after click-share splitting.
+      // computeAllReports() returns attributed values inline in postWindowAttribution.
       const attributedIncrementalSignups =
         attr?.attributedIncrementalSignups ?? report.incremental;
       const attributedIncrementalActivations =
@@ -116,7 +108,7 @@ export async function recomputeAttribution(): Promise<RecomputeResult> {
   });
 
   return {
-    count: finalReports.length,
+    count: allReports.length,
     durationMs: Date.now() - startedAt,
   };
 }

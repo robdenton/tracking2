@@ -10,6 +10,16 @@ export function mean(values: number[]): number {
   return sum / values.length;
 }
 
+/** Compute median of an array of numbers. Returns 0 for empty arrays. */
+export function median(values: number[]): number {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0
+    ? (sorted[mid - 1] + sorted[mid]) / 2
+    : sorted[mid];
+}
+
 /** Compute population standard deviation. Returns 0 for empty/single-element arrays. */
 export function stddev(values: number[]): number {
   if (values.length <= 1) return 0;

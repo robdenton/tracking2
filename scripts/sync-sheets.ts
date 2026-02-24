@@ -252,7 +252,7 @@ function mapNewsletter(
     status,
     costUsd: floatOrNull(row["USD$ Rate"]),
     deterministicClicks: intOrNull(row["Estimated Clics"]),
-    actualClicks: intOrNull(row["Actual clicks"]),
+    actualClicks: intOrNull(row["Actual Clicks"]),
     deterministicTrackedSignups: intOrNull(row["eNAU"]),
     notes: (row["Newsletter URL"] || "").trim() || null,
     contentUrl: null,
@@ -260,7 +260,7 @@ function mapNewsletter(
     metadata: buildMetadata({
       send: intOrNull(row["Send"]),
       estClicks: intOrNull(row["Estimated Clics"]),
-      actualClicks: intOrNull(row["Actual clicks"]),
+      actualClicks: intOrNull(row["Actual Clicks"]),
       eNAU: intOrNull(row["eNAU"]),
       cpa: floatOrNull(row["CPA"]),
     }),
