@@ -139,10 +139,25 @@ Same table format. One paragraph per partner explaining the signal and what the 
 Condensed table: Partner | Sends | Spend | Actual Clicks | CPC | Incr. NAU | Reason (one line)
 No extended narrative — keep this section tight.
 
-### 5. Strategic Observations
+### 5. ⚠️ Anomalies & Investigation Flags
+Always include this section. Surface any activities that warrant investigation before budget decisions are made. Anomaly types to check automatically:
+
+**a) High clicks, near-zero iNAU** — Actual clicks > 30 but attributed iNAU < 1. Signals ICP mismatch (clicks that don't convert), timing issues (holiday send), or attribution blind spots (send on a zero-pool day). For each flag: state clicks, CPA, confidence, and a hypothesis for the miss.
+
+**b) Zero/null actual clicks on paid sends** — `actual_clicks IS NULL` or 0 on a live send with `cost_usd > 0`. Click data is missing from the Google Sheet. The iNAU figure is unreliable (falls back to equal-share attribution). Flag the specific sends and note that the verdict is pending click data entry.
+
+**c) Large eNAU forecast miss** — `eNAU > 10` but measured iNAU < 2 (on sends older than 3 days, so the post-window is complete). Signals that the conversion rate used to build eNAU is out of date, or the audience is systematically non-converting.
+
+**d) Anomalous CPC** — CPC > 3× the portfolio blended CPC or CPC > $50. Either data entry error (e.g. only 10 clicks recorded for a newsletter with a 20k list) or genuinely expensive inventory that deserves explicit justification.
+
+**e) Very high spend, near-zero iNAU** — Any send ≥ $5k with iNAU < 5. Always call these out explicitly — even if LOW confidence is the explanation, the financial exposure requires a sentence.
+
+For each anomaly: state the partner, date, the specific numbers that triggered the flag, the most plausible explanation, and the recommended action (investigate data, pause, or accept with caveat).
+
+### 6. Strategic Observations
 3–5 cross-cutting patterns spotted across the portfolio. Not partner-specific — portfolio-level insights that inform future partner selection and channel strategy.
 
-### 6. Recommended Portfolio
+### 7. Recommended Portfolio
 Three-tier table:
 | Tier | Partners | Rationale |
 |------|----------|-----------|
@@ -171,3 +186,4 @@ Three-tier table:
 | 2026-02-24 | Report headline showed 1,327 (DB sum) but app page shows 1,028. Proportional attribution conserves totals — the discrepancy is caused by the period-level Math.min cap in aggregateToTimeSeries(), not attribution logic. | Added standing rule: headline "Measured Incremental NAU" must come from the app newsletter analytics page, never from summing the DB. Added note that per-partner DB figures (sum = 1,327) are correct for ranking; app page figure (1,028) is correct for the portfolio headline. |
 | 2026-02-24 | Estimated clicks (deterministic_clicks) should be ignored in the report — only useful for post-campaign delivery auditing vs projection, not for decisions. Actual clicks and actual CPC are the primary upper-funnel metrics. CPC should be the cross-newsletter comparison metric and a key success signal. | Removed "Total estimated clicks" and "Click delivery %" from Pass 1 metrics and report tables. Added CPC as a key metric. Updated decision framework to reference CPC instead of click delivery %. Updated Scale/Test/Cut table columns to include Actual Clicks and CPC, removing Click Delivery. |
 | 2026-02-24 | Per-activity incremental figures must sum to the portfolio total, which must never exceed actual daily newsletter NAU. The old per-activity-baseline model could assign overlapping activities independent baselines for the same days, letting their sum exceed actual NAU. The period-level Math.min cap in the chart layer was a symptom, not a fix. | Redesigned core measurement model: replaced per-activity 14-day pre-window baselines with a single channel-level daily baseline. For each post-window date D: pool[D] = max(0, observed[D] − channel_baseline[D]), split among all activities active on D by click share. Per-activity figures now sum exactly to the portfolio total, which is bounded by actual daily NAU. Math.min cap removed from aggregateToTimeSeries(). Standing rule updated: DB sum and app page now agree — either source is reliable for the portfolio headline. |
+| 2026-02-24 | Reports should surface anomalies — activities with high clicks and no conversions, missing click data, anomalous CPC, or high spend with near-zero iNAU — to flag data quality issues and inform which activities need further investigation before budget decisions. | Added Section 5 "Anomalies & Investigation Flags" to the report structure. Five anomaly types defined: (a) high clicks + near-zero iNAU, (b) zero/null clicks on paid sends, (c) large eNAU forecast miss, (d) anomalous CPC, (e) high spend + near-zero iNAU. Each flagged activity should include the specific numbers, a hypothesis for the miss, and a recommended action. Previous Section 5 "Strategic Observations" renumbered to Section 6; "Recommended Portfolio" to Section 7. |
