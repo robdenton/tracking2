@@ -63,20 +63,22 @@ export default async function ActivityDetailPage({
   const { activity } = report;
   const betLabels = getBetLabels(activity.channel);
 
-  // For newsletters, fetch 5 additional days after post window for context
+  // Fetch additional days after post window for context
+  // Newsletters: 5 days, LinkedIn: 10 days
   const isNewsletter = activity.channel === "newsletter";
+  const isLinkedIn = activity.channel === "linkedin";
+  const extraDays = isNewsletter ? 5 : isLinkedIn ? 10 : 0;
   let additionalDays: Array<{ date: string; signups: number }> = [];
 
   // Hide uplift metrics for YouTube (views accumulate continuously, not discrete windows)
   const showUpliftMetrics = activity.channel !== "youtube";
 
-  if (isNewsletter) {
+  if (extraDays > 0) {
     const { prisma } = await import("@/lib/prisma");
     const { addDays, dateRange } = await import("@mai/core");
 
-    // Get 5 days after the post window end
     const afterStart = addDays(report.postWindowEnd, 1);
-    const afterEnd = addDays(report.postWindowEnd, 5);
+    const afterEnd = addDays(report.postWindowEnd, extraDays);
     const afterDates = dateRange(afterStart, afterEnd);
 
     const afterMetrics = await prisma.dailyMetric.findMany({
@@ -575,7 +577,7 @@ export default async function ActivityDetailPage({
       {showUpliftMetrics && (
         <div>
         <h2 className="text-sm font-semibold mb-2">
-          Daily Signups (Baseline + Post Window{isNewsletter ? " + 5 days" : ""})
+          Daily Signups (Baseline + Post Window{extraDays > 0 ? ` + ${extraDays} days` : ""})
         </h2>
         <div className="overflow-x-auto">
           <table className="w-full text-xs border-collapse font-mono">
