@@ -34,6 +34,7 @@ export { decontaminateBaselines } from "./baseline-decontamination";
 export {
   applyProportionalAttribution,
   getClicksForAttribution,
+  getAttributionWeight,
 } from "./post-window-attribution";
 
 export { getConfig } from "./config";

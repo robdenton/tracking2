@@ -119,13 +119,20 @@ export interface DecontaminatedBaseline {
   adjustedDates: number;
 }
 
-/** Daily attribution share details */
+/**
+ * Daily attribution share details.
+ *
+ * "myClicks" and "totalClicks" are generic attribution weights:
+ * - For newsletters: these are click counts
+ * - For LinkedIn: these are impression counts
+ * - For channels with no weight data: equal share (1 / overlappingActivities.length)
+ */
 export interface DailyAttributionShare {
   date: string;
   pooledIncremental: number; // Total activations for this date (from metrics)
   pooledSignups: number; // Total signups for this date (from metrics)
-  myClicks: number; // This activity's clicks
-  totalClicks: number; // Sum of all overlapping activities' clicks
+  myClicks: number; // This activity's attribution weight (clicks or impressions)
+  totalClicks: number; // Sum of all overlapping activities' weights
   share: number; // myClicks / totalClicks
   attributed: number; // pooledIncremental (activations) × share
   attributedSignups: number; // pooledSignups × share

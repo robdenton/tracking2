@@ -29,6 +29,38 @@ export function getClicksForAttribution(activity: Activity): {
 }
 
 /**
+ * Channel-aware attribution weight.
+ *
+ * Returns the numeric weight used to split the incremental pool among
+ * overlapping activities on the same day.
+ *
+ * - LinkedIn: uses impressions (reported → estimated)
+ * - All other channels: uses clicks (actual → deterministic → estimated)
+ *
+ * The returned `weight` and `source` are stored in the same fields as
+ * clicks in ActivityReport / DailyAttributionShare for consistency.
+ */
+export function getAttributionWeight(activity: Activity): {
+  weight: number | null;
+  source: "actual" | "deterministic" | "reported" | "estimated" | null;
+} {
+  if (activity.channel === "linkedin") {
+    // LinkedIn: apportion by impressions
+    if (activity.metadata?.impressions != null && activity.metadata.impressions > 0) {
+      return { weight: activity.metadata.impressions, source: "reported" };
+    }
+    if (activity.metadata?.estImpressions != null && activity.metadata.estImpressions > 0) {
+      return { weight: activity.metadata.estImpressions, source: "estimated" };
+    }
+    return { weight: null, source: null };
+  }
+
+  // All other channels: apportion by clicks
+  const { clicks, source } = getClicksForAttribution(activity);
+  return { weight: clicks, source };
+}
+
+/**
  * Build a map of which activities overlap on which dates.
  * Only includes "live" activities with positive incremental.
  */

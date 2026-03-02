@@ -16,7 +16,7 @@ import {
   computeIncremental,
   computeConfidence,
 } from "./math";
-import { getClicksForAttribution } from "./post-window-attribution";
+import { getAttributionWeight } from "./post-window-attribution";
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -32,10 +32,11 @@ function buildMetricsMap(metrics: DailyMetric[]): Map<string, DailyMetric> {
 
 /**
  * Get channel-specific post window days.
- * Newsletters: 2 days. Podcasts: 5 days. Others: config default.
+ * Newsletters: 2 days. LinkedIn: 3 days. Podcasts: 5 days. Others: config default.
  */
 export function getPostWindowDays(channel: string, defaultDays: number): number {
   if (channel === "newsletter") return 2;
+  if (channel === "linkedin") return 3;
   if (channel === "podcast") return 5;
   return defaultDays;
 }
@@ -198,10 +199,10 @@ export function computeAllReports(
     }
   }
 
-  // Pre-compute clicks per activity.
-  const clicksMap = new Map<string, { clicks: number | null; source: "actual" | "deterministic" | "estimated" | null }>();
+  // Pre-compute attribution weights per activity (clicks for newsletters, impressions for LinkedIn).
+  const weightsMap = new Map<string, { weight: number | null; source: "actual" | "deterministic" | "reported" | "estimated" | null }>();
   for (const activity of activities) {
-    clicksMap.set(activity.id, getClicksForAttribution(activity));
+    weightsMap.set(activity.id, getAttributionWeight(activity));
   }
 
   // Step 4: Build one ActivityReport per activity.
@@ -251,7 +252,7 @@ export function computeAllReports(
     }
 
     // Live activity: attribute from the daily pool.
-    const { clicks, source } = clicksMap.get(activity.id)!;
+    const { weight: myWeight, source } = weightsMap.get(activity.id)!;
     const dailyShares: DailyAttributionShare[] = [];
     let totalAttribSignups = 0, totalAttribActivations = 0;
     let rawWindowActivations = 0, rawWindowSignups = 0;
@@ -264,25 +265,26 @@ export function computeAllReports(
 
       const overlappingIds = dateToActivityIds.get(d) ?? [];
 
-      // Total clicks among all activities active on this day.
-      let totalClicks = 0;
+      // Total attribution weight among all activities active on this day
+      // (clicks for newsletters, impressions for LinkedIn, etc.).
+      let totalWeight = 0;
       for (const actId of overlappingIds) {
-        const { clicks: c } = clicksMap.get(actId) ?? { clicks: null };
-        if (c != null && c > 0) totalClicks += c;
+        const { weight: w } = weightsMap.get(actId) ?? { weight: null };
+        if (w != null && w > 0) totalWeight += w;
       }
 
-      const myClicks = clicks ?? 0;
+      const myW = myWeight ?? 0;
       let share: number;
       if (overlappingIds.length === 0) {
         share = 0;
-      } else if (totalClicks === 0) {
-        // No one has click data — equal share.
+      } else if (totalWeight === 0) {
+        // No one has weight data — equal share.
         share = 1 / overlappingIds.length;
-      } else if (myClicks === 0) {
-        // Others have clicks; this activity has none — gets nothing.
+      } else if (myW === 0) {
+        // Others have weight data; this activity has none — gets nothing.
         share = 0;
       } else {
-        share = myClicks / totalClicks;
+        share = myW / totalWeight;
       }
 
       const attribAct = pa * share;
@@ -294,8 +296,8 @@ export function computeAllReports(
         date: d,
         pooledIncremental: pa,
         pooledSignups: ps,
-        myClicks,
-        totalClicks: totalClicks > 0 ? totalClicks : overlappingIds.length,
+        myClicks: myW,
+        totalClicks: totalWeight > 0 ? totalWeight : overlappingIds.length,
         share,
         attributed: attribAct,
         attributedSignups: attribSig,
@@ -355,7 +357,7 @@ export function computeAllReports(
         rawIncremental:                rawWindowActivations,
         attributedIncremental:         totalAttribActivations,
         dailyShares,
-        clicksUsed:   clicks,
+        clicksUsed:   myWeight,
         clicksSource: source,
       },
     };
