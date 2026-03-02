@@ -91,7 +91,7 @@ export interface ActivityReport {
     attributedIncremental: number; // Final incremental activations after attribution
     dailyShares: DailyAttributionShare[];
     clicksUsed: number | null; // Which clicks value was used
-    clicksSource: "actual" | "deterministic" | "estimated" | null;
+    clicksSource: "actual" | "deterministic" | "reported" | "estimated" | null;
   };
 }
 
