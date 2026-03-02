@@ -154,7 +154,11 @@ function normaliseDate(raw: string): string | null {
 
   const dmy = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
   if (dmy) {
-    const [, dd, mm, yy] = dmy;
+    let [, dd, mm, yy] = dmy;
+    // If the second value > 12 it can't be a month — the input is MM/DD/YY, so swap.
+    if (parseInt(mm, 10) > 12 && parseInt(dd, 10) <= 12) {
+      [dd, mm] = [mm, dd];
+    }
     const yyyy = yy.length === 2 ? `20${yy}` : yy;
     return `${yyyy}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}`;
   }
