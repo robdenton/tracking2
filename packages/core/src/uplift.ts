@@ -235,7 +235,7 @@ export function computeAllReports(
       }
       const bAvg = mean(bSig), bSigma = stddev(bSig), bActAvg = mean(bAct);
       const dailyData: DayDataPoint[] = [...displayBaselineDates, ...postDates].map(d => ({
-        date: d, signups: metricsMap.get(d)?.signups ?? 0,
+        date: d, signups: metricsMap.get(d)?.signups ?? 0, activations: metricsMap.get(d)?.activations ?? 0,
         isBaseline: !postDateSet.has(d), isPostWindow: postDateSet.has(d),
       }));
       return {
@@ -327,6 +327,7 @@ export function computeAllReports(
     const dailyData: DayDataPoint[] = [...displayBaselineDates, ...postDates].map(d => ({
       date: d,
       signups: metricsMap.get(d)?.signups ?? 0,
+      activations: metricsMap.get(d)?.activations ?? 0,
       isBaseline: !postDateSet.has(d),
       isPostWindow: postDateSet.has(d),
     }));
@@ -414,7 +415,7 @@ export function computeActivityReport(
   const { confidence, explanation } = computeConfidence(incremental, baselineSigma, postWindowDays_, baselineSignups.length);
 
   const dailyData: DayDataPoint[] = [...baselineDates, ...postDates].map(d => ({
-    date: d, signups: metricsMap.get(d)?.signups ?? 0,
+    date: d, signups: metricsMap.get(d)?.signups ?? 0, activations: metricsMap.get(d)?.activations ?? 0,
     isBaseline: !postDateSet.has(d), isPostWindow: postDateSet.has(d),
   }));
 
@@ -482,7 +483,7 @@ export function computeActivityReportWithCleanedBaseline(
     const m = metricsMap.get(d);
     const adj = adjustmentMap.get(d);
     return {
-      date: d, signups: m?.signups ?? 0,
+      date: d, signups: m?.signups ?? 0, activations: m?.activations ?? 0,
       isBaseline: !postDateSet.has(d), isPostWindow: postDateSet.has(d),
       baselineAdjustment: adj ? { contamination: adj.contamination, sources: adj.contaminatingSources } : undefined,
     };

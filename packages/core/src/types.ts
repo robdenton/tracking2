@@ -30,6 +30,7 @@ export type Confidence = "HIGH" | "MED" | "LOW";
 export interface DayDataPoint {
   date: string;
   signups: number;
+  activations: number;
   isBaseline: boolean;
   isPostWindow: boolean;
   baselineAdjustment?: {

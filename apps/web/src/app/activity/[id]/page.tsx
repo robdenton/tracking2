@@ -68,7 +68,7 @@ export default async function ActivityDetailPage({
   const isNewsletter = activity.channel === "newsletter";
   const isLinkedIn = activity.channel === "linkedin";
   const extraDays = isNewsletter ? 5 : isLinkedIn ? 10 : 0;
-  let additionalDays: Array<{ date: string; signups: number }> = [];
+  let additionalDays: Array<{ date: string; signups: number; activations: number }> = [];
 
   // Hide uplift metrics for YouTube (views accumulate continuously, not discrete windows)
   const showUpliftMetrics = activity.channel !== "youtube";
@@ -94,6 +94,7 @@ export default async function ActivityDetailPage({
       return {
         date,
         signups: metric?.signups ?? 0,
+        activations: metric?.activations ?? 0,
       };
     });
   }
@@ -577,14 +578,15 @@ export default async function ActivityDetailPage({
       {showUpliftMetrics && (
         <div>
         <h2 className="text-sm font-semibold mb-2">
-          Daily Signups (Baseline + Post Window{extraDays > 0 ? ` + ${extraDays} days` : ""})
+          Daily Metrics (Baseline + Post Window{extraDays > 0 ? ` + ${extraDays} days` : ""})
         </h2>
         <div className="overflow-x-auto">
           <table className="w-full text-xs border-collapse font-mono">
             <thead>
               <tr className="border-b border-gray-300 dark:border-gray-700 text-left">
                 <th className="py-1 pr-3 font-medium">Date</th>
-                <th className="py-1 pr-3 font-medium text-right">Signups</th>
+                <th className="py-1 pr-3 font-medium text-right">Account Created</th>
+                <th className="py-1 pr-3 font-medium text-right">NAU</th>
                 <th className="py-1 font-medium">Window</th>
               </tr>
             </thead>
@@ -600,13 +602,14 @@ export default async function ActivityDetailPage({
                 >
                   <td className="py-1 pr-3">{d.date}</td>
                   <td className="py-1 pr-3 text-right">{d.signups}</td>
+                  <td className="py-1 pr-3 text-right">{d.activations}</td>
                   <td className="py-1 text-gray-400">
                     {d.isBaseline ? "baseline" : ""}
                     {d.isPostWindow ? "post" : ""}
                   </td>
                 </tr>
               ))}
-              {/* Additional days for newsletters (no label) */}
+              {/* Additional days after post window */}
               {additionalDays.map((d) => (
                 <tr
                   key={d.date}
@@ -614,6 +617,7 @@ export default async function ActivityDetailPage({
                 >
                   <td className="py-1 pr-3">{d.date}</td>
                   <td className="py-1 pr-3 text-right">{d.signups}</td>
+                  <td className="py-1 pr-3 text-right">{d.activations}</td>
                   <td className="py-1 text-gray-400"></td>
                 </tr>
               ))}
