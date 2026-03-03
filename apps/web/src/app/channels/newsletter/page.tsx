@@ -4,6 +4,7 @@ import { getChannelAnalytics } from "@/lib/data";
 import { NewsletterChart } from "./chart";
 import { ENAUChart } from "./enau-chart";
 import { DateRangePicker } from "./date-range-picker";
+import { ActivityTable } from "@/app/components/ActivityTable";
 
 /** Stat card with an info tooltip and optional sub-label */
 function StatCard({
@@ -444,6 +445,25 @@ export default async function NewsletterChannelPage({
       <div className="mb-8">
         <h2 className="text-sm font-semibold mb-3">eNAU (Estimated Activated Users) vs Actual</h2>
         <ENAUChart data={enauTimeSeries} grouping={timeGrouping} />
+      </div>
+
+      {/* Activity Detail Table */}
+      <div className="mb-8">
+        <h2 className="text-sm font-semibold mb-3">Activity Detail</h2>
+        <ActivityTable
+          reports={reports}
+          selectedChannel="newsletter"
+          clickConversionAvg={
+            (() => {
+              const liveWithClicks = reports.filter(
+                (r) => r.activity.status === "live" && (r.activity.actualClicks ?? 0) > 0
+              );
+              const clicks = liveWithClicks.reduce((s, r) => s + (r.activity.actualClicks ?? 0), 0);
+              const incrNAU = liveWithClicks.reduce((s, r) => s + r.incrementalActivations, 0);
+              return clicks > 0 ? incrNAU / clicks : undefined;
+            })()
+          }
+        />
       </div>
 
     </div>
