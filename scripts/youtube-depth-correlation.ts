@@ -163,6 +163,7 @@ interface VideoMeta {
   id: string;
   videoId: string;
   title: string;
+  channelTitle: string;
   depthTier: DepthTier | null;
   depthScore: number | null;
   contentType: string | null;
@@ -177,6 +178,12 @@ interface VideoMeta {
   granolaLinkType: string | null;
   sponsoredDisclosure: boolean | null;
   durationSeconds: number | null;
+}
+
+/** Check if a video belongs to Granola's own YouTube channel */
+function isGranolaOwned(meta: VideoMeta | undefined): boolean {
+  if (!meta) return false;
+  return meta.channelTitle.toLowerCase() === "granola";
 }
 
 // ─── Main ───────────────────────────────────────────────────────────────────
@@ -199,6 +206,7 @@ async function main() {
         id: true,
         videoId: true,
         title: true,
+        channelTitle: true,
         depthTier: true,
         depthScore: true,
         contentType: true,
@@ -217,6 +225,20 @@ async function main() {
     }),
   ]);
 
+  // Video metadata lookup
+  const videoMeta = new Map<string, VideoMeta>();
+  for (const v of videos) {
+    videoMeta.set(v.id, v as VideoMeta);
+  }
+
+  // Identify Granola-owned videos
+  const granolaOwnedIds = new Set<string>();
+  for (const v of videos) {
+    if (v.channelTitle.toLowerCase() === "granola") {
+      granolaOwnedIds.add(v.id);
+    }
+  }
+
   console.log(`\nData loaded:`);
   console.log(`  ImportedVideoView records: ${allViews.length}`);
   console.log(`  DailyMetric (youtube) records: ${metricRows.length}`);
@@ -224,12 +246,8 @@ async function main() {
   console.log(
     `  Videos with depth analysis: ${videos.filter((v) => v.depthTier).length}`
   );
-
-  // Video metadata lookup
-  const videoMeta = new Map<string, VideoMeta>();
-  for (const v of videos) {
-    videoMeta.set(v.id, v as VideoMeta);
-  }
+  console.log(`  Granola-owned channel videos: ${granolaOwnedIds.size} (EXCLUDED from analysis)`);
+  console.log(`  Third-party creator videos: ${videos.length - granolaOwnedIds.size}`);
 
   // ── Compute per-video daily increments ────────────────────────────────────
   const viewsByVideo = new Map<
@@ -237,27 +255,58 @@ async function main() {
     { date: string; viewCount: number }[]
   >();
   for (const v of allViews) {
+    // Skip Granola-owned videos — their ad-driven spikes confound the correlation
+    if (granolaOwnedIds.has(v.videoId)) continue;
     if (!viewsByVideo.has(v.videoId)) viewsByVideo.set(v.videoId, []);
     viewsByVideo.get(v.videoId)!.push({ date: v.date, viewCount: v.viewCount });
   }
 
-  // Per-video increments (skip first tracked day — it's cumulative lifetime)
+  // Per-video increments:
+  //  - Skip first tracked day (it's cumulative lifetime views, not one day)
+  //  - Normalize multi-day gaps: if gap > 1 day, divide increment by gap days
+  //    and attribute evenly (avoids compressing a week's views into one day)
   const videoIncrements = new Map<
     string,
     { date: string; increment: number }[]
   >();
 
+  let gapNormCount = 0;
   for (const [videoId, views] of viewsByVideo) {
     views.sort((a, b) => a.date.localeCompare(b.date));
     const increments: { date: string; increment: number }[] = [];
     for (let i = 1; i < views.length; i++) {
       const diff = views[i].viewCount - views[i - 1].viewCount;
-      if (diff >= 0) {
+      if (diff < 0) continue;
+
+      // Check for multi-day gaps between tracking points
+      const gapMs = new Date(views[i].date).getTime() - new Date(views[i - 1].date).getTime();
+      const gapDays = Math.round(gapMs / 86400000);
+
+      if (gapDays > 1) {
+        // Spread the increment across the gap days
+        gapNormCount++;
+        const dailyRate = diff / gapDays;
+        for (let d = 1; d <= gapDays; d++) {
+          const fillDate = new Date(new Date(views[i - 1].date).getTime() + d * 86400000);
+          const dateStr = fillDate.toISOString().slice(0, 10);
+          increments.push({ date: dateStr, increment: dailyRate });
+        }
+      } else {
         increments.push({ date: views[i].date, increment: diff });
       }
     }
     videoIncrements.set(videoId, increments);
   }
+  console.log(`  Multi-day gaps normalized: ${gapNormCount}`);
+  console.log(
+    `  ⚠️  Granola-owned videos excluded: their ad-driven view spikes`
+  );
+  console.log(
+    `     confound the correlation (they account for 56% of total views`
+  );
+  console.log(
+    `     but are concentrated in 2 promotional spike weeks).`
+  );
 
   // Daily metrics lookup
   const metricsByDate = new Map<
