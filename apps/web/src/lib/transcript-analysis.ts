@@ -4,10 +4,10 @@
  * Transcript source: supadata.ai YouTube Transcript API
  *   - Handles PO tokens automatically (unlike the direct YouTube timedtext API)
  *   - Requires SUPADATA_API_KEY env var
- *   - Free tier: 100 credits/month; Pro: $9/month for 1,000 credits
+ *   - Free tier: 100 credits/month; Pro: $9/month for 3,000 credits
  *   - Docs: https://supadata.ai
  *
- * LLM analysis: Anthropic claude-3-5-haiku-20241022
+ * LLM analysis: Anthropic claude-haiku-4-5
  *   - Structured extraction of depth tier, content type, sentiment, etc.
  *   - Requires ANTHROPIC_API_KEY env var
  *
@@ -94,8 +94,15 @@ export async function fetchTranscript(videoId: string): Promise<string | null> {
     const res = await fetch(url, { headers: { "x-api-key": apiKey } });
 
     if (!res.ok) {
-      // 404 / 422 = no transcript available — not an error we should throw on
-      if (res.status === 404 || res.status === 422 || res.status === 400) {
+      // These statuses mean "no transcript available" — not a fatal error.
+      // 400 / 404 / 422 = unknown video / no captions
+      // 403 = age-restricted or members-only video (can't scrape)
+      if (
+        res.status === 400 ||
+        res.status === 403 ||
+        res.status === 404 ||
+        res.status === 422
+      ) {
         return null;
       }
       throw new Error(`supadata HTTP ${res.status}: ${await res.text()}`);
@@ -166,9 +173,13 @@ Depth score ranges (within each tier):
 
 Return ONLY valid JSON. No markdown code fences, no explanation.`;
 
+/** ms to wait before each retry attempt (doubles each time) */
+const RETRY_DELAYS_MS = [5_000, 15_000, 30_000];
+
 /**
  * Run Claude Haiku structured extraction on a video transcript.
- * Returns null if the LLM call fails or returns unparseable JSON.
+ * Retries up to 3 times on transient errors (Cloudflare 403, rate limits, etc.).
+ * Returns null if the LLM call ultimately fails or returns unparseable JSON.
  */
 export async function analyseTranscript(
   videoId: string,
@@ -191,40 +202,63 @@ export async function analyseTranscript(
     truncated,
   );
 
-  try {
-    const response = await anthropic.messages.create({
-      model: "claude-haiku-4-5",
-      max_tokens: 512,
-      messages: [{ role: "user", content: prompt }],
-    });
+  for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+    try {
+      const response = await anthropic.messages.create({
+        model: "claude-haiku-4-5",
+        max_tokens: 512,
+        messages: [{ role: "user", content: prompt }],
+      });
 
-    const raw =
-      response.content[0].type === "text" ? response.content[0].text.trim() : "";
+      const raw =
+        response.content[0].type === "text" ? response.content[0].text.trim() : "";
 
-    // Strip accidental markdown fences
-    const clean = raw
-      .replace(/^```(?:json)?\n?/, "")
-      .replace(/\n?```$/, "")
-      .trim();
+      // Strip accidental markdown fences
+      const clean = raw
+        .replace(/^```(?:json)?\n?/, "")
+        .replace(/\n?```$/, "")
+        .trim();
 
-    const parsed = JSON.parse(clean) as ContentAnalysis;
+      const parsed = JSON.parse(clean) as ContentAnalysis;
 
-    // Clamp / sanitise numeric fields
-    parsed.depthScore = Math.max(0, Math.min(1, Number(parsed.depthScore)));
-    parsed.firstMentionPct = Math.max(
-      0,
-      Math.min(100, Math.round(Number(parsed.firstMentionPct))),
-    );
-    parsed.granolaMinutes = Math.max(0, Number(parsed.granolaMinutes));
-    parsed.mentionCount = Math.max(0, Math.round(Number(parsed.mentionCount)));
+      // Clamp / sanitise numeric fields
+      parsed.depthScore = Math.max(0, Math.min(1, Number(parsed.depthScore)));
+      parsed.firstMentionPct = Math.max(
+        0,
+        Math.min(100, Math.round(Number(parsed.firstMentionPct))),
+      );
+      parsed.granolaMinutes = Math.max(0, Number(parsed.granolaMinutes));
+      parsed.mentionCount = Math.max(0, Math.round(Number(parsed.mentionCount)));
 
-    if (!Array.isArray(parsed.competitorsMentioned)) {
-      parsed.competitorsMentioned = [];
+      if (!Array.isArray(parsed.competitorsMentioned)) {
+        parsed.competitorsMentioned = [];
+      }
+
+      return parsed;
+    } catch (err) {
+      const isTransient =
+        err instanceof Error &&
+        (err.message.includes("403") ||
+          err.message.includes("529") ||
+          err.message.includes("overloaded") ||
+          err.message.includes("rate limit") ||
+          err.message.includes("timeout"));
+
+      if (isTransient && attempt < RETRY_DELAYS_MS.length) {
+        const delay = RETRY_DELAYS_MS[attempt];
+        console.warn(
+          `  [analyseTranscript] ${videoId} — transient error (attempt ${attempt + 1}), retrying in ${delay / 1000}s: ${err}`,
+        );
+        await new Promise((r) => setTimeout(r, delay));
+        continue;
+      }
+
+      console.error(
+        `  [analyseTranscript] ${videoId} — LLM error (attempt ${attempt + 1}): ${err}`,
+      );
+      return null;
     }
-
-    return parsed;
-  } catch (err) {
-    console.error(`  [analyseTranscript] ${videoId} — LLM error: ${err}`);
-    return null;
   }
+
+  return null;
 }

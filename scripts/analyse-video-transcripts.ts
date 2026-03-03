@@ -2,16 +2,19 @@
  * Transcript Analysis Pipeline — backfill script
  *
  * For every ImportedYouTubeVideo that has not yet been content-analysed:
- *   1. Fetch the YouTube auto-captions via youtube-transcript.
+ *   1. Fetch the YouTube auto-captions via supadata.ai API.
  *   2. Run Claude Haiku structured extraction to produce depth scores,
  *      content-type labels, sentiment, competitor mentions, etc.
  *   3. Persist results to the DB.
  *
  * Fields populated on ImportedYouTubeVideo:
- *   transcriptAvailable, contentAnalysedAt, depthTier, depthScore,
- *   contentType, creatorPersonallyUses, explicitCta, granolaMinutes,
- *   firstMentionPct, mentionCount, sentiment, competitorsMentioned,
- *   targetAudience
+ *   transcriptText, transcriptAvailable, contentAnalysedAt, depthTier,
+ *   depthScore, contentType, creatorPersonallyUses, explicitCta,
+ *   granolaMinutes, firstMentionPct, mentionCount, sentiment,
+ *   competitorsMentioned, targetAudience
+ *
+ * Note: transcriptText is stored on first successful fetch so future
+ * re-analysis runs don't need to re-scrape supadata.
  *
  * Usage:
  *   source .env.prod
@@ -88,6 +91,7 @@ async function main() {
       title: true,
       channelTitle: true,
       durationSeconds: true,
+      transcriptText: true,  // use cached transcript if already fetched
     },
     orderBy: { createdAt: "asc" },
     ...(LIMIT !== Infinity ? { take: LIMIT } : {}),
@@ -118,9 +122,14 @@ async function main() {
     console.log(`${"".padEnd(prefix.length + 1)}videoId: ${v.videoId}`);
 
     // ------------------------------------------------------------------
-    // Step 1: Fetch transcript
+    // Step 1: Fetch transcript (use cached text if already stored in DB)
     // ------------------------------------------------------------------
-    const transcript = await fetchTranscript(v.videoId);
+    let transcript: string | null = v.transcriptText ?? null;
+    if (transcript) {
+      console.log(`${"".padEnd(prefix.length + 1)}→ Using cached transcript`);
+    } else {
+      transcript = await fetchTranscript(v.videoId);
+    }
 
     if (!transcript) {
       console.log(`${"".padEnd(prefix.length + 1)}→ No transcript available`);
@@ -159,6 +168,17 @@ async function main() {
 
     if (!analysis) {
       failed++;
+      // Cache the transcript text so we don't re-scrape supadata on the next
+      // retry run (contentAnalysedAt stays null so the video is retried).
+      if (!DRY_RUN) {
+        await prisma.importedYouTubeVideo.update({
+          where: { id: v.id },
+          data: {
+            transcriptAvailable: true,
+            transcriptText: transcript,
+          },
+        });
+      }
       await sleep(DELAY_MS);
       continue;
     }
@@ -187,6 +207,7 @@ async function main() {
         where: { id: v.id },
         data: {
           transcriptAvailable: true,
+          transcriptText: transcript,   // stored so future re-analysis doesn't need to re-scrape
           contentAnalysedAt: new Date(),
           depthTier: analysis.depthTier,
           depthScore: analysis.depthScore,
