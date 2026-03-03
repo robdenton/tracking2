@@ -208,7 +208,7 @@ export default async function PodcastChannelPage({
         &larr; Back to summary
       </Link>
 
-      <h1 className="text-2xl font-bold mb-1">Podcast Channel Analytics</h1>
+      <h1 className="text-2xl font-bold mb-1">Podcast Tracking</h1>
       <p className="text-sm text-gray-500 mb-4">
         Aggregated performance across all podcast activities
       </p>

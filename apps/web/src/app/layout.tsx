@@ -46,31 +46,31 @@ export default async function RootLayout({
                     href="/channels/newsletter"
                     className="text-blue-600 dark:text-blue-400 hover:underline"
                   >
-                    Newsletter Analytics
+                    Newsletter Tracking
                   </a>
                   <a
                     href="/channels/podcast"
                     className="text-blue-600 dark:text-blue-400 hover:underline"
                   >
-                    Podcast Analytics
+                    Podcast Tracking
                   </a>
                   <a
                     href="/youtube-import"
                     className="text-blue-600 dark:text-blue-400 hover:underline"
                   >
-                    YouTube Import
+                    YouTube Tracking
+                  </a>
+                  <a
+                    href="/linkedin-analysis"
+                    className="text-blue-600 dark:text-blue-400 hover:underline"
+                  >
+                    LinkedIn Tracking
                   </a>
                   <a
                     href="/pipelines"
                     className="text-blue-600 dark:text-blue-400 hover:underline"
                   >
                     Pipelines
-                  </a>
-                  <a
-                    href="/linkedin-analysis"
-                    className="text-blue-600 dark:text-blue-400 hover:underline"
-                  >
-                    LinkedIn Analysis
                   </a>
                   <a
                     href="/measurement-explained"

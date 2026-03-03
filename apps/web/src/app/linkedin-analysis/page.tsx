@@ -84,7 +84,7 @@ export default function LinkedInAnalysisPage() {
 
   return (
     <div className="max-w-2xl mx-auto mt-12">
-      <h1 className="text-2xl font-semibold mb-2">LinkedIn Content Analyser</h1>
+      <h1 className="text-2xl font-semibold mb-2">LinkedIn Tracking</h1>
       <p className="text-gray-500 dark:text-gray-400 mb-8 text-sm">
         Analyse a company&#39;s LinkedIn content strategy by categorising their
         recent posts using AI.

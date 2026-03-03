@@ -15,7 +15,7 @@ export default async function YouTubeImportPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">YouTube Import</h1>
+      <h1 className="text-2xl font-bold mb-6">YouTube Tracking</h1>
 
       {/* Summary Stats */}
       <div className="grid grid-cols-3 gap-4 mb-6">

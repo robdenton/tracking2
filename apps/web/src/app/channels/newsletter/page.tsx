@@ -303,7 +303,7 @@ export default async function NewsletterChannelPage({
         &larr; Back to summary
       </Link>
 
-      <h1 className="text-2xl font-bold mb-1">Newsletter Channel Analytics</h1>
+      <h1 className="text-2xl font-bold mb-1">Newsletter Tracking</h1>
       <p className="text-sm text-gray-500 mb-4">
         Aggregated performance across all newsletter activities
       </p>
