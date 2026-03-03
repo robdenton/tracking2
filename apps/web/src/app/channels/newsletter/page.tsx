@@ -278,8 +278,13 @@ export default async function NewsletterChannelPage({
   const activityIdsInRange = new Set(activities.map((a) => a.id));
   const reports = allReports.filter((r) => activityIdsInRange.has(r.activity.id));
 
-  const timeSeries = aggregateToTimeSeries(activities, dailyMetrics, reports, timeGrouping);
-  const enauTimeSeries = aggregateENAUTimeSeries(activities, dailyMetrics, reports, timeGrouping);
+  // Charts should only show data up to today (no future booked activities)
+  const today = new Date().toISOString().slice(0, 10);
+  const chartActivities = activities.filter((a) => a.date <= today);
+  const chartReports = reports.filter((r) => r.activity.date <= today);
+
+  const timeSeries = aggregateToTimeSeries(chartActivities, dailyMetrics, chartReports, timeGrouping);
+  const enauTimeSeries = aggregateENAUTimeSeries(chartActivities, dailyMetrics, chartReports, timeGrouping);
 
   const totalActualClicks = timeSeries.reduce((sum, d) => sum + d.actualClicks, 0);
   const totalSignups = timeSeries.reduce((sum, d) => sum + d.signups, 0);
@@ -289,7 +294,7 @@ export default async function NewsletterChannelPage({
   const totalIncrementalActivations = timeSeries.reduce((sum, d) => sum + d.incrementalActivations, 0);
   const totalENAU = enauTimeSeries.reduce((sum, d) => sum + d.eNAU, 0);
 
-  const totalCost = activities.reduce((sum, a) => sum + (a.costUsd ?? 0), 0);
+  const totalCost = chartActivities.reduce((sum, a) => sum + (a.costUsd ?? 0), 0);
   const blendedCpaSignup = totalSignups > 0 ? totalCost / totalSignups : null;
   const blendedCpaActivation = totalActivations > 0 ? totalCost / totalActivations : null;
   const incrementalCpaSignup = totalIncrementalSignups > 0 ? totalCost / totalIncrementalSignups : null;
