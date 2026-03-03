@@ -397,6 +397,119 @@ export async function getImportedVideoById(id: string) {
   });
 }
 
+/**
+ * Get imported videos with daily views for a specific channel (by channelTitle).
+ */
+export async function getChannelVideosWithDailyViews(channelTitle: string, days = 10) {
+  // Build last N+1 dates (extra day for increment computation)
+  const allDates: string[] = [];
+  for (let i = days; i >= 0; i--) {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() - i);
+    allDates.push(d.toISOString().slice(0, 10));
+  }
+  const displayDates = allDates.slice(1);
+
+  const videos = await prisma.importedYouTubeVideo.findMany({
+    where: { status: "active", channelTitle },
+    orderBy: { importedDate: "desc" },
+  });
+
+  const allViews = await prisma.importedVideoView.findMany({
+    where: {
+      videoId: { in: videos.map((v) => v.id) },
+      date: { in: allDates },
+    },
+  });
+
+  const viewMap = new Map<string, Map<string, number>>();
+  for (const v of allViews) {
+    if (!viewMap.has(v.videoId)) viewMap.set(v.videoId, new Map());
+    viewMap.get(v.videoId)!.set(v.date, v.viewCount);
+  }
+
+  const result = videos.map((video) => {
+    const videoViews = viewMap.get(video.id);
+    const dailyViews: Record<string, number | null> = {};
+    let totalViews: number | null = null;
+
+    for (let i = 0; i < displayDates.length; i++) {
+      const date = displayDates[i];
+      const prevDate = allDates[i];
+      const curr = videoViews?.get(date) ?? null;
+      const prev = videoViews?.get(prevDate) ?? null;
+
+      if (curr !== null && prev !== null) {
+        dailyViews[date] = curr - prev;
+      } else {
+        dailyViews[date] = null;
+      }
+
+      if (curr !== null) totalViews = curr;
+    }
+
+    return { ...video, dailyViews, totalViews, dates: displayDates };
+  });
+
+  return { videos: result, dates: displayDates };
+}
+
+/**
+ * Get YouTube channels (publishers) with aggregate daily view increments.
+ * Groups imported videos by channelTitle and sums up their daily gains.
+ */
+export async function getYouTubeChannelsWithDailyViews(days = 10) {
+  const { videos, dates } = await getImportedVideosWithDailyViews(days);
+
+  // Group by channel
+  const channelMap = new Map<
+    string,
+    {
+      channelTitle: string;
+      videoCount: number;
+      paidCount: number;
+      totalViews: number;
+      dailyViews: Record<string, number | null>;
+    }
+  >();
+
+  for (const video of videos) {
+    const key = video.channelTitle;
+    if (!channelMap.has(key)) {
+      channelMap.set(key, {
+        channelTitle: key,
+        videoCount: 0,
+        paidCount: 0,
+        totalViews: 0,
+        dailyViews: {},
+      });
+      // Initialize all dates to null
+      for (const d of dates) {
+        channelMap.get(key)!.dailyViews[d] = null;
+      }
+    }
+
+    const ch = channelMap.get(key)!;
+    ch.videoCount++;
+    if (video.source === "paid_sponsorship") ch.paidCount++;
+    ch.totalViews += video.totalViews ?? 0;
+
+    // Sum daily increments
+    for (const d of dates) {
+      const inc = video.dailyViews[d];
+      if (inc !== null) {
+        ch.dailyViews[d] = (ch.dailyViews[d] ?? 0) + inc;
+      }
+    }
+  }
+
+  const channels = Array.from(channelMap.values()).sort(
+    (a, b) => b.totalViews - a.totalViews,
+  );
+
+  return { channels, dates };
+}
+
 // ---------------------------------------------------------------------------
 // Partner Functions
 // ---------------------------------------------------------------------------
