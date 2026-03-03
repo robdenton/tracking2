@@ -3,6 +3,8 @@ import { verifyCronSecret, unauthorizedResponse } from "@/lib/cron-auth";
 import { trackImportedViews } from "@/lib/tasks/track-imported";
 import { prisma } from "@/lib/prisma";
 
+export const maxDuration = 300;
+
 export async function GET(request: NextRequest) {
   if (!verifyCronSecret(request)) {
     return unauthorizedResponse();

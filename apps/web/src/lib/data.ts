@@ -298,6 +298,50 @@ export async function getImportedVideoViews(videoId: string) {
 }
 
 /**
+ * Get all imported videos with their daily view counts for the last N days.
+ */
+export async function getImportedVideosWithDailyViews(days = 10) {
+  const videos = await getImportedVideos();
+
+  // Build last N dates as YYYY-MM-DD strings
+  const dates: string[] = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() - i);
+    dates.push(d.toISOString().slice(0, 10));
+  }
+
+  // Fetch views for all videos in one query
+  const allViews = await prisma.importedVideoView.findMany({
+    where: {
+      videoId: { in: videos.map((v) => v.id) },
+      date: { in: dates },
+    },
+  });
+
+  // Build lookup: videoId -> date -> viewCount
+  const viewMap = new Map<string, Map<string, number>>();
+  for (const v of allViews) {
+    if (!viewMap.has(v.videoId)) viewMap.set(v.videoId, new Map());
+    viewMap.get(v.videoId)!.set(v.date, v.viewCount);
+  }
+
+  const result = videos.map((video) => {
+    const videoViews = viewMap.get(video.id);
+    const dailyViews: Record<string, number | null> = {};
+    let totalViews: number | null = null;
+    for (const date of dates) {
+      const count = videoViews?.get(date) ?? null;
+      dailyViews[date] = count;
+      if (count !== null) totalViews = count; // latest non-null = total
+    }
+    return { ...video, dailyViews, totalViews, dates };
+  });
+
+  return { videos: result, dates };
+}
+
+/**
  * Get imported video by ID
  */
 export async function getImportedVideoById(id: string) {
