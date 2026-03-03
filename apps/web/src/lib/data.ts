@@ -515,6 +515,10 @@ export async function getYouTubeChannelsWithDailyViews(days = 10) {
  * - Total views across all imported videos (summed daily, then grouped by week)
  * - Accounts created (signups) from DailyMetric where channel = "youtube"
  * - NAU (activations) from DailyMetric where channel = "youtube"
+ *
+ * Views are computed per-video first: each video's first tracked day is
+ * excluded because it represents accumulated lifetime views up to ingestion,
+ * not a single day's gain. Only genuine day-over-day increments are summed.
  */
 export async function getYouTubeWeeklyTimeSeries() {
   // Fetch all imported video views and YouTube daily metrics
@@ -528,20 +532,25 @@ export async function getYouTubeWeeklyTimeSeries() {
     }),
   ]);
 
-  // Aggregate video views by date (sum across all videos)
-  const viewsByDate = new Map<string, number>();
+  // Group views by video, sorted by date
+  const viewsByVideo = new Map<string, { date: string; viewCount: number }[]>();
   for (const v of allViews) {
-    viewsByDate.set(v.date, (viewsByDate.get(v.date) ?? 0) + v.viewCount);
+    if (!viewsByVideo.has(v.videoId)) viewsByVideo.set(v.videoId, []);
+    viewsByVideo.get(v.videoId)!.push({ date: v.date, viewCount: v.viewCount });
   }
 
-  // Compute daily incremental views (today's total minus yesterday's total)
-  const sortedDates = Array.from(viewsByDate.keys()).sort();
+  // Compute per-video daily increments, skipping each video's first tracked
+  // day (which represents accumulated lifetime views, not a single day's gain)
   const dailyIncrementalViews = new Map<string, number>();
-  for (let i = 1; i < sortedDates.length; i++) {
-    const today = sortedDates[i];
-    const yesterday = sortedDates[i - 1];
-    const diff = viewsByDate.get(today)! - viewsByDate.get(yesterday)!;
-    if (diff >= 0) dailyIncrementalViews.set(today, diff);
+  for (const [, videoViews] of viewsByVideo) {
+    videoViews.sort((a, b) => a.date.localeCompare(b.date));
+    for (let i = 1; i < videoViews.length; i++) {
+      const diff = videoViews[i].viewCount - videoViews[i - 1].viewCount;
+      if (diff >= 0) {
+        const date = videoViews[i].date;
+        dailyIncrementalViews.set(date, (dailyIncrementalViews.get(date) ?? 0) + diff);
+      }
+    }
   }
 
   // Helper: ISO week key
