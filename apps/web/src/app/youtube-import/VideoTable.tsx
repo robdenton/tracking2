@@ -92,7 +92,6 @@ export function VideoTable({
           <tr>
             <th className="text-left py-2 px-3 text-xs font-medium">Title</th>
             <th className="text-left py-2 px-3 text-xs font-medium">Channel</th>
-            <th className="text-left py-2 px-2 text-xs font-medium">Source</th>
             {dates.map((date) => (
               <SortHeader key={date} colKey={date}>
                 {fmtDate(date)}
@@ -106,36 +105,26 @@ export function VideoTable({
           {sorted.map((video) => (
             <tr
               key={video.id}
-              className="border-b border-gray-100 dark:border-gray-900 hover:bg-gray-50 dark:hover:bg-gray-900"
+              className="border-b border-gray-100 dark:border-gray-900 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
             >
-              <td className="py-2 px-3 max-w-[250px] truncate">
-                <Link
-                  href={`/youtube-import/${video.id}`}
-                  className="hover:underline"
-                  title={video.title}
-                >
-                  {video.title}
-                </Link>
+              <td className="py-2 px-3 max-w-[250px]">
+                <div className="flex items-center gap-2">
+                  <Link
+                    href={`/youtube-import/${video.id}`}
+                    className="hover:underline truncate"
+                    title={video.title}
+                  >
+                    {video.title}
+                  </Link>
+                  {video.source === "paid_sponsorship" && (
+                    <span className="shrink-0 inline-block px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+                      Paid
+                    </span>
+                  )}
+                </div>
               </td>
               <td className="py-2 px-3 text-gray-500 whitespace-nowrap">
                 {video.channelTitle}
-              </td>
-              <td className="py-2 px-2">
-                <span
-                  className={`inline-block px-2 py-0.5 rounded text-xs font-medium whitespace-nowrap ${
-                    video.source === "paid_sponsorship"
-                      ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
-                      : video.source === "paid_ad"
-                      ? "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200"
-                      : "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                  }`}
-                >
-                  {video.source === "paid_sponsorship"
-                    ? "Paid Sponsorship"
-                    : video.source === "paid_ad"
-                    ? "Paid Ad"
-                    : "Organic"}
-                </span>
               </td>
               {dates.map((date) => (
                 <td
@@ -143,7 +132,9 @@ export function VideoTable({
                   className="py-2 px-2 text-right font-mono text-xs text-gray-500"
                 >
                   {video.dailyViews[date] != null
-                    ? video.dailyViews[date]!.toLocaleString()
+                    ? video.dailyViews[date]! > 0
+                      ? `+${video.dailyViews[date]!.toLocaleString()}`
+                      : video.dailyViews[date]!.toLocaleString()
                     : "—"}
                 </td>
               ))}
