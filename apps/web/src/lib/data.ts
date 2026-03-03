@@ -245,6 +245,15 @@ export async function acceptSearchResult(searchResultId: string) {
 
   const today = new Date().toISOString().slice(0, 10);
 
+  // Check if this video matches a paid YouTube activity
+  const matchingActivity = await prisma.activity.findFirst({
+    where: {
+      channel: "youtube",
+      contentUrl: { contains: searchResult.videoId },
+    },
+    select: { id: true },
+  });
+
   // Create imported video
   await prisma.importedYouTubeVideo.create({
     data: {
@@ -257,6 +266,8 @@ export async function acceptSearchResult(searchResultId: string) {
       thumbnailUrl: searchResult.thumbnailUrl,
       importedDate: today,
       status: "active",
+      source: matchingActivity ? "paid_sponsorship" : "organic",
+      relatedActivityId: matchingActivity?.id ?? null,
     },
   });
 

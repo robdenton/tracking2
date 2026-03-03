@@ -9,6 +9,7 @@ interface VideoRow {
   channelTitle: string;
   importedDate: string;
   url: string;
+  source: string;
   dailyViews: Record<string, number | null>;
   totalViews: number | null;
 }
@@ -91,6 +92,7 @@ export function VideoTable({
           <tr>
             <th className="text-left py-2 px-3 text-xs font-medium">Title</th>
             <th className="text-left py-2 px-3 text-xs font-medium">Channel</th>
+            <th className="text-left py-2 px-2 text-xs font-medium">Source</th>
             {dates.map((date) => (
               <SortHeader key={date} colKey={date}>
                 {fmtDate(date)}
@@ -117,6 +119,23 @@ export function VideoTable({
               </td>
               <td className="py-2 px-3 text-gray-500 whitespace-nowrap">
                 {video.channelTitle}
+              </td>
+              <td className="py-2 px-2">
+                <span
+                  className={`inline-block px-2 py-0.5 rounded text-xs font-medium whitespace-nowrap ${
+                    video.source === "paid_sponsorship"
+                      ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                      : video.source === "paid_ad"
+                      ? "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200"
+                      : "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                  }`}
+                >
+                  {video.source === "paid_sponsorship"
+                    ? "Paid Sponsorship"
+                    : video.source === "paid_ad"
+                    ? "Paid Ad"
+                    : "Organic"}
+                </span>
               </td>
               {dates.map((date) => (
                 <td

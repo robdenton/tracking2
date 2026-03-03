@@ -649,6 +649,9 @@ export async function syncGoogleSheets(): Promise<{
     throw err;
   }
 
+  // --- Step 5: Link paid sponsorship videos ---
+  await linkPaidSponsorships();
+
   log(
     `Sync complete. Loaded ${allActivities.length} activities and ${metricRows.length} daily metrics.`,
   );
@@ -657,4 +660,65 @@ export async function syncGoogleSheets(): Promise<{
     activitiesCount: allActivities.length,
     metricsCount: metricRows.length,
   };
+}
+
+// ---------------------------------------------------------------------------
+// YouTube video ↔ Activity linking
+// ---------------------------------------------------------------------------
+
+function extractVideoId(url: string): string | null {
+  try {
+    const u = new URL(url);
+    if (u.hostname.includes("youtu.be")) return u.pathname.slice(1).split("/")[0];
+    if (u.hostname.includes("youtube.com")) return u.searchParams.get("v");
+  } catch { /* ignore invalid URLs */ }
+  return null;
+}
+
+async function linkPaidSponsorships() {
+  // Find all YouTube activities that have a contentUrl
+  const ytActivities = await prisma.activity.findMany({
+    where: { channel: "youtube", contentUrl: { not: null } },
+    select: { id: true, contentUrl: true },
+  });
+
+  // Build videoId → activityId map
+  const paidVideoIds = new Map<string, string>();
+  for (const act of ytActivities) {
+    if (!act.contentUrl) continue;
+    const vid = extractVideoId(act.contentUrl);
+    if (vid) paidVideoIds.set(vid, act.id);
+  }
+
+  if (paidVideoIds.size === 0) {
+    log("No YouTube activities with content URLs to link");
+    return;
+  }
+
+  // Update matching imported videos to paid_sponsorship
+  const matched = await prisma.importedYouTubeVideo.findMany({
+    where: { videoId: { in: [...paidVideoIds.keys()] } },
+    select: { id: true, videoId: true },
+  });
+
+  for (const video of matched) {
+    await prisma.importedYouTubeVideo.update({
+      where: { id: video.id },
+      data: {
+        source: "paid_sponsorship",
+        relatedActivityId: paidVideoIds.get(video.videoId) ?? null,
+      },
+    });
+  }
+
+  // Reset any previously-linked videos that no longer match
+  await prisma.importedYouTubeVideo.updateMany({
+    where: {
+      source: "paid_sponsorship",
+      videoId: { notIn: [...paidVideoIds.keys()] },
+    },
+    data: { source: "organic", relatedActivityId: null },
+  });
+
+  log(`Linked ${matched.length} imported videos as paid sponsorships`);
 }
