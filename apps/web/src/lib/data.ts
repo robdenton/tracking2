@@ -2,6 +2,7 @@ import { prisma } from "./prisma";
 import { computeAllReports, getConfig } from "@mai/core";
 import type { Activity, DailyMetric, ActivityReport, DailyAttributionShare, DayDataPoint } from "@mai/core";
 import { toActivity, toDailyMetric } from "./mappers";
+import { detectGranolaLink, detectSponsoredDisclosure } from "./youtube-metadata";
 
 /** Prisma ActivityUplift row (minimal shape we need) */
 interface StoredUplift {
@@ -255,6 +256,11 @@ export async function acceptSearchResult(searchResultId: string) {
     select: { id: true },
   });
 
+  // Parse description for Granola link signals
+  const descText = searchResult.description ?? "";
+  const granolaLink = detectGranolaLink(descText);
+  const sponsored = detectSponsoredDisclosure(descText);
+
   // Promote existing pending record to active, or create if it doesn't exist
   // (handles videos discovered before the pending-at-search-time feature)
   await prisma.importedYouTubeVideo.upsert({
@@ -264,6 +270,11 @@ export async function acceptSearchResult(searchResultId: string) {
       importedDate: today,
       source: matchingActivity ? "paid_sponsorship" : "organic",
       relatedActivityId: matchingActivity?.id ?? null,
+      // Carry through description + link signals if not already enriched
+      description: searchResult.description,
+      granolaLinkInDesc: granolaLink.granolaLinkInDesc,
+      granolaLinkType: granolaLink.granolaLinkType,
+      sponsoredDisclosure: sponsored,
     },
     create: {
       videoId: searchResult.videoId,
@@ -273,10 +284,14 @@ export async function acceptSearchResult(searchResultId: string) {
       publishedAt: searchResult.publishedAt,
       url: searchResult.url,
       thumbnailUrl: searchResult.thumbnailUrl,
+      description: searchResult.description,
       importedDate: today,
       status: "active",
       source: matchingActivity ? "paid_sponsorship" : "organic",
       relatedActivityId: matchingActivity?.id ?? null,
+      granolaLinkInDesc: granolaLink.granolaLinkInDesc,
+      granolaLinkType: granolaLink.granolaLinkType,
+      sponsoredDisclosure: sponsored,
     },
   });
 

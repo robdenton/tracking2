@@ -10,9 +10,12 @@
  *  - Skips videos that are already in ImportedYouTubeVideo (accepted) OR
  *    already in YouTubeSearchResult (pending/rejected) — so rejected videos
  *    don't keep resurfacing.
+ *  - After saving, enriches new pending ImportedYouTubeVideo records with full
+ *    metadata (description, duration, likes, comments) via videos.list API.
  */
 
 import { prisma } from "../prisma";
+import { fetchVideoMetadata, detectGranolaLink, detectSponsoredDisclosure } from "../youtube-metadata";
 
 function log(msg: string) {
   const ts = new Date().toISOString().replace("T", " ").slice(0, 19);
@@ -105,6 +108,7 @@ async function saveSearchResults(
   let skippedImported = 0;
   let skippedExisting = 0;
   let saved = 0;
+  const newVideoIds: string[] = [];
 
   for (const result of results) {
     // 1. Skip if already accepted into ImportedYouTubeVideo
@@ -153,6 +157,8 @@ async function saveSearchResults(
 
     // 4. Also create a pending ImportedYouTubeVideo so view tracking
     //    starts immediately, before the user accepts/rejects.
+    //    Store truncated search snippet description for now; full metadata
+    //    is enriched below via videos.list after the loop.
     await prisma.importedYouTubeVideo.upsert({
       where: { videoId: result.videoId },
       create: {
@@ -163,18 +169,48 @@ async function saveSearchResults(
         publishedAt: result.publishedAt,
         url: result.url,
         thumbnailUrl: result.thumbnailUrl,
+        description: result.description, // snippet (truncated); enriched below
         importedDate: today,
         status: "pending",
       },
       update: {}, // already exists — no-op
     });
 
+    newVideoIds.push(result.videoId);
     saved++;
   }
 
   log(
     `Saved ${saved} new, skipped ${skippedImported} imported + ${skippedExisting} already seen`,
   );
+
+  // Enrich newly created pending ImportedYouTubeVideo records with full
+  // metadata from videos.list (description, duration, likes, comments).
+  if (newVideoIds.length > 0) {
+    log(`Enriching ${newVideoIds.length} new videos with full metadata...`);
+    try {
+      const metadata = await fetchVideoMetadata(newVideoIds);
+      for (const [videoId, meta] of metadata) {
+        const granolaLink = detectGranolaLink(meta.description ?? "");
+        const sponsored = detectSponsoredDisclosure(meta.description ?? "");
+        await prisma.importedYouTubeVideo.updateMany({
+          where: { videoId },
+          data: {
+            description: meta.description,
+            durationSeconds: meta.durationSeconds,
+            likeCount: meta.likeCount,
+            commentCount: meta.commentCount,
+            granolaLinkInDesc: granolaLink.granolaLinkInDesc,
+            granolaLinkType: granolaLink.granolaLinkType,
+            sponsoredDisclosure: sponsored,
+          },
+        });
+      }
+      log(`Enriched ${metadata.size} videos`);
+    } catch (err) {
+      log(`Warning: metadata enrichment failed: ${err}`);
+    }
+  }
 
   return { saved, skippedImported, skippedExisting };
 }
