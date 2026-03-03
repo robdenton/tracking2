@@ -43,7 +43,6 @@ export function VideoTable({
       aVal = a.totalViews ?? -1;
       bVal = b.totalViews ?? -1;
     } else {
-      // sortKey is a date string
       aVal = a.dailyViews[sortKey] ?? -1;
       bVal = b.dailyViews[sortKey] ?? -1;
     }
@@ -61,10 +60,10 @@ export function VideoTable({
     children: React.ReactNode;
   }) => (
     <th
-      className="py-2 px-2 text-right text-xs font-medium cursor-pointer hover:text-gray-900 dark:hover:text-gray-100 whitespace-nowrap"
+      className="py-1.5 px-1 text-right text-[11px] font-medium cursor-pointer hover:text-gray-900 dark:hover:text-gray-100 whitespace-nowrap"
       onClick={() => handleSort(colKey)}
     >
-      <div className="flex items-center justify-end gap-1">
+      <div className="flex items-center justify-end gap-0.5">
         {children}
         {sortKey === colKey && (
           <span className="text-gray-400">
@@ -75,30 +74,26 @@ export function VideoTable({
     </th>
   );
 
-  // Format date as "Feb 24" for column headers
+  // Format date as compact "22/2"
   const fmtDate = (d: string) => {
     const [, m, day] = d.split("-");
-    const months = [
-      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-    ];
-    return `${months[parseInt(m, 10) - 1]} ${parseInt(day, 10)}`;
+    return `${parseInt(day, 10)}/${parseInt(m, 10)}`;
   };
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
+    <div>
+      <table className="w-full text-xs">
         <thead className="border-b border-gray-200 dark:border-gray-800">
           <tr>
-            <th className="text-left py-2 px-3 text-xs font-medium">Title</th>
-            <th className="text-left py-2 px-3 text-xs font-medium">Channel</th>
+            <th className="text-left py-1.5 px-2 text-[11px] font-medium">Title</th>
+            <th className="text-left py-1.5 px-1 text-[11px] font-medium">Channel</th>
             {dates.map((date) => (
               <SortHeader key={date} colKey={date}>
                 {fmtDate(date)}
               </SortHeader>
             ))}
             <SortHeader colKey="totalViews">Total</SortHeader>
-            <th className="text-center py-2 px-2 text-xs font-medium">Link</th>
+            <th className="py-1.5 px-1 text-[11px] font-medium"></th>
           </tr>
         </thead>
         <tbody>
@@ -107,8 +102,8 @@ export function VideoTable({
               key={video.id}
               className="border-b border-gray-100 dark:border-gray-900 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
             >
-              <td className="py-2 px-3 max-w-[250px]">
-                <div className="flex items-center gap-2">
+              <td className="py-1.5 px-2 max-w-[200px]">
+                <div className="flex items-center gap-1.5 min-w-0">
                   <Link
                     href={`/youtube-import/${video.id}`}
                     className="hover:underline truncate"
@@ -117,19 +112,19 @@ export function VideoTable({
                     {video.title}
                   </Link>
                   {video.source === "paid_sponsorship" && (
-                    <span className="shrink-0 inline-block px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+                    <span className="shrink-0 inline-block px-1 py-0.5 rounded text-[9px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
                       Paid
                     </span>
                   )}
                 </div>
               </td>
-              <td className="py-2 px-3 text-gray-500 whitespace-nowrap">
+              <td className="py-1.5 px-1 text-gray-500 max-w-[100px] truncate">
                 {video.channelTitle}
               </td>
               {dates.map((date) => (
                 <td
                   key={date}
-                  className="py-2 px-2 text-right font-mono text-xs text-gray-500"
+                  className="py-1.5 px-1 text-right font-mono text-[11px] text-gray-500 tabular-nums"
                 >
                   {video.dailyViews[date] != null
                     ? video.dailyViews[date]! > 0
@@ -138,18 +133,19 @@ export function VideoTable({
                     : "—"}
                 </td>
               ))}
-              <td className="py-2 px-2 text-right font-mono font-semibold">
+              <td className="py-1.5 px-1 text-right font-mono font-semibold tabular-nums">
                 {video.totalViews != null
                   ? video.totalViews.toLocaleString()
                   : "—"}
               </td>
-              <td className="py-2 px-2 text-center">
+              <td className="py-1.5 px-1 text-center">
                 <a
                   href={video.url}
                   target="_blank"
                   className="text-blue-600 dark:text-blue-400 hover:underline"
+                  title="Open on YouTube"
                 >
-                  YouTube →
+                  ↗
                 </a>
               </td>
             </tr>
