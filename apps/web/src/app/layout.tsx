@@ -33,7 +33,7 @@ export default async function RootLayout({
       >
         <div className="min-h-screen bg-background">
           <header className="border-b border-gray-200 dark:border-gray-800 px-6 py-4">
-            <div className="flex items-center justify-between">
+            <div className="max-w-7xl mx-auto flex items-center justify-between">
               <div className="flex items-center gap-6">
                 <div>
                   <a href="/" className="text-lg font-semibold">
@@ -83,7 +83,7 @@ export default async function RootLayout({
               {session?.user && <UserMenu user={session.user} />}
             </div>
           </header>
-          <main className="px-6 py-6">{children}</main>
+          <main className="max-w-7xl mx-auto px-6 py-6">{children}</main>
         </div>
       </body>
     </html>
