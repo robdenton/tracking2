@@ -27,14 +27,15 @@ export async function trackImportedViews(): Promise<{
 
   const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
 
-  // Fetch all active imported videos
+  // Fetch all active and pending imported videos (pending = discovered by
+  // search but not yet accepted; we track views early so data is ready)
   const videos = await prisma.importedYouTubeVideo.findMany({
     where: {
-      status: "active",
+      status: { in: ["active", "pending"] },
     },
   });
 
-  log(`Found ${videos.length} imported videos to track`);
+  log(`Found ${videos.length} imported videos to track (active + pending)`);
 
   let tracked = 0;
   let skipped = 0;

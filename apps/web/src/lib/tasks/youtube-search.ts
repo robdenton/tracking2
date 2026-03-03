@@ -134,7 +134,7 @@ async function saveSearchResults(
       continue;
     }
 
-    // 3. Genuinely new — create
+    // 3. Genuinely new — create search result
     await prisma.youTubeSearchResult.create({
       data: {
         videoId: result.videoId,
@@ -149,6 +149,24 @@ async function saveSearchResults(
         searchDate: today,
         status: "pending",
       },
+    });
+
+    // 4. Also create a pending ImportedYouTubeVideo so view tracking
+    //    starts immediately, before the user accepts/rejects.
+    await prisma.importedYouTubeVideo.upsert({
+      where: { videoId: result.videoId },
+      create: {
+        videoId: result.videoId,
+        title: result.title,
+        channelTitle: result.channelTitle,
+        channelId: result.channelId,
+        publishedAt: result.publishedAt,
+        url: result.url,
+        thumbnailUrl: result.thumbnailUrl,
+        importedDate: today,
+        status: "pending",
+      },
+      update: {}, // already exists — no-op
     });
 
     saved++;

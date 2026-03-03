@@ -234,7 +234,8 @@ export async function getPendingSearchResults() {
 }
 
 /**
- * Accept a search result (move to ImportedYouTubeVideo)
+ * Accept a search result — promote the pending ImportedYouTubeVideo to active.
+ * A pending record is created at search time so view tracking starts early.
  */
 export async function acceptSearchResult(searchResultId: string) {
   const searchResult = await prisma.youTubeSearchResult.findUnique({
@@ -254,9 +255,17 @@ export async function acceptSearchResult(searchResultId: string) {
     select: { id: true },
   });
 
-  // Create imported video
-  await prisma.importedYouTubeVideo.create({
-    data: {
+  // Promote existing pending record to active, or create if it doesn't exist
+  // (handles videos discovered before the pending-at-search-time feature)
+  await prisma.importedYouTubeVideo.upsert({
+    where: { videoId: searchResult.videoId },
+    update: {
+      status: "active",
+      importedDate: today,
+      source: matchingActivity ? "paid_sponsorship" : "organic",
+      relatedActivityId: matchingActivity?.id ?? null,
+    },
+    create: {
       videoId: searchResult.videoId,
       title: searchResult.title,
       channelTitle: searchResult.channelTitle,
@@ -282,10 +291,22 @@ export async function acceptSearchResult(searchResultId: string) {
  * Reject a search result
  */
 export async function rejectSearchResult(searchResultId: string) {
+  const searchResult = await prisma.youTubeSearchResult.findUnique({
+    where: { id: searchResultId },
+  });
+
   await prisma.youTubeSearchResult.update({
     where: { id: searchResultId },
     data: { status: "rejected" },
   });
+
+  // Archive the pending ImportedYouTubeVideo so it stops being tracked
+  if (searchResult) {
+    await prisma.importedYouTubeVideo.updateMany({
+      where: { videoId: searchResult.videoId, status: "pending" },
+      data: { status: "archived" },
+    });
+  }
 }
 
 /**
