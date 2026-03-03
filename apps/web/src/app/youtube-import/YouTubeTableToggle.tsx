@@ -19,6 +19,8 @@ interface VideoRow {
   importedDate: string;
   url: string;
   source: string;
+  depthTier: string | null;
+  depthScore: number | null;
   dailyViews: Record<string, number | null>;
   totalViews: number | null;
 }
