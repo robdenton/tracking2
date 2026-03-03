@@ -536,8 +536,8 @@ export async function getYouTubeChannelsWithDailyViews(days = 10) {
  * not a single day's gain. Only genuine day-over-day increments are summed.
  */
 export async function getYouTubeWeeklyTimeSeries() {
-  // Fetch all imported video views and YouTube daily metrics
-  const [allViews, metricRows] = await Promise.all([
+  // Fetch all imported video views, video metadata, and YouTube daily metrics
+  const [allViews, metricRows, videos] = await Promise.all([
     prisma.importedVideoView.findMany({
       orderBy: { date: "asc" },
     }),
@@ -545,25 +545,64 @@ export async function getYouTubeWeeklyTimeSeries() {
       where: { channel: "youtube" },
       orderBy: { date: "asc" },
     }),
+    prisma.importedYouTubeVideo.findMany({
+      where: { status: "active" },
+      select: { id: true, channelTitle: true },
+    }),
   ]);
 
-  // Group views by video, sorted by date
+  // Identify Granola-owned videos — their ad-driven view spikes confound
+  // the chart (they account for 56% of total views but are concentrated
+  // in 2 promotional spike weeks)
+  const granolaOwnedIds = new Set(
+    videos
+      .filter((v) => v.channelTitle.toLowerCase() === "granola")
+      .map((v) => v.id)
+  );
+
+  // Group views by video, sorted by date (excluding Granola-owned)
   const viewsByVideo = new Map<string, { date: string; viewCount: number }[]>();
   for (const v of allViews) {
+    if (granolaOwnedIds.has(v.videoId)) continue;
     if (!viewsByVideo.has(v.videoId)) viewsByVideo.set(v.videoId, []);
     viewsByVideo.get(v.videoId)!.push({ date: v.date, viewCount: v.viewCount });
   }
 
-  // Compute per-video daily increments, skipping each video's first tracked
-  // day (which represents accumulated lifetime views, not a single day's gain)
+  // Compute per-video daily increments:
+  //  - Skip each video's first tracked day (accumulated lifetime views, not one day)
+  //  - Normalize multi-day gaps by spreading increments evenly
   const dailyIncrementalViews = new Map<string, number>();
   for (const [, videoViews] of viewsByVideo) {
     videoViews.sort((a, b) => a.date.localeCompare(b.date));
     for (let i = 1; i < videoViews.length; i++) {
       const diff = videoViews[i].viewCount - videoViews[i - 1].viewCount;
-      if (diff >= 0) {
+      if (diff < 0) continue;
+
+      // Check for multi-day gaps between tracking points
+      const gapMs =
+        new Date(videoViews[i].date).getTime() -
+        new Date(videoViews[i - 1].date).getTime();
+      const gapDays = Math.round(gapMs / 86400000);
+
+      if (gapDays > 1) {
+        // Spread increment across the gap days
+        const dailyRate = diff / gapDays;
+        for (let d = 1; d <= gapDays; d++) {
+          const fillDate = new Date(
+            new Date(videoViews[i - 1].date).getTime() + d * 86400000
+          );
+          const dateStr = fillDate.toISOString().slice(0, 10);
+          dailyIncrementalViews.set(
+            dateStr,
+            (dailyIncrementalViews.get(dateStr) ?? 0) + dailyRate
+          );
+        }
+      } else {
         const date = videoViews[i].date;
-        dailyIncrementalViews.set(date, (dailyIncrementalViews.get(date) ?? 0) + diff);
+        dailyIncrementalViews.set(
+          date,
+          (dailyIncrementalViews.get(date) ?? 0) + diff
+        );
       }
     }
   }
@@ -607,7 +646,7 @@ export async function getYouTubeWeeklyTimeSeries() {
     .sort()
     .map((week) => ({
       period: week,
-      views: viewsByWeek.get(week) ?? 0,
+      views: Math.round(viewsByWeek.get(week) ?? 0),
       signups: metricsByWeek.get(week)?.signups ?? 0,
       activations: metricsByWeek.get(week)?.activations ?? 0,
     }));
