@@ -2,18 +2,22 @@ import {
   getYouTubeChannelsWithDailyViews,
   getImportedVideosWithDailyViews,
   getPendingSearchResults,
+  getYouTubeWeeklyTimeSeries,
 } from "@/lib/data";
 import Link from "next/link";
 import { YouTubeTableToggle } from "./YouTubeTableToggle";
+import { YouTubeChart } from "./chart";
 
 export const dynamic = "force-dynamic";
 
 export default async function YouTubeImportPage() {
-  const [{ channels, dates }, { videos }, pendingResults] = await Promise.all([
-    getYouTubeChannelsWithDailyViews(10),
-    getImportedVideosWithDailyViews(10),
-    getPendingSearchResults(),
-  ]);
+  const [{ channels, dates }, { videos }, pendingResults, chartData] =
+    await Promise.all([
+      getYouTubeChannelsWithDailyViews(10),
+      getImportedVideosWithDailyViews(10),
+      getPendingSearchResults(),
+      getYouTubeWeeklyTimeSeries(),
+    ]);
 
   const totalViews = videos.reduce((sum, v) => sum + (v.totalViews || 0), 0);
   const totalChannels = channels.length;
@@ -54,6 +58,14 @@ export default async function YouTubeImportPage() {
           </Link>
         </div>
       )}
+
+      {/* Chart: Weekly Views vs Acquisition */}
+      <div className="mb-8">
+        <h2 className="text-lg font-semibold mb-3">
+          Weekly Views vs User Acquisition
+        </h2>
+        <YouTubeChart data={chartData} />
+      </div>
 
       {/* Table with Channel/Video Toggle */}
       {channels.length === 0 ? (

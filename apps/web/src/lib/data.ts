@@ -510,6 +510,87 @@ export async function getYouTubeChannelsWithDailyViews(days = 10) {
   return { channels, dates };
 }
 
+/**
+ * Get weekly time-series data for the YouTube chart:
+ * - Total views across all imported videos (summed daily, then grouped by week)
+ * - Accounts created (signups) from DailyMetric where channel = "youtube"
+ * - NAU (activations) from DailyMetric where channel = "youtube"
+ */
+export async function getYouTubeWeeklyTimeSeries() {
+  // Fetch all imported video views and YouTube daily metrics
+  const [allViews, metricRows] = await Promise.all([
+    prisma.importedVideoView.findMany({
+      orderBy: { date: "asc" },
+    }),
+    prisma.dailyMetric.findMany({
+      where: { channel: "youtube" },
+      orderBy: { date: "asc" },
+    }),
+  ]);
+
+  // Aggregate video views by date (sum across all videos)
+  const viewsByDate = new Map<string, number>();
+  for (const v of allViews) {
+    viewsByDate.set(v.date, (viewsByDate.get(v.date) ?? 0) + v.viewCount);
+  }
+
+  // Compute daily incremental views (today's total minus yesterday's total)
+  const sortedDates = Array.from(viewsByDate.keys()).sort();
+  const dailyIncrementalViews = new Map<string, number>();
+  for (let i = 1; i < sortedDates.length; i++) {
+    const today = sortedDates[i];
+    const yesterday = sortedDates[i - 1];
+    const diff = viewsByDate.get(today)! - viewsByDate.get(yesterday)!;
+    if (diff >= 0) dailyIncrementalViews.set(today, diff);
+  }
+
+  // Helper: ISO week key
+  function getWeekKey(dateStr: string): string {
+    const d = new Date(dateStr);
+    const utc = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    const dayNum = utc.getUTCDay() || 7;
+    utc.setUTCDate(utc.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(utc.getUTCFullYear(), 0, 1));
+    const weekNum = Math.ceil(((utc.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+    return `${utc.getUTCFullYear()}-W${String(weekNum).padStart(2, "0")}`;
+  }
+
+  // Aggregate views by week
+  const viewsByWeek = new Map<string, number>();
+  for (const [date, inc] of dailyIncrementalViews) {
+    const week = getWeekKey(date);
+    viewsByWeek.set(week, (viewsByWeek.get(week) ?? 0) + inc);
+  }
+
+  // Aggregate metrics by week
+  const metricsByWeek = new Map<string, { signups: number; activations: number }>();
+  for (const m of metricRows) {
+    const week = getWeekKey(m.date);
+    const existing = metricsByWeek.get(week) ?? { signups: 0, activations: 0 };
+    metricsByWeek.set(week, {
+      signups: existing.signups + m.signups,
+      activations: existing.activations + m.activations,
+    });
+  }
+
+  // Combine into time series — only include weeks up to today
+  const today = new Date().toISOString().slice(0, 10);
+  const todayWeek = getWeekKey(today);
+
+  const allWeeks = new Set([...viewsByWeek.keys(), ...metricsByWeek.keys()]);
+  const timeSeries = Array.from(allWeeks)
+    .filter((w) => w <= todayWeek)
+    .sort()
+    .map((week) => ({
+      period: week,
+      views: viewsByWeek.get(week) ?? 0,
+      signups: metricsByWeek.get(week)?.signups ?? 0,
+      activations: metricsByWeek.get(week)?.activations ?? 0,
+    }));
+
+  return timeSeries;
+}
+
 // ---------------------------------------------------------------------------
 // Partner Functions
 // ---------------------------------------------------------------------------
