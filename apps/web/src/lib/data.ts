@@ -180,7 +180,7 @@ export async function getLinkedInEngagements(activityId: string) {
 export async function getChannelAnalytics(channel: string) {
   const [activityRows, metricRows, upliftRows] = await Promise.all([
     prisma.activity.findMany({
-      where: { channel, status: "live" },
+      where: { channel },
       orderBy: { date: "asc" },
     }),
     prisma.dailyMetric.findMany({
@@ -188,7 +188,7 @@ export async function getChannelAnalytics(channel: string) {
       orderBy: { date: "asc" },
     }),
     prisma.activityUplift.findMany({
-      where: { activity: { channel, status: "live" } },
+      where: { activity: { channel } },
     }),
   ]);
 

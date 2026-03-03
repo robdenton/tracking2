@@ -189,7 +189,7 @@ export function ActivityTable({ reports, selectedChannel, clickConversionAvg }: 
               key={r.activity.id}
               className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900"
             >
-              <td className="py-2 pr-4 font-mono text-xs">{r.activity.date}</td>
+              <td className="py-2 pr-4 font-mono text-xs whitespace-nowrap">{r.activity.date}</td>
               <td className="py-2 pr-4">
                 <Link
                   href={`/partners/${encodeURIComponent(r.activity.partnerName)}`}
