@@ -10,9 +10,37 @@ interface VideoRow {
   importedDate: string;
   url: string;
   source: string;
+  depthTier: string | null;
+  depthScore: number | null;
   dailyViews: Record<string, number | null>;
   totalViews: number | null;
 }
+
+const DEPTH_BADGE: Record<
+  string,
+  { label: string; className: string }
+> = {
+  dedicated: {
+    label: "Dedicated",
+    className:
+      "bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300",
+  },
+  featured: {
+    label: "Featured",
+    className:
+      "bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300",
+  },
+  listed: {
+    label: "Listed",
+    className:
+      "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300",
+  },
+  incidental: {
+    label: "Incidental",
+    className:
+      "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400",
+  },
+};
 
 type SortDirection = "asc" | "desc";
 
@@ -42,6 +70,9 @@ export function VideoTable({
     if (sortKey === "totalViews") {
       aVal = a.totalViews ?? -1;
       bVal = b.totalViews ?? -1;
+    } else if (sortKey === "depthScore") {
+      aVal = a.depthScore ?? -1;
+      bVal = b.depthScore ?? -1;
     } else {
       aVal = a.dailyViews[sortKey] ?? -1;
       bVal = b.dailyViews[sortKey] ?? -1;
@@ -87,6 +118,7 @@ export function VideoTable({
           <tr>
             <th className="text-left py-1.5 px-2 text-[11px] font-medium">Title</th>
             <th className="text-left py-1.5 px-1 text-[11px] font-medium">Channel</th>
+            <SortHeader colKey="depthScore">Depth</SortHeader>
             {dates.map((date) => (
               <SortHeader key={date} colKey={date}>
                 {fmtDate(date)}
@@ -126,6 +158,18 @@ export function VideoTable({
                 >
                   {video.channelTitle}
                 </Link>
+              </td>
+              <td className="py-1.5 px-1 text-center whitespace-nowrap">
+                {video.depthTier && DEPTH_BADGE[video.depthTier] ? (
+                  <span
+                    className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-medium ${DEPTH_BADGE[video.depthTier].className}`}
+                    title={`Depth score: ${video.depthScore?.toFixed(2) ?? "?"}`}
+                  >
+                    {DEPTH_BADGE[video.depthTier].label}
+                  </span>
+                ) : (
+                  <span className="text-gray-300 dark:text-gray-700 text-[9px]">—</span>
+                )}
               </td>
               {dates.map((date) => (
                 <td
