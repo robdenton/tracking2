@@ -4,7 +4,7 @@ import {
   getPendingSearchResults,
 } from "@/lib/data";
 import Link from "next/link";
-import { ChannelTable } from "./ChannelTable";
+import { YouTubeTableToggle } from "./YouTubeTableToggle";
 
 export const dynamic = "force-dynamic";
 
@@ -55,15 +55,15 @@ export default async function YouTubeImportPage() {
         </div>
       )}
 
-      {/* Channels Table */}
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Channels</h2>
-      </div>
-
+      {/* Table with Channel/Video Toggle */}
       {channels.length === 0 ? (
         <p className="text-gray-400">No imported videos yet</p>
       ) : (
-        <ChannelTable channels={channels} dates={dates} />
+        <YouTubeTableToggle
+          channels={channels}
+          videos={videos}
+          dates={dates}
+        />
       )}
     </div>
   );

@@ -119,7 +119,13 @@ export function VideoTable({
                 </div>
               </td>
               <td className="py-1.5 px-1 text-gray-500 max-w-[100px] truncate">
-                {video.channelTitle}
+                <Link
+                  href={`/youtube-import/channel/${encodeURIComponent(video.channelTitle)}`}
+                  className="hover:underline"
+                  title={video.channelTitle}
+                >
+                  {video.channelTitle}
+                </Link>
               </td>
               {dates.map((date) => (
                 <td
