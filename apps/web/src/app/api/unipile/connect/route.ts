@@ -20,6 +20,11 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Clean up any stale pending records from previous attempts
+  await prisma.unipileLinkedInAccount.deleteMany({
+    where: { userId: session.user.id, status: "pending" },
+  });
+
   const host = request.headers.get("host") ?? "localhost:3000";
   const protocol = host.includes("localhost") ? "http" : "https";
   const baseUrl = `${protocol}://${host}`;

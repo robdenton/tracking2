@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export function ConnectLinkedInButton({
   isConnected,
@@ -9,24 +10,9 @@ export function ConnectLinkedInButton({
   isConnected: boolean;
   isPending: boolean;
 }) {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  if (isConnected) {
-    return (
-      <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
-        LinkedIn Connected
-      </span>
-    );
-  }
-
-  if (isPending) {
-    return (
-      <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
-        Connection Pending...
-      </span>
-    );
-  }
 
   async function handleConnect() {
     setLoading(true);
@@ -46,6 +32,36 @@ export function ConnectLinkedInButton({
     }
   }
 
+  async function handleDisconnect() {
+    setLoading(true);
+    setError(null);
+    try {
+      await fetch("/api/unipile/disconnect", { method: "POST" });
+      router.refresh();
+    } catch {
+      setError("Failed to disconnect. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (isConnected) {
+    return (
+      <div className="flex items-center gap-3">
+        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+          LinkedIn Connected
+        </span>
+        <button
+          onClick={handleDisconnect}
+          disabled={loading}
+          className="px-3 py-1.5 text-sm text-gray-500 hover:text-red-600 dark:hover:text-red-400 disabled:opacity-50"
+        >
+          {loading ? "..." : "Disconnect"}
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col items-end gap-1">
       <button
@@ -55,6 +71,11 @@ export function ConnectLinkedInButton({
       >
         {loading ? "Connecting..." : "Connect LinkedIn"}
       </button>
+      {isPending && (
+        <p className="text-xs text-yellow-600 dark:text-yellow-400">
+          Connection in progress... complete the LinkedIn login to finish.
+        </p>
+      )}
       {error && <p className="text-xs text-red-500">{error}</p>}
     </div>
   );

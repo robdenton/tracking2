@@ -837,10 +837,20 @@ export async function getConnectedLinkedInAccounts() {
   });
 }
 
-/** Get the current user's LinkedIn account status */
+/** Get the current user's LinkedIn account status.
+ *  Returns connected accounts always; pending only if < 15 min old. */
 export async function getUserLinkedInAccount(userId: string) {
+  // First check for a connected account
+  const connected = await prisma.unipileLinkedInAccount.findFirst({
+    where: { userId, status: "connected" },
+    orderBy: { createdAt: "desc" },
+  });
+  if (connected) return connected;
+
+  // Only return pending if created within the last 15 minutes
+  const fifteenMinAgo = new Date(Date.now() - 15 * 60 * 1000);
   return prisma.unipileLinkedInAccount.findFirst({
-    where: { userId, status: { in: ["connected", "pending"] } },
+    where: { userId, status: "pending", createdAt: { gte: fifteenMinAgo } },
     orderBy: { createdAt: "desc" },
   });
 }
