@@ -261,10 +261,53 @@ model User {
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
-  accounts Account[]
-  sessions Session[]
+  accounts        Account[]
+  sessions        Session[]
+  unipileAccounts UnipileLinkedInAccount[]
 
   @@map("users")
+}
+
+// Employee LinkedIn account connected via Unipile
+model UnipileLinkedInAccount {
+  id               String    @id @default(uuid())
+  userId           String    @map("user_id")
+  unipileAccountId String    @unique @map("unipile_account_id")
+  linkedinName     String?   @map("linkedin_name")
+  status           String    @default("pending") // pending | connected | disconnected
+  connectedAt      DateTime? @map("connected_at")
+  lastSyncAt       DateTime? @map("last_sync_at")
+  lastSyncError    String?   @map("last_sync_error")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  user  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  posts EmployeeLinkedInPost[]
+
+  @@map("unipile_linkedin_accounts")
+}
+
+// Individual LinkedIn post from a connected employee
+model EmployeeLinkedInPost {
+  id            String   @id @default(uuid())
+  accountId     String   @map("account_id")
+  socialId      String   @map("social_id")
+  postText      String?  @map("post_text")
+  postDate      String   @map("post_date") // YYYY-MM-DD
+  shareUrl      String?  @map("share_url")
+  impressions   Int      @default(0)
+  reactions     Int      @default(0)
+  comments      Int      @default(0)
+  reposts       Int      @default(0)
+  lastFetchedAt DateTime @map("last_fetched_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  account UnipileLinkedInAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, socialId])
+  @@index([postDate])
+  @@map("employee_linkedin_posts")
 }
 
 model Account {

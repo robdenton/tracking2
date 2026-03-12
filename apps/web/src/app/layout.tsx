@@ -67,6 +67,12 @@ export default async function RootLayout({
                     LinkedIn Tracking
                   </a>
                   <a
+                    href="/build-in-public"
+                    className="text-blue-600 dark:text-blue-400 hover:underline"
+                  >
+                    Build in Public
+                  </a>
+                  <a
                     href="/pipelines"
                     className="text-blue-600 dark:text-blue-400 hover:underline"
                   >

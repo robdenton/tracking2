@@ -8,6 +8,7 @@ import { trackImportedViews } from "@/lib/tasks/track-imported";
 import { trackLinkedInEngagement } from "@/lib/tasks/track-linkedin";
 import { searchAndSaveYouTubeResults } from "@/lib/tasks/youtube-search";
 import { syncDubAnalytics } from "@/lib/tasks/sync-dub";
+import { syncAllEmployeeLinkedIn } from "@/lib/tasks/sync-employee-linkedin";
 
 type TaskName =
   | "sync-sheets"
@@ -16,7 +17,8 @@ type TaskName =
   | "track-imported"
   | "track-linkedin"
   | "youtube-search"
-  | "sync-dub";
+  | "sync-dub"
+  | "sync-employee-linkedin";
 
 async function runTask(taskName: TaskName) {
   switch (taskName) {
@@ -34,6 +36,8 @@ async function runTask(taskName: TaskName) {
       return searchAndSaveYouTubeResults();
     case "sync-dub":
       return syncDubAnalytics();
+    case "sync-employee-linkedin":
+      return syncAllEmployeeLinkedIn();
     default:
       throw new Error(`Unknown task: ${taskName}`);
   }
@@ -47,6 +51,7 @@ const VALID_TASKS: TaskName[] = [
   "track-linkedin",
   "youtube-search",
   "sync-dub",
+  "sync-employee-linkedin",
 ];
 
 export async function POST(

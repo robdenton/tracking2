@@ -47,6 +47,8 @@ function formatResultSummary(taskName: string, resultJson: string | null): strin
         return `${r.resultsFound ?? 0} found · ${r.saved ?? 0} new · ${r.skipped ?? 0} known`;
       case "sync-dub":
         return `${r.stored ?? 0} rows upserted · ${r.errors ?? 0} errors`;
+      case "sync-employee-linkedin":
+        return `${r.accounts ?? 0} accounts · ${r.synced ?? 0} posts · ${r.errors ?? 0} errors`;
       default:
         return "";
     }

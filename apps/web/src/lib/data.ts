@@ -736,6 +736,13 @@ export const PIPELINE_CONFIGS: PipelineConfig[] = [
     scheduleHour: 7,
     scheduleMinute: 0,
   },
+  {
+    taskName: "sync-employee-linkedin",
+    label: "Employee LinkedIn Sync",
+    description: "Syncs LinkedIn posts and engagement metrics for connected employee accounts via Unipile",
+    scheduleHour: 9,
+    scheduleMinute: 0,
+  },
 ];
 
 /** Compute the next UTC run time for a given hour/minute schedule */
@@ -812,5 +819,141 @@ export async function getPipelineStatuses(): Promise<PipelineStatus[]> {
         : null,
       nextRun: nextRunTime(config.scheduleHour, config.scheduleMinute),
     };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Build in Public (Employee LinkedIn) Functions
+// ---------------------------------------------------------------------------
+
+/** Get all connected employee LinkedIn accounts with their user info */
+export async function getConnectedLinkedInAccounts() {
+  return prisma.unipileLinkedInAccount.findMany({
+    where: { status: "connected" },
+    include: {
+      user: { select: { id: true, name: true, email: true, image: true } },
+    },
+    orderBy: { connectedAt: "asc" },
+  });
+}
+
+/** Get the current user's LinkedIn account status */
+export async function getUserLinkedInAccount(userId: string) {
+  return prisma.unipileLinkedInAccount.findFirst({
+    where: { userId, status: { in: ["connected", "pending"] } },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+/** Get aggregate weekly impressions and engagement across all employees */
+export async function getEmployeeLinkedInWeeklyStats() {
+  const posts = await prisma.employeeLinkedInPost.findMany({
+    orderBy: { postDate: "asc" },
+    select: {
+      postDate: true,
+      impressions: true,
+      reactions: true,
+      comments: true,
+      reposts: true,
+    },
+  });
+
+  // Group by ISO week (same helper pattern as getYouTubeWeeklyTimeSeries)
+  function getWeekKey(dateStr: string): string {
+    const d = new Date(dateStr);
+    const utc = new Date(
+      Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())
+    );
+    const dayNum = utc.getUTCDay() || 7;
+    utc.setUTCDate(utc.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(utc.getUTCFullYear(), 0, 1));
+    const weekNum = Math.ceil(
+      ((utc.getTime() - yearStart.getTime()) / 86400000 + 1) / 7
+    );
+    return `${utc.getUTCFullYear()}-W${String(weekNum).padStart(2, "0")}`;
+  }
+
+  const weeklyMap = new Map<
+    string,
+    {
+      impressions: number;
+      reactions: number;
+      comments: number;
+      reposts: number;
+      postCount: number;
+    }
+  >();
+
+  for (const post of posts) {
+    const week = getWeekKey(post.postDate);
+    const existing = weeklyMap.get(week) ?? {
+      impressions: 0,
+      reactions: 0,
+      comments: 0,
+      reposts: 0,
+      postCount: 0,
+    };
+    weeklyMap.set(week, {
+      impressions: existing.impressions + post.impressions,
+      reactions: existing.reactions + post.reactions,
+      comments: existing.comments + post.comments,
+      reposts: existing.reposts + post.reposts,
+      postCount: existing.postCount + 1,
+    });
+  }
+
+  return Array.from(weeklyMap.entries())
+    .map(([period, data]) => ({
+      period,
+      ...data,
+      engagement: data.reactions + data.comments + data.reposts,
+    }))
+    .sort((a, b) => a.period.localeCompare(b.period));
+}
+
+/** Get per-employee breakdown with totals */
+export async function getEmployeeLinkedInBreakdown() {
+  const accounts = await prisma.unipileLinkedInAccount.findMany({
+    where: { status: "connected" },
+    include: {
+      user: { select: { id: true, name: true, email: true, image: true } },
+      posts: {
+        select: {
+          impressions: true,
+          reactions: true,
+          comments: true,
+          reposts: true,
+        },
+      },
+    },
+  });
+
+  return accounts.map((account) => ({
+    userId: account.user.id,
+    name: account.user.name ?? account.user.email,
+    email: account.user.email,
+    image: account.user.image,
+    linkedinName: account.linkedinName,
+    postCount: account.posts.length,
+    totalImpressions: account.posts.reduce((s, p) => s + p.impressions, 0),
+    totalReactions: account.posts.reduce((s, p) => s + p.reactions, 0),
+    totalComments: account.posts.reduce((s, p) => s + p.comments, 0),
+    totalReposts: account.posts.reduce((s, p) => s + p.reposts, 0),
+    lastSyncAt: account.lastSyncAt,
+  }));
+}
+
+/** Get top posts across all employees, sorted by impressions */
+export async function getTopEmployeePosts(limit = 20) {
+  return prisma.employeeLinkedInPost.findMany({
+    orderBy: { impressions: "desc" },
+    take: limit,
+    include: {
+      account: {
+        include: {
+          user: { select: { name: true, email: true, image: true } },
+        },
+      },
+    },
   });
 }
