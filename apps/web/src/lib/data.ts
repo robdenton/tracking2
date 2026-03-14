@@ -837,27 +837,42 @@ export async function getConnectedLinkedInAccounts() {
   });
 }
 
-/** Get the current user's LinkedIn account status.
- *  Returns connected accounts always; pending only if < 15 min old. */
+/** Get the current user's LinkedIn account with sync details */
 export async function getUserLinkedInAccount(userId: string) {
-  // First check for a connected account
+  // Check for connected account first
   const connected = await prisma.unipileLinkedInAccount.findFirst({
     where: { userId, status: "connected" },
     orderBy: { createdAt: "desc" },
+    include: { _count: { select: { posts: true } } },
   });
   if (connected) return connected;
 
-  // Only return pending if created within the last 15 minutes
-  const fifteenMinAgo = new Date(Date.now() - 15 * 60 * 1000);
-  return prisma.unipileLinkedInAccount.findFirst({
-    where: { userId, status: "pending", createdAt: { gte: fifteenMinAgo } },
-    orderBy: { createdAt: "desc" },
+  // Check for pending (include recently set-to-pending disconnected records)
+  const pending = await prisma.unipileLinkedInAccount.findFirst({
+    where: { userId, status: "pending" },
+    orderBy: { updatedAt: "desc" },
+    include: { _count: { select: { posts: true } } },
   });
+  if (pending) return pending;
+
+  return null;
 }
 
 /** Get aggregate weekly impressions and engagement across all employees */
-export async function getEmployeeLinkedInWeeklyStats() {
+const EMPLOYEE_COLORS = [
+  "#3b82f6", "#10b981", "#f59e0b", "#8b5cf6",
+  "#ec4899", "#14b8a6", "#f97316", "#06b6d4",
+];
+
+export async function getEmployeeLinkedInWeeklyStats(): Promise<{
+  employees: Array<{ key: string; name: string; color: string }>;
+  data: Array<Record<string, string | number>>;
+}> {
   const posts = await prisma.employeeLinkedInPost.findMany({
+    where: {
+      postDate: { gte: "2026-01-01" },
+      account: { status: "connected" },
+    },
     orderBy: { postDate: "asc" },
     select: {
       postDate: true,
@@ -865,10 +880,16 @@ export async function getEmployeeLinkedInWeeklyStats() {
       reactions: true,
       comments: true,
       reposts: true,
+      account: {
+        select: {
+          userId: true,
+          user: { select: { name: true, email: true } },
+        },
+      },
     },
   });
 
-  // Group by ISO week (same helper pattern as getYouTubeWeeklyTimeSeries)
+  // ISO week helper
   function getWeekKey(dateStr: string): string {
     const d = new Date(dateStr);
     const utc = new Date(
@@ -883,42 +904,63 @@ export async function getEmployeeLinkedInWeeklyStats() {
     return `${utc.getUTCFullYear()}-W${String(weekNum).padStart(2, "0")}`;
   }
 
-  const weeklyMap = new Map<
+  // Build employee metadata (stable key from userId)
+  const employeeMap = new Map<
     string,
-    {
-      impressions: number;
-      reactions: number;
-      comments: number;
-      reposts: number;
-      postCount: number;
-    }
+    { key: string; name: string; userId: string }
   >();
+  for (const post of posts) {
+    const uid = post.account.userId;
+    if (!employeeMap.has(uid)) {
+      const displayName = post.account.user.name ?? post.account.user.email;
+      const key = displayName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "_")
+        .replace(/^_|_$/g, "");
+      employeeMap.set(uid, { key, name: displayName, userId: uid });
+    }
+  }
+
+  // Assign colors
+  const employees = Array.from(employeeMap.values()).map((emp, i) => ({
+    key: emp.key,
+    name: emp.name,
+    color: EMPLOYEE_COLORS[i % EMPLOYEE_COLORS.length],
+  }));
+
+  // Group by (week, employeeKey)
+  const weeklyMap = new Map<string, Record<string, number>>();
+  const allWeeks = new Set<string>();
 
   for (const post of posts) {
     const week = getWeekKey(post.postDate);
-    const existing = weeklyMap.get(week) ?? {
-      impressions: 0,
-      reactions: 0,
-      comments: 0,
-      reposts: 0,
-      postCount: 0,
-    };
-    weeklyMap.set(week, {
-      impressions: existing.impressions + post.impressions,
-      reactions: existing.reactions + post.reactions,
-      comments: existing.comments + post.comments,
-      reposts: existing.reposts + post.reposts,
-      postCount: existing.postCount + 1,
-    });
+    allWeeks.add(week);
+    const emp = employeeMap.get(post.account.userId)!;
+
+    if (!weeklyMap.has(week)) weeklyMap.set(week, {});
+    const row = weeklyMap.get(week)!;
+
+    const impKey = `${emp.key}_impressions`;
+    const engKey = `${emp.key}_engagement`;
+    row[impKey] = (row[impKey] ?? 0) + post.impressions;
+    row[engKey] =
+      (row[engKey] ?? 0) + post.reactions + post.comments + post.reposts;
   }
 
-  return Array.from(weeklyMap.entries())
-    .map(([period, data]) => ({
-      period,
-      ...data,
-      engagement: data.reactions + data.comments + data.reposts,
-    }))
-    .sort((a, b) => a.period.localeCompare(b.period));
+  // Pivot into sorted flat array (fill missing employee weeks with 0)
+  const data = Array.from(allWeeks)
+    .sort()
+    .map((period) => {
+      const row: Record<string, string | number> = { period };
+      const weekData = weeklyMap.get(period) ?? {};
+      for (const emp of employees) {
+        row[`${emp.key}_impressions`] = weekData[`${emp.key}_impressions`] ?? 0;
+        row[`${emp.key}_engagement`] = weekData[`${emp.key}_engagement`] ?? 0;
+      }
+      return row;
+    });
+
+  return { employees, data };
 }
 
 /** Get per-employee breakdown with totals */
@@ -928,6 +970,7 @@ export async function getEmployeeLinkedInBreakdown() {
     include: {
       user: { select: { id: true, name: true, email: true, image: true } },
       posts: {
+        where: { postDate: { gte: "2026-01-01" } },
         select: {
           impressions: true,
           reactions: true,
@@ -956,6 +999,10 @@ export async function getEmployeeLinkedInBreakdown() {
 /** Get top posts across all employees, sorted by impressions */
 export async function getTopEmployeePosts(limit = 20) {
   return prisma.employeeLinkedInPost.findMany({
+    where: {
+      postDate: { gte: "2026-01-01" },
+      account: { status: "connected" },
+    },
     orderBy: { impressions: "desc" },
     take: limit,
     include: {

@@ -6,7 +6,7 @@
  */
 
 import { prisma } from "../prisma";
-import { listPosts, type UnipilePost } from "../unipile";
+import { listPosts, getLinkedInId, type UnipilePost } from "../unipile";
 
 function log(msg: string) {
   const ts = new Date().toISOString().replace("T", " ").slice(0, 19);
@@ -33,6 +33,24 @@ export async function syncAccountPosts(
     return { synced: 0, errors: 0 };
   }
 
+  // Resolve LinkedIn internal ID — needed as the identifier for the posts API
+  // ("me" and public handles don't work with Unipile)
+  let linkedinId = account.linkedinId;
+  if (!linkedinId) {
+    log(`No cached LinkedIn ID for ${unipileAccountId}, fetching from Unipile...`);
+    linkedinId = await getLinkedInId(unipileAccountId);
+    if (!linkedinId) {
+      logError(`Could not resolve LinkedIn internal ID for account ${unipileAccountId}`);
+      return { synced: 0, errors: 1 };
+    }
+    // Cache it in the DB so we don't need to fetch it every time
+    await prisma.unipileLinkedInAccount.update({
+      where: { id: account.id },
+      data: { linkedinId },
+    });
+    log(`Resolved and cached LinkedIn ID: ${linkedinId}`);
+  }
+
   let synced = 0;
   let errors = 0;
   let cursor: string | undefined;
@@ -42,7 +60,7 @@ export async function syncAccountPosts(
     do {
       const result = await listPosts({
         accountId: unipileAccountId,
-        identifier: "me",
+        identifier: linkedinId,
         createdAfter,
         cursor,
       });

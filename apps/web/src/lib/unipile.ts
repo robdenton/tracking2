@@ -123,6 +123,9 @@ export async function getAccount(accountId: string): Promise<{
   name?: string;
   provider?: string;
   status?: string;
+  connection_params?: {
+    im?: { id?: string };
+  };
 }> {
   const res = await fetch(`${getDsn()}/api/v1/accounts/${accountId}`, {
     headers: headers(),
@@ -134,4 +137,40 @@ export async function getAccount(accountId: string): Promise<{
   }
 
   return res.json();
+}
+
+/** List all Unipile accounts (used to find newly connected accounts) */
+export async function listAccounts(): Promise<
+  Array<{
+    id: string;
+    name?: string;
+    provider?: string;
+    status?: string;
+    connection_params?: {
+      im?: { id?: string };
+    };
+  }>
+> {
+  const res = await fetch(`${getDsn()}/api/v1/accounts`, {
+    headers: headers(),
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Unipile list accounts failed (${res.status}): ${body}`);
+  }
+
+  const data = await res.json();
+  return data.items ?? data ?? [];
+}
+
+/**
+ * Get the LinkedIn internal ID for a connected account.
+ * This is the identifier needed for the posts API (not "me" or public handle).
+ */
+export async function getLinkedInId(
+  accountId: string
+): Promise<string | null> {
+  const account = await getAccount(accountId);
+  return account.connection_params?.im?.id ?? null;
 }

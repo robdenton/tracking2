@@ -47,8 +47,18 @@ export default async function BuildInPublicPage() {
           </p>
         </div>
         <ConnectLinkedInButton
-          isConnected={userAccount?.status === "connected"}
-          isPending={userAccount?.status === "pending"}
+          account={
+            userAccount
+              ? {
+                  status: userAccount.status,
+                  linkedinName: userAccount.linkedinName,
+                  connectedAt: userAccount.connectedAt?.toISOString() ?? null,
+                  lastSyncAt: userAccount.lastSyncAt?.toISOString() ?? null,
+                  lastSyncError: userAccount.lastSyncError,
+                  postCount: userAccount._count.posts,
+                }
+              : null
+          }
         />
       </div>
 
@@ -79,12 +89,15 @@ export default async function BuildInPublicPage() {
       </div>
 
       {/* Charts */}
-      {weeklyStats.length > 0 && (
+      {weeklyStats.data.length > 0 && (
         <div className="mb-8">
           <h2 className="text-lg font-semibold mb-3">
             Weekly Reach &amp; Engagement
           </h2>
-          <BuildInPublicCharts data={weeklyStats} />
+          <BuildInPublicCharts
+            employees={weeklyStats.employees}
+            data={weeklyStats.data}
+          />
         </div>
       )}
 

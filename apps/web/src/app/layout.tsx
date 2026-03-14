@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { auth } from "@/lib/auth";
 import { UserMenu } from "./components/UserMenu";
+import { NavDropdown } from "./components/NavDropdown";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -32,63 +33,56 @@ export default async function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <div className="min-h-screen bg-background">
-          <header className="border-b border-gray-200 dark:border-gray-800 px-6 py-4">
-            <div className="max-w-7xl mx-auto flex items-center justify-between">
-              <div className="flex items-center gap-6">
-                <div>
-                  <a href="/" className="text-lg font-semibold">
+          {session?.user && (
+            <header className="border-b border-gray-200 dark:border-gray-800 px-6 py-4">
+              <div className="max-w-7xl mx-auto flex items-center justify-between">
+                <div className="flex items-center gap-6">
+                  <a href="/" className="text-lg font-semibold shrink-0">
                     Marketing Activity Impact
+                    <span className="ml-2 text-xs font-normal text-gray-500">
+                      Phase 0
+                    </span>
                   </a>
-                  <span className="ml-2 text-xs text-gray-500">Phase 0</span>
+                  <nav className="flex items-center gap-4 text-sm">
+                    <a
+                      href="/"
+                      className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+                    >
+                      Overview
+                    </a>
+                    <NavDropdown
+                      label="Channels"
+                      items={[
+                        { href: "/channels/newsletter", label: "Newsletter" },
+                        { href: "/channels/podcast", label: "Podcast" },
+                        { href: "/youtube-import", label: "YouTube" },
+                        { href: "/linkedin-analysis", label: "LinkedIn" },
+                      ]}
+                    />
+                    <a
+                      href="/build-in-public"
+                      className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+                    >
+                      Build in Public
+                    </a>
+                    <a
+                      href="/pipelines"
+                      className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+                    >
+                      Pipelines
+                    </a>
+                    <a
+                      href="/measurement-explained"
+                      className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+                    >
+                      Measurement
+                    </a>
+                  </nav>
                 </div>
-                <nav className="flex gap-4 text-sm">
-                  <a
-                    href="/channels/newsletter"
-                    className="text-blue-600 dark:text-blue-400 hover:underline"
-                  >
-                    Newsletter Tracking
-                  </a>
-                  <a
-                    href="/channels/podcast"
-                    className="text-blue-600 dark:text-blue-400 hover:underline"
-                  >
-                    Podcast Tracking
-                  </a>
-                  <a
-                    href="/youtube-import"
-                    className="text-blue-600 dark:text-blue-400 hover:underline"
-                  >
-                    YouTube Tracking
-                  </a>
-                  <a
-                    href="/linkedin-analysis"
-                    className="text-blue-600 dark:text-blue-400 hover:underline"
-                  >
-                    LinkedIn Tracking
-                  </a>
-                  <a
-                    href="/build-in-public"
-                    className="text-blue-600 dark:text-blue-400 hover:underline"
-                  >
-                    Build in Public
-                  </a>
-                  <a
-                    href="/pipelines"
-                    className="text-blue-600 dark:text-blue-400 hover:underline"
-                  >
-                    Pipelines
-                  </a>
-                  <a
-                    href="/measurement-explained"
-                    className="text-blue-600 dark:text-blue-400 hover:underline"
-                  >
-                    Measurement
-                  </a>
-                </nav>
+                <UserMenu user={session.user} />
               </div>
-              {session?.user && <UserMenu user={session.user} />}
-            </div>
-          </header>
+            </header>
+          )}
           <main className="max-w-7xl mx-auto px-6 py-6">{children}</main>
         </div>
       </body>

@@ -20,9 +20,19 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Clean up any stale pending records from previous attempts
+  // Delete only stale pending records (no real data).
+  // KEEP disconnected records — they have posts attached via cascade.
   await prisma.unipileLinkedInAccount.deleteMany({
-    where: { userId: session.user.id, status: "pending" },
+    where: {
+      userId: session.user.id,
+      status: "pending",
+    },
+  });
+
+  // If user has a disconnected record, reuse it (preserves posts)
+  const disconnected = await prisma.unipileLinkedInAccount.findFirst({
+    where: { userId: session.user.id, status: "disconnected" },
+    orderBy: { createdAt: "desc" },
   });
 
   const host = request.headers.get("host") ?? "localhost:3000";
@@ -34,20 +44,28 @@ export async function POST(request: NextRequest) {
 
   const result = await createHostedAuthLink({
     notify_url: `${baseUrl}/api/webhooks/unipile`,
-    success_redirect_url: `${baseUrl}/build-in-public?connected=1`,
+    success_redirect_url: `${baseUrl}/api/unipile/callback`,
     failure_redirect_url: `${baseUrl}/build-in-public?connected=0`,
     name: `granola-${session.user.email}`,
     expiresOn,
   });
 
-  // Create a pending account record — will be updated when webhook fires
-  await prisma.unipileLinkedInAccount.create({
-    data: {
-      userId: session.user.id,
-      unipileAccountId: `pending-${session.user.id}-${Date.now()}`,
-      status: "pending",
-    },
-  });
+  if (disconnected) {
+    // Reuse existing record — set back to pending, keep posts intact
+    await prisma.unipileLinkedInAccount.update({
+      where: { id: disconnected.id },
+      data: { status: "pending" },
+    });
+  } else {
+    // Create a new pending record
+    await prisma.unipileLinkedInAccount.create({
+      data: {
+        userId: session.user.id,
+        unipileAccountId: `pending-${session.user.id}-${Date.now()}`,
+        status: "pending",
+      },
+    });
+  }
 
   return Response.json({ url: result.url });
 }
