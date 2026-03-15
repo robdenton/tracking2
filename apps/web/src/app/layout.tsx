@@ -57,6 +57,10 @@ export default async function RootLayout({
                         { href: "/channels/podcast", label: "Podcast" },
                         { href: "/youtube-import", label: "YouTube" },
                         { href: "/linkedin-analysis", label: "LinkedIn" },
+                        {
+                          href: "/channels/company-linkedin",
+                          label: "Company LinkedIn",
+                        },
                       ]}
                     />
                     <a

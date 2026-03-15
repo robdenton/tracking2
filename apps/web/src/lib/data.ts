@@ -858,6 +858,21 @@ export async function getUserLinkedInAccount(userId: string) {
   return null;
 }
 
+/** ISO week helper — returns "YYYY-WXX" for a given date string */
+function getWeekKey(dateStr: string): string {
+  const d = new Date(dateStr);
+  const utc = new Date(
+    Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())
+  );
+  const dayNum = utc.getUTCDay() || 7;
+  utc.setUTCDate(utc.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(utc.getUTCFullYear(), 0, 1));
+  const weekNum = Math.ceil(
+    ((utc.getTime() - yearStart.getTime()) / 86400000 + 1) / 7
+  );
+  return `${utc.getUTCFullYear()}-W${String(weekNum).padStart(2, "0")}`;
+}
+
 /** Get aggregate weekly impressions and engagement across all employees */
 const EMPLOYEE_COLORS = [
   "#3b82f6", "#10b981", "#f59e0b", "#8b5cf6",
@@ -888,21 +903,6 @@ export async function getEmployeeLinkedInWeeklyStats(): Promise<{
       },
     },
   });
-
-  // ISO week helper
-  function getWeekKey(dateStr: string): string {
-    const d = new Date(dateStr);
-    const utc = new Date(
-      Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())
-    );
-    const dayNum = utc.getUTCDay() || 7;
-    utc.setUTCDate(utc.getUTCDate() + 4 - dayNum);
-    const yearStart = new Date(Date.UTC(utc.getUTCFullYear(), 0, 1));
-    const weekNum = Math.ceil(
-      ((utc.getTime() - yearStart.getTime()) / 86400000 + 1) / 7
-    );
-    return `${utc.getUTCFullYear()}-W${String(weekNum).padStart(2, "0")}`;
-  }
 
   // Build employee metadata (stable key from userId)
   const employeeMap = new Map<
@@ -1012,5 +1012,105 @@ export async function getTopEmployeePosts(limit = 20) {
         },
       },
     },
+  });
+}
+
+// ── Company LinkedIn ────────────────────────────────────────────────
+
+/** Get weekly impressions and engagement for the company page */
+export async function getCompanyLinkedInWeeklyStats(): Promise<{
+  data: Array<{
+    period: string;
+    impressions: number;
+    reactions: number;
+    comments: number;
+    reposts: number;
+    engagement: number;
+    posts: number;
+  }>;
+}> {
+  const posts = await prisma.companyLinkedInPost.findMany({
+    where: { postDate: { gte: "2026-01-01" } },
+    orderBy: { postDate: "asc" },
+    select: {
+      postDate: true,
+      impressions: true,
+      reactions: true,
+      comments: true,
+      reposts: true,
+    },
+  });
+
+  const weeklyMap = new Map<
+    string,
+    {
+      impressions: number;
+      reactions: number;
+      comments: number;
+      reposts: number;
+      posts: number;
+    }
+  >();
+
+  for (const post of posts) {
+    const week = getWeekKey(post.postDate);
+    const existing = weeklyMap.get(week) ?? {
+      impressions: 0,
+      reactions: 0,
+      comments: 0,
+      reposts: 0,
+      posts: 0,
+    };
+    weeklyMap.set(week, {
+      impressions: existing.impressions + post.impressions,
+      reactions: existing.reactions + post.reactions,
+      comments: existing.comments + post.comments,
+      reposts: existing.reposts + post.reposts,
+      posts: existing.posts + 1,
+    });
+  }
+
+  const data = Array.from(weeklyMap.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([period, stats]) => ({
+      period,
+      ...stats,
+      engagement: stats.reactions + stats.comments + stats.reposts,
+    }));
+
+  return { data };
+}
+
+/** Get aggregate totals for the company page */
+export async function getCompanyLinkedInTotals() {
+  const posts = await prisma.companyLinkedInPost.findMany({
+    where: { postDate: { gte: "2026-01-01" } },
+    select: {
+      impressions: true,
+      reactions: true,
+      comments: true,
+      reposts: true,
+    },
+  });
+
+  return {
+    totalPosts: posts.length,
+    totalImpressions: posts.reduce((s, p) => s + p.impressions, 0),
+    totalReactions: posts.reduce((s, p) => s + p.reactions, 0),
+    totalComments: posts.reduce((s, p) => s + p.comments, 0),
+    totalReposts: posts.reduce((s, p) => s + p.reposts, 0),
+    totalEngagement: posts.reduce(
+      (s, p) => s + p.reactions + p.comments + p.reposts,
+      0
+    ),
+  };
+}
+
+/** Get top company posts sorted by impressions */
+export async function getTopCompanyPosts(limit = 20) {
+  return prisma.companyLinkedInPost.findMany({
+    where: { postDate: { gte: "2026-01-01" } },
+    orderBy: { impressions: "desc" },
+    take: limit,
   });
 }
