@@ -28,10 +28,10 @@ export function CompanyLinkedInCharts({
 }) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* Impressions */}
+      {/* Total Engagement */}
       <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
         <h3 className="text-sm font-medium text-gray-500 mb-3">
-          Weekly Impressions
+          Weekly Total Engagement
         </h3>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={data}>
@@ -39,15 +39,15 @@ export function CompanyLinkedInCharts({
             <XAxis dataKey="period" tick={{ fontSize: 11 }} />
             <YAxis tick={{ fontSize: 11 }} />
             <Tooltip />
-            <Bar dataKey="impressions" fill="#3b82f6" name="Impressions" />
+            <Bar dataKey="engagement" fill="#3b82f6" name="Total Engagement" />
           </BarChart>
         </ResponsiveContainer>
       </div>
 
-      {/* Engagement — stacked by type */}
+      {/* Engagement breakdown — stacked by type */}
       <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
         <h3 className="text-sm font-medium text-gray-500 mb-3">
-          Weekly Engagement
+          Weekly Engagement Breakdown
         </h3>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={data}>

@@ -15,10 +15,10 @@ export default async function CompanyLinkedInPage() {
     getTopCompanyPosts(20),
   ]);
 
-  const avgEngagementRate =
-    totals.totalImpressions > 0
-      ? ((totals.totalEngagement / totals.totalImpressions) * 100).toFixed(2)
-      : "0.00";
+  const avgEngagementPerPost =
+    totals.totalPosts > 0
+      ? Math.round(totals.totalEngagement / totals.totalPosts)
+      : 0;
 
   return (
     <div>
@@ -30,17 +30,11 @@ export default async function CompanyLinkedInPage() {
       </div>
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
         <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-4">
           <div className="text-xs text-gray-500 mb-1">Total Posts (2026)</div>
           <div className="text-2xl font-mono font-semibold">
             {totals.totalPosts}
-          </div>
-        </div>
-        <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-4">
-          <div className="text-xs text-gray-500 mb-1">Total Impressions</div>
-          <div className="text-2xl font-mono font-semibold">
-            {totals.totalImpressions.toLocaleString()}
           </div>
         </div>
         <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-4">
@@ -62,9 +56,9 @@ export default async function CompanyLinkedInPage() {
           </div>
         </div>
         <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-4">
-          <div className="text-xs text-gray-500 mb-1">Engagement Rate</div>
+          <div className="text-xs text-gray-500 mb-1">Avg Engagement / Post</div>
           <div className="text-2xl font-mono font-semibold">
-            {avgEngagementRate}%
+            {avgEngagementPerPost}
           </div>
         </div>
       </div>

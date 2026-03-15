@@ -1106,11 +1106,11 @@ export async function getCompanyLinkedInTotals() {
   };
 }
 
-/** Get top company posts sorted by impressions */
+/** Get top company posts sorted by reactions (impressions unavailable via search API) */
 export async function getTopCompanyPosts(limit = 20) {
   return prisma.companyLinkedInPost.findMany({
     where: { postDate: { gte: "2026-01-01" } },
-    orderBy: { impressions: "desc" },
+    orderBy: { reactions: "desc" },
     take: limit,
   });
 }
