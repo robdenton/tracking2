@@ -175,21 +175,28 @@ export async function searchLinkedInPosts(params: {
   sortBy?: "date" | "relevance";
   cursor?: string;
 }): Promise<{ items: UnipilePost[]; cursor?: string; has_more: boolean }> {
-  const url = new URL(
-    `${getDsn()}/api/v1/linkedin/search`
-  );
-  url.searchParams.set("account_id", params.accountId);
-  if (params.cursor) url.searchParams.set("cursor", params.cursor);
+  const baseUrl = getDsn();
+  const fullUrl = `${baseUrl}/api/v1/linkedin/search?account_id=${encodeURIComponent(params.accountId)}${params.cursor ? `&cursor=${encodeURIComponent(params.cursor)}` : ""}`;
 
-  const res = await fetch(url.toString(), {
+  const requestBody = {
+    api: "classic",
+    category: "posts",
+    posted_by: { company: [params.companyId] },
+    sort_by: params.sortBy ?? "date",
+  };
+
+  const bodyStr = JSON.stringify(requestBody);
+  console.log(`[searchLinkedInPosts] URL: ${fullUrl}`);
+  console.log(`[searchLinkedInPosts] Body: ${bodyStr}`);
+
+  const res = await fetch(fullUrl, {
     method: "POST",
-    headers: headers(),
-    body: JSON.stringify({
-      api: "classic",
-      category: "posts",
-      posted_by: { company: [params.companyId] },
-      sort_by: params.sortBy ?? "date",
-    }),
+    headers: {
+      "X-API-KEY": process.env.UNIPILE_API_KEY ?? "",
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+    },
+    body: bodyStr,
   });
 
   if (!res.ok) {
