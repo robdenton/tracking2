@@ -29,23 +29,33 @@ function logError(msg: string) {
 export async function syncCompanyLinkedIn(): Promise<{
   synced: number;
   errors: number;
+  errorDetail?: string;
 }> {
   const companyId = process.env.COMPANY_LINKEDIN_ID;
   if (!companyId) {
     logError("COMPANY_LINKEDIN_ID not set, skipping company LinkedIn sync");
-    return { synced: 0, errors: 0 };
+    return { synced: 0, errors: 0, errorDetail: "COMPANY_LINKEDIN_ID not set" };
   }
 
+  log(`COMPANY_LINKEDIN_ID = ${companyId}`);
+
   // Find any connected Unipile account to use for API authentication
-  const anyAccount = await prisma.unipileLinkedInAccount.findFirst({
-    where: { status: "connected" },
-  });
+  let anyAccount;
+  try {
+    anyAccount = await prisma.unipileLinkedInAccount.findFirst({
+      where: { status: "connected" },
+    });
+  } catch (dbErr) {
+    const msg = dbErr instanceof Error ? dbErr.message : String(dbErr);
+    logError(`DB query for connected accounts failed: ${msg}`);
+    return { synced: 0, errors: 1, errorDetail: `DB query failed: ${msg}` };
+  }
 
   if (!anyAccount) {
     logError(
       "No connected Unipile accounts available for company LinkedIn sync"
     );
-    return { synced: 0, errors: 1 };
+    return { synced: 0, errors: 1, errorDetail: "No connected Unipile accounts found" };
   }
 
   log(
@@ -114,6 +124,8 @@ export async function syncCompanyLinkedIn(): Promise<{
     const errMsg = err instanceof Error ? err.message : String(err);
     logError(`Company LinkedIn sync failed: ${errMsg}`);
     errors++;
+    log(`Company LinkedIn sync: ${synced} synced, ${errors} errors`);
+    return { synced, errors, errorDetail: errMsg };
   }
 
   log(`Company LinkedIn sync: ${synced} synced, ${errors} errors`);

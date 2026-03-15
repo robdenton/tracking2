@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
         resultJson: JSON.stringify(result),
         errorMessage:
           result.errors > 0
-            ? `${result.errors} error(s) during sync`
+            ? `${result.errors} error(s) during sync: ${result.errorDetail ?? "unknown"}`
             : null,
       },
     });
