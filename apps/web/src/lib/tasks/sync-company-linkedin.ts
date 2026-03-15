@@ -31,13 +31,11 @@ export async function syncCompanyLinkedIn(): Promise<{
   errors: number;
   errorDetail?: string;
 }> {
-  const companyId = process.env.COMPANY_LINKEDIN_ID;
+  const companyId = process.env.COMPANY_LINKEDIN_ID?.trim();
   if (!companyId) {
     logError("COMPANY_LINKEDIN_ID not set, skipping company LinkedIn sync");
     return { synced: 0, errors: 0, errorDetail: "COMPANY_LINKEDIN_ID not set" };
   }
-
-  log(`COMPANY_LINKEDIN_ID = ${companyId}`);
 
   // Find any connected Unipile account to use for API authentication
   let anyAccount;

@@ -7,13 +7,13 @@
  */
 
 function getDsn(): string {
-  const dsn = process.env.UNIPILE_DSN;
+  const dsn = process.env.UNIPILE_DSN?.trim();
   if (!dsn) throw new Error("UNIPILE_DSN is not set");
   return dsn.replace(/\/$/, ""); // strip trailing slash
 }
 
 function headers(): Record<string, string> {
-  const key = process.env.UNIPILE_API_KEY;
+  const key = process.env.UNIPILE_API_KEY?.trim();
   if (!key) throw new Error("UNIPILE_API_KEY is not set");
   return {
     "X-API-KEY": key,
@@ -175,28 +175,19 @@ export async function searchLinkedInPosts(params: {
   sortBy?: "date" | "relevance";
   cursor?: string;
 }): Promise<{ items: UnipilePost[]; cursor?: string; has_more: boolean }> {
-  const baseUrl = getDsn();
-  const fullUrl = `${baseUrl}/api/v1/linkedin/search?account_id=${encodeURIComponent(params.accountId)}${params.cursor ? `&cursor=${encodeURIComponent(params.cursor)}` : ""}`;
+  const url = new URL(`${getDsn()}/api/v1/linkedin/search`);
+  url.searchParams.set("account_id", params.accountId.trim());
+  if (params.cursor) url.searchParams.set("cursor", params.cursor);
 
-  const requestBody = {
-    api: "classic",
-    category: "posts",
-    posted_by: { company: [params.companyId] },
-    sort_by: params.sortBy ?? "date",
-  };
-
-  const bodyStr = JSON.stringify(requestBody);
-  console.log(`[searchLinkedInPosts] URL: ${fullUrl}`);
-  console.log(`[searchLinkedInPosts] Body: ${bodyStr}`);
-
-  const res = await fetch(fullUrl, {
+  const res = await fetch(url.toString(), {
     method: "POST",
-    headers: {
-      "X-API-KEY": process.env.UNIPILE_API_KEY ?? "",
-      "Content-Type": "application/json",
-      "Accept": "application/json",
-    },
-    body: bodyStr,
+    headers: headers(),
+    body: JSON.stringify({
+      api: "classic",
+      category: "posts",
+      posted_by: { company: [params.companyId.trim()] },
+      sort_by: params.sortBy ?? "date",
+    }),
   });
 
   if (!res.ok) {
