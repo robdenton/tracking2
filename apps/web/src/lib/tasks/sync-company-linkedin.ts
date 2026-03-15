@@ -1,12 +1,19 @@
 /**
  * Company LinkedIn Post Sync Task Module
  *
- * Fetches LinkedIn posts and engagement metrics for the company page
- * via the Unipile API. Stores/updates posts in company_linkedin_posts table.
+ * Fetches LinkedIn posts for the company page via the Unipile search API
+ * and stores/updates them in the company_linkedin_posts table.
+ *
+ * Note: The standard listPosts() endpoint only works with personal LinkedIn
+ * identifiers. For company pages we use searchLinkedInPosts() which wraps
+ * the /api/v1/linkedin/search endpoint with posted_by.company filter.
+ *
+ * Impressions are not available via the search API (returns 0), so only
+ * reactions, comments, and reposts are tracked for company posts.
  */
 
 import { prisma } from "../prisma";
-import { listPosts, type UnipilePost } from "../unipile";
+import { searchLinkedInPosts, type UnipilePost } from "../unipile";
 
 function log(msg: string) {
   const ts = new Date().toISOString().replace("T", " ").slice(0, 19);
@@ -42,20 +49,19 @@ export async function syncCompanyLinkedIn(): Promise<{
   }
 
   log(
-    `Syncing company LinkedIn posts (${companyId}) using account ${anyAccount.unipileAccountId}...`
+    `Syncing company LinkedIn posts (company ID: ${companyId}) using account ${anyAccount.unipileAccountId}...`
   );
 
   let synced = 0;
   let errors = 0;
   let cursor: string | undefined;
-  const createdAfter = "2026-01-01T00:00:00.000Z";
 
   try {
     do {
-      const result = await listPosts({
+      const result = await searchLinkedInPosts({
         accountId: anyAccount.unipileAccountId,
-        identifier: companyId,
-        createdAfter,
+        companyId,
+        sortBy: "date",
         cursor,
       });
 
@@ -64,6 +70,9 @@ export async function syncCompanyLinkedIn(): Promise<{
           const postDate = new Date(post.parsed_datetime)
             .toISOString()
             .slice(0, 10);
+
+          // Skip posts before 2026
+          if (postDate < "2026-01-01") continue;
 
           await prisma.companyLinkedInPost.upsert({
             where: { socialId: post.social_id },
@@ -98,7 +107,7 @@ export async function syncCompanyLinkedIn(): Promise<{
 
       // Rate limiting: pause between pages
       if (cursor) {
-        await new Promise((resolve) => setTimeout(resolve, 500));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
     } while (cursor);
   } catch (err) {

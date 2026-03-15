@@ -164,6 +164,49 @@ export async function listAccounts(): Promise<
   return data.items ?? data ?? [];
 }
 
+// ---------------------------------------------------------------------------
+// LinkedIn Search
+// ---------------------------------------------------------------------------
+
+/** Search LinkedIn posts (used for company page posts where listPosts doesn't work) */
+export async function searchLinkedInPosts(params: {
+  accountId: string;
+  companyId: string; // numeric LinkedIn company/organization ID
+  sortBy?: "date" | "relevance";
+  cursor?: string;
+}): Promise<{ items: UnipilePost[]; cursor?: string; has_more: boolean }> {
+  const url = new URL(
+    `${getDsn()}/api/v1/linkedin/search`
+  );
+  url.searchParams.set("account_id", params.accountId);
+  if (params.cursor) url.searchParams.set("cursor", params.cursor);
+
+  const res = await fetch(url.toString(), {
+    method: "POST",
+    headers: headers(),
+    body: JSON.stringify({
+      api: "classic",
+      category: "posts",
+      posted_by: { company: [params.companyId] },
+      sort_by: params.sortBy ?? "date",
+    }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(
+      `Unipile LinkedIn search failed (${res.status}): ${body}`
+    );
+  }
+
+  const data: ListPostsResponse = await res.json();
+  return {
+    items: data.items ?? [],
+    cursor: data.cursor,
+    has_more: data.has_more ?? false,
+  };
+}
+
 /**
  * Get the LinkedIn internal ID for a connected account.
  * This is the identifier needed for the posts API (not "me" or public handle).
