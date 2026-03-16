@@ -7,9 +7,12 @@ import { syncAccountPosts } from "@/lib/tasks/sync-employee-linkedin";
 /**
  * Callback route — Unipile redirects here after successful LinkedIn auth.
  *
- * Matching strategy: list all Unipile accounts, filter out ones already linked
- * in our DB, and use the newest unlinked LINKEDIN account.
- * (We cannot match by `name` because Unipile overwrites it with the profile name.)
+ * Matching strategy: list all Unipile accounts, filter out ones already
+ * linked in our DB, and pick the one with the most recent created_at
+ * timestamp (i.e. the account just created by this auth flow).
+ *
+ * Previous bug: used list position (last item) which could pick an orphaned
+ * account from earlier connect/disconnect cycles instead of the new one.
  */
 export async function GET(request: NextRequest) {
   const session = await auth();
@@ -43,41 +46,59 @@ export async function GET(request: NextRequest) {
       `[Unipile Callback] Found ${unipileAccounts.length} Unipile accounts`
     );
 
-    // Get all Unipile account IDs already linked in our DB
-    const linkedRecords = await prisma.unipileLinkedInAccount.findMany({
+    // Get all Unipile account IDs already claimed in our DB (connected or pending)
+    const claimedRecords = await prisma.unipileLinkedInAccount.findMany({
       where: {
-        status: "connected",
-        NOT: { unipileAccountId: { startsWith: "pending-" } },
+        NOT: [
+          { unipileAccountId: { startsWith: "pending-" } },
+          { id: pendingRecord.id }, // exclude current user's own pending record
+        ],
+        status: { in: ["connected", "pending"] },
       },
       select: { unipileAccountId: true },
     });
-    const linkedIds = new Set(linkedRecords.map((r) => r.unipileAccountId));
+    const claimedIds = new Set(claimedRecords.map((r) => r.unipileAccountId));
 
-    // Find unlinked LINKEDIN accounts — prefer ones not already in our DB
-    const unlinked = unipileAccounts.filter(
-      (a) => !linkedIds.has(a.id) && (a.provider === "LINKEDIN" || !a.provider)
+    // Find unclaimed LINKEDIN accounts
+    const unclaimed = unipileAccounts.filter(
+      (a) =>
+        !claimedIds.has(a.id) && (a.provider === "LINKEDIN" || !a.provider)
     );
 
     console.log(
-      `[Unipile Callback] ${unlinked.length} unlinked accounts: ${unlinked.map((a) => `${a.id}(${a.name})`).join(", ")}`
+      `[Unipile Callback] ${unclaimed.length} unclaimed accounts: ${unclaimed.map((a) => `${a.id}(${a.name}, created=${a.created_at})`).join(", ")}`
     );
 
-    // Pick the best match:
-    // 1. If user had a previous linkedinId, match on that
-    // 2. Otherwise, use the most recent unlinked account (last in list)
-    let match = unlinked[unlinked.length - 1]; // newest
+    // Pick the best match by priority:
+    // 1. If user had a previous linkedinId (reconnecting), match on that
+    // 2. Otherwise, pick the account with the most recent created_at
+    //    (the one just created by this auth flow)
+    let match: (typeof unclaimed)[number] | undefined;
 
     if (pendingRecord.linkedinId) {
-      const byLinkedInId = unlinked.find(
+      match = unclaimed.find(
         (a) => a.connection_params?.im?.id === pendingRecord.linkedinId
       );
-      if (byLinkedInId) match = byLinkedInId;
+    }
+
+    if (!match && unclaimed.length > 0) {
+      // Sort by created_at descending — newest first
+      const sorted = [...unclaimed].sort((a, b) => {
+        const ta = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const tb = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return tb - ta;
+      });
+      match = sorted[0];
+
+      console.log(
+        `[Unipile Callback] Picked newest account: ${match.id} (${match.name}, created=${match.created_at})`
+      );
     }
 
     if (!match) {
       console.warn(
-        `[Unipile Callback] No unlinked Unipile account found. ` +
-          `Total: ${unipileAccounts.length}, Linked: ${linkedIds.size}`
+        `[Unipile Callback] No unclaimed Unipile account found. ` +
+          `Total: ${unipileAccounts.length}, Claimed: ${claimedIds.size}`
       );
       return NextResponse.redirect(
         new URL(

@@ -146,6 +146,7 @@ export async function listAccounts(): Promise<
     name?: string;
     provider?: string;
     status?: string;
+    created_at?: string;
     connection_params?: {
       im?: { id?: string };
     };
