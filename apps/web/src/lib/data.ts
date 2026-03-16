@@ -1234,6 +1234,98 @@ export async function getLinkedInAdsWeeklyStats(dateRange?: DateRange) {
   return { data };
 }
 
+/** Get company-level ad analytics (MEMBER_COMPANY pivot) with resolved names */
+export async function getLinkedInAdsCompanyStats(dateRange?: DateRange) {
+  const connection = await prisma.linkedInAdsConnection.findFirst();
+  if (!connection?.accessToken || !connection.adAccountId) return [];
+
+  const { getCompanyAnalytics } = await import("./linkedin-ads");
+
+  const today = new Date().toISOString().slice(0, 10);
+  const ninetyDaysAgo = new Date();
+  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+  const range = dateRange ?? {
+    from: ninetyDaysAgo.toISOString().slice(0, 10),
+    to: today,
+  };
+
+  const rows = await getCompanyAnalytics(
+    connection.accessToken,
+    connection.adAccountId,
+    { start: range.from, end: range.to }
+  );
+
+  // Sort by impressions descending, take top 100
+  rows.sort((a, b) => b.impressions - a.impressions);
+  const top = rows.slice(0, 100);
+
+  // Fetch cached names
+  const orgIds = top.map((r) => r.orgId).filter(Boolean);
+  const cached = await prisma.linkedInOrgNameCache.findMany({
+    where: { orgId: { in: orgIds } },
+  });
+  const nameMap = new Map(cached.map((c) => [c.orgId, c.name]));
+
+  return top.map((r) => ({
+    orgId: r.orgId,
+    orgUrn: r.orgUrn,
+    name: nameMap.get(r.orgId) ?? null,
+    impressions: r.impressions,
+    clicks: r.clicks,
+    ctr: r.impressions > 0 ? r.clicks / r.impressions : 0,
+  }));
+}
+
+/** Resolve unresolved org names via Unipile and cache them */
+export async function resolveUnresolvedOrgNames(limit = 50): Promise<{
+  resolved: number;
+  failed: number;
+}> {
+  const { lookupOrgName } = await import("./linkedin-ads");
+
+  // Find org IDs that haven't been resolved yet
+  const unresolved = await prisma.linkedInOrgNameCache.findMany({
+    where: { resolved: false },
+    take: limit,
+  });
+
+  let resolved = 0;
+  let failed = 0;
+
+  for (const entry of unresolved) {
+    const name = await lookupOrgName(entry.orgId);
+    await prisma.linkedInOrgNameCache.update({
+      where: { orgId: entry.orgId },
+      data: { name, resolved: true },
+    });
+    if (name) resolved++;
+    else failed++;
+    // Rate limit Unipile calls
+    await new Promise((r) => setTimeout(r, 300));
+  }
+
+  return { resolved, failed };
+}
+
+/** Ensure org IDs from analytics exist in the cache table */
+export async function ensureOrgCacheEntries(orgIds: string[]) {
+  const existing = await prisma.linkedInOrgNameCache.findMany({
+    where: { orgId: { in: orgIds } },
+    select: { orgId: true },
+  });
+  const existingSet = new Set(existing.map((e) => e.orgId));
+  const newIds = orgIds.filter((id) => id && !existingSet.has(id));
+
+  if (newIds.length > 0) {
+    await prisma.linkedInOrgNameCache.createMany({
+      data: newIds.map((id) => ({ orgId: id, resolved: false })),
+      skipDuplicates: true,
+    });
+  }
+
+  return newIds.length;
+}
+
 /** Get aggregate totals for ad performance */
 export async function getLinkedInAdsTotals(dateRange?: DateRange) {
   const where: Record<string, unknown> = {};

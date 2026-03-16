@@ -4,11 +4,14 @@ import {
   getLinkedInAdsCampaigns,
   getLinkedInAdsWeeklyStats,
   getLinkedInAdsTotals,
+  getLinkedInAdsCompanyStats,
+  ensureOrgCacheEntries,
   type DateRange,
 } from "@/lib/data";
 import { ConnectLinkedInAdsButton } from "./connect-button";
 import { LinkedInAdsCharts } from "./charts";
 import { CampaignsTable } from "./campaigns-table";
+import { CompanyTable } from "./company-table";
 import { DateRangePicker } from "@/app/components/DateRangePicker";
 
 export const dynamic = "force-dynamic";
@@ -71,11 +74,18 @@ export default async function LinkedInAdsPage({
   }
 
   // Fetch data in parallel
-  const [campaigns, weeklyStats, totals] = await Promise.all([
+  const [campaigns, weeklyStats, totals, companyStats] = await Promise.all([
     getLinkedInAdsCampaigns(),
     getLinkedInAdsWeeklyStats(dateRange),
     getLinkedInAdsTotals(dateRange),
+    getLinkedInAdsCompanyStats(dateRange),
   ]);
+
+  // Ensure cache entries exist for discovered org IDs (non-blocking)
+  const orgIds = companyStats.map((c) => c.orgId).filter(Boolean);
+  if (orgIds.length > 0) {
+    ensureOrgCacheEntries(orgIds).catch(() => {});
+  }
 
   return (
     <div>
@@ -150,6 +160,13 @@ export default async function LinkedInAdsPage({
         <div className="mb-8">
           <h2 className="text-lg font-semibold mb-3">Weekly Performance</h2>
           <LinkedInAdsCharts data={weeklyStats.data} />
+        </div>
+      )}
+
+      {/* Companies Reached */}
+      {companyStats.length > 0 && (
+        <div className="mb-8">
+          <CompanyTable companies={companyStats} />
         </div>
       )}
 

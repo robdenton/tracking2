@@ -326,6 +326,90 @@ export async function getAnalytics(
 }
 
 // ---------------------------------------------------------------------------
+// Company-level Analytics (MEMBER_COMPANY pivot)
+// ---------------------------------------------------------------------------
+
+export interface CompanyAnalyticsRow {
+  orgUrn: string;
+  orgId: string;
+  impressions: number;
+  clicks: number;
+}
+
+/**
+ * Fetch ad analytics pivoted by MEMBER_COMPANY — returns impressions and
+ * clicks aggregated by the companies whose employees saw the ads.
+ */
+export async function getCompanyAnalytics(
+  accessToken: string,
+  accountUrn: string,
+  dateRange: { start: string; end: string }
+): Promise<CompanyAnalyticsRow[]> {
+  const [startYear, startMonth, startDay] = dateRange.start
+    .split("-")
+    .map(Number);
+  const [endYear, endMonth, endDay] = dateRange.end.split("-").map(Number);
+
+  const url =
+    `${LINKEDIN_API_BASE}/rest/adAnalytics?q=analytics` +
+    `&pivot=MEMBER_COMPANY` +
+    `&timeGranularity=ALL` +
+    `&dateRange=(start:(year:${startYear},month:${startMonth},day:${startDay}),end:(year:${endYear},month:${endMonth},day:${endDay}))` +
+    `&accounts=List(${encodeURIComponent(accountUrn)})` +
+    `&fields=impressions,clicks,pivotValues`;
+
+  const res = await fetch(url, { headers: apiHeaders(accessToken) });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(
+      `LinkedIn getCompanyAnalytics failed (${res.status}): ${body}`
+    );
+  }
+
+  const data = await res.json();
+  const elements: Array<Record<string, unknown>> = data.elements ?? [];
+
+  return elements.map((el) => {
+    const pivotValues = el.pivotValues as string[] | undefined;
+    const orgUrn = pivotValues?.[0] ?? "";
+    const orgId = orgUrn.split(":").pop() ?? "";
+
+    return {
+      orgUrn,
+      orgId,
+      impressions: Number(el.impressions ?? 0),
+      clicks: Number(el.clicks ?? 0),
+    };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Org Name Resolution via Unipile
+// ---------------------------------------------------------------------------
+
+const UNIPILE_DSN = "https://api33.unipile.com:16394";
+const UNIPILE_API_KEY = process.env.UNIPILE_API_KEY || "ML2GAOYq.71uJ1Y9UR0vkWSFbnBI1buKrvdchqD4R9+z1Z0CHZRo=";
+const UNIPILE_ACCOUNT_ID = process.env.UNIPILE_ACCOUNT_ID || "6keswHDGQ7CRL8WgRlnkjA";
+
+/**
+ * Look up a single LinkedIn org ID via Unipile's company profile endpoint.
+ * Returns the company name or null if lookup fails.
+ */
+export async function lookupOrgName(orgId: string): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `${UNIPILE_DSN}/api/v1/linkedin/company/${orgId}?account_id=${UNIPILE_ACCOUNT_ID}`,
+      { headers: { "X-API-KEY": UNIPILE_API_KEY } }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.name || null;
+  } catch {
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Util
 // ---------------------------------------------------------------------------
 
