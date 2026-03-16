@@ -369,3 +369,60 @@ model VerificationToken {
   @@unique([identifier, token])
   @@map("verification_tokens")
 }
+
+// LinkedIn Ads API connection (org-level, one admin connects)
+model LinkedInAdsConnection {
+  id            String    @id @default(uuid())
+  accessToken   String    @map("access_token")
+  refreshToken  String?   @map("refresh_token")
+  expiresAt     DateTime  @map("expires_at")
+  adAccountId   String?   @map("ad_account_id")   // Sponsored account URN e.g. "urn:li:sponsoredAccount:123"
+  adAccountName String?   @map("ad_account_name")
+  connectedBy   String    @map("connected_by")     // user email who connected
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  @@map("linkedin_ads_connections")
+}
+
+// LinkedIn ad campaign metadata
+model LinkedInAdCampaign {
+  id              String   @id @default(uuid())
+  campaignUrn     String   @unique @map("campaign_urn") // "urn:li:sponsoredCampaign:123"
+  name            String
+  status          String   // ACTIVE, PAUSED, ARCHIVED, COMPLETED, CANCELED, DRAFT
+  type            String?  // TEXT_AD, SPONSORED_UPDATES, SPONSORED_INMAILS, etc.
+  costType        String?  @map("cost_type") // CPC, CPM, CPV
+  dailyBudget     Float?   @map("daily_budget")
+  totalBudget     Float?   @map("total_budget")
+  campaignGroupId String?  @map("campaign_group_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  dailyStats LinkedInAdDaily[]
+
+  @@map("linkedin_ad_campaigns")
+}
+
+// Daily ad performance metrics per campaign
+model LinkedInAdDaily {
+  id                String  @id @default(uuid())
+  campaignId        String  @map("campaign_id")
+  date              String  // YYYY-MM-DD
+  impressions       Int     @default(0)
+  clicks            Int     @default(0)
+  spend             Float   @default(0) // costInLocalCurrency
+  landingPageClicks Int     @default(0) @map("landing_page_clicks")
+  reactions         Int     @default(0) // socialReactions (likes)
+  comments          Int     @default(0)
+  shares            Int     @default(0)
+  follows           Int     @default(0)
+  conversions       Int     @default(0)
+  costPerClick      Float?  @map("cost_per_click")
+
+  campaign LinkedInAdCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, date])
+  @@index([date])
+  @@map("linkedin_ad_daily")
+}

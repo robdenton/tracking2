@@ -61,6 +61,10 @@ export default async function RootLayout({
                           href: "/channels/company-linkedin",
                           label: "Company LinkedIn",
                         },
+                        {
+                          href: "/channels/linkedin-ads",
+                          label: "LinkedIn Ads",
+                        },
                       ]}
                     />
                     <a

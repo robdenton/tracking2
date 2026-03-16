@@ -1128,3 +1128,146 @@ export async function getTopCompanyPosts(limit = 20) {
     take: limit,
   });
 }
+
+// ---------------------------------------------------------------------------
+// LinkedIn Ads
+// ---------------------------------------------------------------------------
+
+/** Get the current LinkedIn Ads connection (if any) */
+export async function getLinkedInAdsConnection() {
+  return prisma.linkedInAdsConnection.findFirst();
+}
+
+/** Get all ad campaigns with aggregated lifetime stats */
+export async function getLinkedInAdsCampaigns() {
+  const campaigns = await prisma.linkedInAdCampaign.findMany({
+    include: {
+      dailyStats: {
+        select: {
+          impressions: true,
+          clicks: true,
+          spend: true,
+          conversions: true,
+        },
+      },
+    },
+    orderBy: { name: "asc" },
+  });
+
+  return campaigns.map((c) => ({
+    id: c.id,
+    campaignUrn: c.campaignUrn,
+    name: c.name,
+    status: c.status,
+    type: c.type,
+    costType: c.costType,
+    totalImpressions: c.dailyStats.reduce((s, d) => s + d.impressions, 0),
+    totalClicks: c.dailyStats.reduce((s, d) => s + d.clicks, 0),
+    totalSpend: c.dailyStats.reduce((s, d) => s + d.spend, 0),
+    totalConversions: c.dailyStats.reduce((s, d) => s + d.conversions, 0),
+    ctr:
+      c.dailyStats.reduce((s, d) => s + d.impressions, 0) > 0
+        ? c.dailyStats.reduce((s, d) => s + d.clicks, 0) /
+          c.dailyStats.reduce((s, d) => s + d.impressions, 0)
+        : 0,
+  }));
+}
+
+/** Get weekly aggregated ad analytics */
+export async function getLinkedInAdsWeeklyStats(dateRange?: DateRange) {
+  const where: Record<string, unknown> = {};
+  if (dateRange) {
+    where.date = { gte: dateRange.from, lte: dateRange.to };
+  }
+
+  const daily = await prisma.linkedInAdDaily.findMany({
+    where,
+    select: {
+      date: true,
+      impressions: true,
+      clicks: true,
+      spend: true,
+      conversions: true,
+    },
+    orderBy: { date: "asc" },
+  });
+
+  // Group by ISO week (same pattern as employee LinkedIn stats)
+  const weekMap = new Map<
+    string,
+    {
+      impressions: number;
+      clicks: number;
+      spend: number;
+      conversions: number;
+    }
+  >();
+
+  for (const row of daily) {
+    const d = new Date(row.date + "T00:00:00Z");
+    // ISO week: Monday-based
+    const day = d.getUTCDay() || 7; // Mon=1 … Sun=7
+    const monday = new Date(d);
+    monday.setUTCDate(d.getUTCDate() - day + 1);
+    const weekKey = monday.toISOString().slice(0, 10);
+
+    const existing = weekMap.get(weekKey) ?? {
+      impressions: 0,
+      clicks: 0,
+      spend: 0,
+      conversions: 0,
+    };
+    existing.impressions += row.impressions;
+    existing.clicks += row.clicks;
+    existing.spend += row.spend;
+    existing.conversions += row.conversions;
+    weekMap.set(weekKey, existing);
+  }
+
+  const data = Array.from(weekMap.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([period, stats]) => ({
+      period,
+      ...stats,
+    }));
+
+  return { data };
+}
+
+/** Get aggregate totals for ad performance */
+export async function getLinkedInAdsTotals(dateRange?: DateRange) {
+  const where: Record<string, unknown> = {};
+  if (dateRange) {
+    where.date = { gte: dateRange.from, lte: dateRange.to };
+  }
+
+  const daily = await prisma.linkedInAdDaily.findMany({
+    where,
+    select: {
+      impressions: true,
+      clicks: true,
+      spend: true,
+      conversions: true,
+      landingPageClicks: true,
+    },
+  });
+
+  const totalImpressions = daily.reduce((s, d) => s + d.impressions, 0);
+  const totalClicks = daily.reduce((s, d) => s + d.clicks, 0);
+  const totalSpend = daily.reduce((s, d) => s + d.spend, 0);
+  const totalConversions = daily.reduce((s, d) => s + d.conversions, 0);
+  const totalLandingPageClicks = daily.reduce(
+    (s, d) => s + d.landingPageClicks,
+    0
+  );
+
+  return {
+    totalImpressions,
+    totalClicks,
+    totalSpend,
+    totalConversions,
+    totalLandingPageClicks,
+    ctr: totalImpressions > 0 ? totalClicks / totalImpressions : 0,
+    cpc: totalClicks > 0 ? totalSpend / totalClicks : 0,
+  };
+}
