@@ -137,7 +137,7 @@ export interface LinkedInAdAccount {
 export async function getAdAccounts(
   accessToken: string
 ): Promise<LinkedInAdAccount[]> {
-  const url = `${LINKEDIN_API_BASE}/rest/adAccounts?q=search&search.status.values[0]=ACTIVE&count=100`;
+  const url = `${LINKEDIN_API_BASE}/rest/adAccounts?q=search&search=(status:(values:List(ACTIVE)))&count=100`;
   const res = await fetch(url, { headers: apiHeaders(accessToken) });
 
   if (!res.ok) {
@@ -189,10 +189,12 @@ export async function getCampaigns(
   let start = 0;
   const count = 100;
 
+  // Extract numeric account ID from URN for nested URL
+  const accountId = accountUrn.split(":").pop();
+
   while (true) {
     const url =
-      `${LINKEDIN_API_BASE}/rest/adCampaigns?q=search` +
-      `&search.account.values[0]=${encodeURIComponent(accountUrn)}` +
+      `${LINKEDIN_API_BASE}/rest/adAccounts/${accountId}/adCampaigns?q=search` +
       `&start=${start}&count=${count}`;
 
     const res = await fetch(url, { headers: apiHeaders(accessToken) });
@@ -273,15 +275,14 @@ export async function getAnalytics(
     .map(Number);
   const [endYear, endMonth, endDay] = dateRange.end.split("-").map(Number);
 
-  // LinkedIn versioned API uses dot-notation for structured params
+  // LinkedIn versioned API uses RestLI parenthesis format for structured params
   const url =
     `${LINKEDIN_API_BASE}/rest/adAnalytics?q=analytics` +
     `&pivot=CAMPAIGN` +
     `&timeGranularity=DAILY` +
-    `&dateRange.start.year=${startYear}&dateRange.start.month=${startMonth}&dateRange.start.day=${startDay}` +
-    `&dateRange.end.year=${endYear}&dateRange.end.month=${endMonth}&dateRange.end.day=${endDay}` +
-    `&accounts[0]=${encodeURIComponent(accountUrn)}` +
-    `&fields=impressions,clicks,costInLocalCurrency,landingPageClicks,likes,comments,shares,follows,externalWebsiteConversions,dateRange,pivotValue`;
+    `&dateRange=(start:(year:${startYear},month:${startMonth},day:${startDay}),end:(year:${endYear},month:${endMonth},day:${endDay}))` +
+    `&accounts=List(${encodeURIComponent(accountUrn)})` +
+    `&fields=impressions,clicks,costInLocalCurrency,landingPageClicks,likes,comments,shares,follows,externalWebsiteConversions,dateRange,pivotValues`;
 
   const res = await fetch(url, { headers: apiHeaders(accessToken) });
   if (!res.ok) {
@@ -304,8 +305,9 @@ export async function getAnalytics(
       ? `${start.year}-${String(start.month).padStart(2, "0")}-${String(start.day).padStart(2, "0")}`
       : "";
 
-    // pivotValue is "urn:li:sponsoredCampaign:123"
-    const campaignUrn = String(el.pivotValue ?? el.pivot ?? "");
+    // pivotValues is an array like ["urn:li:sponsoredCampaign:123"]
+    const pivotValues = el.pivotValues as string[] | undefined;
+    const campaignUrn = pivotValues?.[0] ?? String(el.pivotValue ?? "");
 
     return {
       campaignUrn,
