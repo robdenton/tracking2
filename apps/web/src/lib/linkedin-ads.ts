@@ -137,7 +137,7 @@ export interface LinkedInAdAccount {
 export async function getAdAccounts(
   accessToken: string
 ): Promise<LinkedInAdAccount[]> {
-  const url = `${LINKEDIN_API_BASE}/rest/adAccounts?q=search&search=(status:(values:List(ACTIVE)))&count=100`;
+  const url = `${LINKEDIN_API_BASE}/rest/adAccounts?q=search&search.status.values[0]=ACTIVE&count=100`;
   const res = await fetch(url, { headers: apiHeaders(accessToken) });
 
   if (!res.ok) {
@@ -192,7 +192,7 @@ export async function getCampaigns(
   while (true) {
     const url =
       `${LINKEDIN_API_BASE}/rest/adCampaigns?q=search` +
-      `&search=(account:(values:List(${encodeURIComponent(accountUrn)})))` +
+      `&search.account.values[0]=${encodeURIComponent(accountUrn)}` +
       `&start=${start}&count=${count}`;
 
     const res = await fetch(url, { headers: apiHeaders(accessToken) });
@@ -273,13 +273,14 @@ export async function getAnalytics(
     .map(Number);
   const [endYear, endMonth, endDay] = dateRange.end.split("-").map(Number);
 
-  // LinkedIn expects dateRange.start/end as objects with year, month, day
+  // LinkedIn versioned API uses dot-notation for structured params
   const url =
     `${LINKEDIN_API_BASE}/rest/adAnalytics?q=analytics` +
     `&pivot=CAMPAIGN` +
     `&timeGranularity=DAILY` +
-    `&dateRange=(start:(year:${startYear},month:${startMonth},day:${startDay}),end:(year:${endYear},month:${endMonth},day:${endDay}))` +
-    `&accounts=List(${encodeURIComponent(accountUrn)})` +
+    `&dateRange.start.year=${startYear}&dateRange.start.month=${startMonth}&dateRange.start.day=${startDay}` +
+    `&dateRange.end.year=${endYear}&dateRange.end.month=${endMonth}&dateRange.end.day=${endDay}` +
+    `&accounts[0]=${encodeURIComponent(accountUrn)}` +
     `&fields=impressions,clicks,costInLocalCurrency,landingPageClicks,likes,comments,shares,follows,externalWebsiteConversions,dateRange,pivotValue`;
 
   const res = await fetch(url, { headers: apiHeaders(accessToken) });
