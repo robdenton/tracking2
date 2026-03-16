@@ -879,13 +879,23 @@ const EMPLOYEE_COLORS = [
   "#ec4899", "#14b8a6", "#f97316", "#06b6d4",
 ];
 
-export async function getEmployeeLinkedInWeeklyStats(): Promise<{
+/** Optional date range filter for LinkedIn queries */
+export interface DateRange {
+  from: string; // "YYYY-MM-DD"
+  to: string; // "YYYY-MM-DD"
+}
+
+export async function getEmployeeLinkedInWeeklyStats(
+  dateRange?: DateRange
+): Promise<{
   employees: Array<{ key: string; name: string; color: string }>;
   data: Array<Record<string, string | number>>;
 }> {
   const posts = await prisma.employeeLinkedInPost.findMany({
     where: {
-      postDate: { gte: "2026-01-01" },
+      ...(dateRange
+        ? { postDate: { gte: dateRange.from, lte: dateRange.to } }
+        : {}),
       account: { status: "connected" },
     },
     orderBy: { postDate: "asc" },
@@ -964,13 +974,15 @@ export async function getEmployeeLinkedInWeeklyStats(): Promise<{
 }
 
 /** Get per-employee breakdown with totals */
-export async function getEmployeeLinkedInBreakdown() {
+export async function getEmployeeLinkedInBreakdown(dateRange?: DateRange) {
   const accounts = await prisma.unipileLinkedInAccount.findMany({
     where: { status: "connected" },
     include: {
       user: { select: { id: true, name: true, email: true, image: true } },
       posts: {
-        where: { postDate: { gte: "2026-01-01" } },
+        where: dateRange
+          ? { postDate: { gte: dateRange.from, lte: dateRange.to } }
+          : {},
         select: {
           impressions: true,
           reactions: true,
@@ -997,10 +1009,12 @@ export async function getEmployeeLinkedInBreakdown() {
 }
 
 /** Get top posts across all employees, sorted by impressions */
-export async function getTopEmployeePosts(limit = 20) {
+export async function getTopEmployeePosts(limit = 20, dateRange?: DateRange) {
   return prisma.employeeLinkedInPost.findMany({
     where: {
-      postDate: { gte: "2026-01-01" },
+      ...(dateRange
+        ? { postDate: { gte: dateRange.from, lte: dateRange.to } }
+        : {}),
       account: { status: "connected" },
     },
     orderBy: { impressions: "desc" },

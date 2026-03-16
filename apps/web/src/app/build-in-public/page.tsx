@@ -5,21 +5,45 @@ import {
   getTopEmployeePosts,
   getUserLinkedInAccount,
   getConnectedLinkedInAccounts,
+  type DateRange,
 } from "@/lib/data";
 import { BuildInPublicCharts } from "./charts";
 import { EmployeeTable } from "./employee-table";
 import { TopPostsTable } from "./top-posts-table";
 import { ConnectLinkedInButton } from "./connect-button";
+import { DateRangePicker } from "@/app/components/DateRangePicker";
 
 export const dynamic = "force-dynamic";
 
-export default async function BuildInPublicPage() {
+export default async function BuildInPublicPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ from?: string; to?: string }>;
+}) {
+  const { from, to } = await searchParams;
   const session = await auth();
+
+  // Compute date range from URL params
+  // No params (default) → YTD | from=all → all time | otherwise → explicit range
+  let dateRange: DateRange | undefined;
+  if (from === "all") {
+    dateRange = undefined; // all time
+  } else if (from || to) {
+    const today = new Date().toISOString().slice(0, 10);
+    const yearStart = `${new Date().getFullYear()}-01-01`;
+    dateRange = { from: from ?? yearStart, to: to ?? today };
+  } else {
+    // Default: Year to Date
+    const today = new Date().toISOString().slice(0, 10);
+    const yearStart = `${new Date().getFullYear()}-01-01`;
+    dateRange = { from: yearStart, to: today };
+  }
+
   const [weeklyStats, breakdown, topPosts, connectedAccounts] =
     await Promise.all([
-      getEmployeeLinkedInWeeklyStats(),
-      getEmployeeLinkedInBreakdown(),
-      getTopEmployeePosts(20),
+      getEmployeeLinkedInWeeklyStats(dateRange),
+      getEmployeeLinkedInBreakdown(dateRange),
+      getTopEmployeePosts(20, dateRange),
       getConnectedLinkedInAccounts(),
     ]);
 
@@ -62,6 +86,13 @@ export default async function BuildInPublicPage() {
         />
       </div>
 
+      {/* Date Range Picker */}
+      <DateRangePicker
+        basePath="/build-in-public"
+        from={from ?? null}
+        to={to ?? null}
+      />
+
       {/* Summary Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-4">
@@ -71,7 +102,7 @@ export default async function BuildInPublicPage() {
           </div>
         </div>
         <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-4">
-          <div className="text-xs text-gray-500 mb-1">Total Posts (2026)</div>
+          <div className="text-xs text-gray-500 mb-1">Total Posts</div>
           <div className="text-2xl font-mono font-semibold">{totalPosts}</div>
         </div>
         <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-4">
