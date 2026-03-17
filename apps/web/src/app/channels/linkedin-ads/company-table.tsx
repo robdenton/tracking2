@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 interface CompanyRow {
   orgId: string;
@@ -15,9 +15,59 @@ interface CompanyRow {
   conversions: number;
 }
 
+type SortKey =
+  | "impressions"
+  | "clicks"
+  | "landingPageClicks"
+  | "ctr"
+  | "spend"
+  | "cpc"
+  | "conversions"
+  | "name";
+
+type SortDir = "asc" | "desc";
+
 export function CompanyTable({ companies }: { companies: CompanyRow[] }) {
   const [resolving, setResolving] = useState(false);
   const [result, setResult] = useState<string | null>(null);
+  const [sortKey, setSortKey] = useState<SortKey>("impressions");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+
+  function handleSort(key: SortKey) {
+    if (key === sortKey) {
+      setSortDir(sortDir === "desc" ? "asc" : "desc");
+    } else {
+      setSortKey(key);
+      setSortDir(key === "name" ? "asc" : "desc");
+    }
+  }
+
+  const sorted = useMemo(() => {
+    // Separate "Other" row from sortable rows
+    const other = companies.find((c) => c.orgId === "__other__");
+    const sortable = companies.filter((c) => c.orgId !== "__other__");
+
+    sortable.sort((a, b) => {
+      let av: number | string;
+      let bv: number | string;
+
+      if (sortKey === "name") {
+        av = (a.name ?? "zzz").toLowerCase();
+        bv = (b.name ?? "zzz").toLowerCase();
+      } else {
+        av = a[sortKey];
+        bv = b[sortKey];
+      }
+
+      if (av < bv) return sortDir === "asc" ? -1 : 1;
+      if (av > bv) return sortDir === "asc" ? 1 : -1;
+      return 0;
+    });
+
+    // Always keep "Other" at the bottom
+    if (other) sortable.push(other);
+    return sortable;
+  }, [companies, sortKey, sortDir]);
 
   async function handleResolve() {
     setResolving(true);
@@ -44,6 +94,31 @@ export function CompanyTable({ companies }: { companies: CompanyRow[] }) {
   const unresolvedCount = companies.filter(
     (c) => !c.name && c.orgId !== "__other__"
   ).length;
+
+  function SortHeader({
+    label,
+    field,
+    align = "right",
+  }: {
+    label: string;
+    field: SortKey;
+    align?: "left" | "right";
+  }) {
+    const active = sortKey === field;
+    return (
+      <th
+        className={`pb-2 pr-4 ${align === "right" ? "text-right" : ""} cursor-pointer select-none hover:text-gray-900 dark:hover:text-gray-200 transition-colors`}
+        onClick={() => handleSort(field)}
+      >
+        {label}
+        {active && (
+          <span className="ml-0.5">
+            {sortDir === "desc" ? " \u2193" : " \u2191"}
+          </span>
+        )}
+      </th>
+    );
+  }
 
   return (
     <div>
@@ -76,18 +151,18 @@ export function CompanyTable({ companies }: { companies: CompanyRow[] }) {
           <thead>
             <tr className="text-left text-xs text-gray-500 border-b border-gray-200 dark:border-gray-800">
               <th className="pb-2 pr-4">#</th>
-              <th className="pb-2 pr-4">Company</th>
-              <th className="pb-2 pr-4 text-right">Impressions</th>
-              <th className="pb-2 pr-4 text-right">Clicks</th>
-              <th className="pb-2 pr-4 text-right">LP Clicks</th>
-              <th className="pb-2 pr-4 text-right">CTR</th>
-              <th className="pb-2 pr-4 text-right">Spend</th>
-              <th className="pb-2 pr-4 text-right">CPC</th>
-              <th className="pb-2 text-right">Conv.</th>
+              <SortHeader label="Company" field="name" align="left" />
+              <SortHeader label="Impressions" field="impressions" />
+              <SortHeader label="Clicks" field="clicks" />
+              <SortHeader label="LP Clicks" field="landingPageClicks" />
+              <SortHeader label="CTR" field="ctr" />
+              <SortHeader label="Spend" field="spend" />
+              <SortHeader label="CPC" field="cpc" />
+              <SortHeader label="Conv." field="conversions" />
             </tr>
           </thead>
           <tbody>
-            {companies.map((company, i) => {
+            {sorted.map((company, i) => {
               const isOther = company.orgId === "__other__";
               return (
               <tr
@@ -133,12 +208,12 @@ export function CompanyTable({ companies }: { companies: CompanyRow[] }) {
                 <td className="py-2 pr-4 text-right font-mono">
                   {company.cpc > 0
                     ? `$${company.cpc.toFixed(2)}`
-                    : "—"}
+                    : "\u2014"}
                 </td>
                 <td className="py-2 text-right font-mono">
                   {company.conversions > 0
                     ? company.conversions.toLocaleString()
-                    : "—"}
+                    : "\u2014"}
                 </td>
               </tr>
               );
