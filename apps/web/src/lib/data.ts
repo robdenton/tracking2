@@ -1276,6 +1276,7 @@ export async function getLinkedInAdsCompanyStats(dateRange?: DateRange) {
     spend: r.spend,
     landingPageClicks: r.landingPageClicks,
     cpc: r.clicks > 0 ? r.spend / r.clicks : 0,
+    conversions: r.conversions,
   }));
 }
 

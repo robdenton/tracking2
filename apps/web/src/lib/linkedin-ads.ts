@@ -337,6 +337,7 @@ export interface CompanyAnalyticsRow {
   spend: number;
   landingPageClicks: number;
   engagement: number; // likes + shares
+  conversions: number;
 }
 
 /**
@@ -359,7 +360,7 @@ export async function getCompanyAnalytics(
     `&timeGranularity=ALL` +
     `&dateRange=(start:(year:${startYear},month:${startMonth},day:${startDay}),end:(year:${endYear},month:${endMonth},day:${endDay}))` +
     `&accounts=List(${encodeURIComponent(accountUrn)})` +
-    `&fields=impressions,clicks,costInLocalCurrency,landingPageClicks,likes,shares,pivotValues`;
+    `&fields=impressions,clicks,costInLocalCurrency,landingPageClicks,likes,shares,externalWebsiteConversions,pivotValues`;
 
   const res = await fetch(url, { headers: apiHeaders(accessToken) });
   if (!res.ok) {
@@ -385,6 +386,7 @@ export async function getCompanyAnalytics(
       spend: parseFloat(String(el.costInLocalCurrency ?? "0")),
       landingPageClicks: Number(el.landingPageClicks ?? 0),
       engagement: Number(el.likes ?? 0) + Number(el.shares ?? 0),
+      conversions: Number(el.externalWebsiteConversions ?? 0),
     };
   });
 }

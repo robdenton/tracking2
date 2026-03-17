@@ -12,6 +12,7 @@ interface CompanyRow {
   spend: number;
   landingPageClicks: number;
   cpc: number;
+  conversions: number;
 }
 
 export function CompanyTable({ companies }: { companies: CompanyRow[] }) {
@@ -79,7 +80,8 @@ export function CompanyTable({ companies }: { companies: CompanyRow[] }) {
               <th className="pb-2 pr-4 text-right">LP Clicks</th>
               <th className="pb-2 pr-4 text-right">CTR</th>
               <th className="pb-2 pr-4 text-right">Spend</th>
-              <th className="pb-2 text-right">CPC</th>
+              <th className="pb-2 pr-4 text-right">CPC</th>
+              <th className="pb-2 text-right">Conv.</th>
             </tr>
           </thead>
           <tbody>
@@ -114,9 +116,14 @@ export function CompanyTable({ companies }: { companies: CompanyRow[] }) {
                     maximumFractionDigits: 2,
                   })}
                 </td>
-                <td className="py-2 text-right font-mono">
+                <td className="py-2 pr-4 text-right font-mono">
                   {company.cpc > 0
                     ? `$${company.cpc.toFixed(2)}`
+                    : "—"}
+                </td>
+                <td className="py-2 text-right font-mono">
+                  {company.conversions > 0
+                    ? company.conversions.toLocaleString()
                     : "—"}
                 </td>
               </tr>
