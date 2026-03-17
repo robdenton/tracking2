@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { getChannelAnalytics } from "@/lib/data";
+import { getChannelAnalytics, getDubClicksByActivity } from "@/lib/data";
 import { NewsletterChart } from "./chart";
 import { ENAUChart } from "./enau-chart";
 import { DateRangePicker } from "./date-range-picker";
@@ -258,8 +258,17 @@ export default async function NewsletterChannelPage({
   const { grouping = "monthly", startDate = "", endDate = "" } = await searchParams;
   const timeGrouping = (grouping === "weekly" ? "weekly" : "monthly") as TimeSeriesGrouping;
 
-  const { activities: allActivities, dailyMetrics: allDailyMetrics, reports: allReports } =
-    await getChannelAnalytics("newsletter");
+  const [channelData, dubClicksMap] = await Promise.all([
+    getChannelAnalytics("newsletter"),
+    getDubClicksByActivity(),
+  ]);
+  const { activities: allActivities, dailyMetrics: allDailyMetrics, reports: allReports } = channelData;
+
+  // Convert Map to plain object for client component serialization
+  const dubClicksObj: Record<string, { dubClicks: number; dubLeads: number; shortLink: string }> = {};
+  for (const [id, data] of dubClicksMap) {
+    dubClicksObj[id] = data;
+  }
 
   // Apply date range filter to each data source
   const activities = allActivities.filter((a) => {
@@ -468,6 +477,7 @@ export default async function NewsletterChannelPage({
               return clicks > 0 ? incrNAU / clicks : undefined;
             })()
           }
+          dubClicksMap={Object.keys(dubClicksObj).length > 0 ? dubClicksObj : undefined}
         />
       </div>
 

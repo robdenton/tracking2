@@ -74,6 +74,12 @@ export default async function RootLayout({
                       Build in Public
                     </a>
                     <a
+                      href="/dub-links"
+                      className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+                    >
+                      Dub Links
+                    </a>
+                    <a
                       href="/pipelines"
                       className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
                     >

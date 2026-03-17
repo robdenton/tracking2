@@ -1406,3 +1406,71 @@ export async function getLinkedInAdsTotals(dateRange?: DateRange) {
     cpc: totalClicks > 0 ? totalSpend / totalClicks : 0,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Dub Link → Newsletter matching
+// ---------------------------------------------------------------------------
+
+/**
+ * For each newsletter activity that has a Dub link mapped to its partner,
+ * sum the Dub clicks during the activity's post-window (date + 2 days for newsletters).
+ *
+ * Returns a Map: activityId → { dubClicks, dubLeads, shortLink }
+ */
+export async function getDubClicksByActivity(): Promise<
+  Map<string, { dubClicks: number; dubLeads: number; shortLink: string }>
+> {
+  // 1. Get all mappings (partnerName → shortLink)
+  const mappings = await prisma.dubNewsletterMapping.findMany();
+  if (mappings.length === 0) return new Map();
+
+  const partnerToLink = new Map(
+    mappings.map((m) => [m.partnerName, m.shortLink])
+  );
+
+  // 2. Get all newsletter activities
+  const activities = await prisma.activity.findMany({
+    where: {
+      channel: "newsletter",
+      partnerName: { in: mappings.map((m) => m.partnerName) },
+    },
+    select: { id: true, partnerName: true, date: true },
+  });
+
+  if (activities.length === 0) return new Map();
+
+  // 3. For each activity, sum dub_link_daily clicks in [date, date+2]
+  const result = new Map<
+    string,
+    { dubClicks: number; dubLeads: number; shortLink: string }
+  >();
+
+  for (const activity of activities) {
+    const shortLink = partnerToLink.get(activity.partnerName);
+    if (!shortLink) continue;
+
+    const startDate = activity.date;
+    const endDate = addDaysStr(activity.date, 2);
+
+    const rows = await prisma.dubLinkDaily.findMany({
+      where: {
+        shortLink,
+        date: { gte: startDate, lte: endDate },
+      },
+      select: { clicks: true, leads: true },
+    });
+
+    const dubClicks = rows.reduce((s, r) => s + r.clicks, 0);
+    const dubLeads = rows.reduce((s, r) => s + r.leads, 0);
+
+    result.set(activity.id, { dubClicks, dubLeads, shortLink });
+  }
+
+  return result;
+}
+
+function addDaysStr(dateStr: string, n: number): string {
+  const d = new Date(dateStr + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}

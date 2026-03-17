@@ -31,9 +31,11 @@ interface ActivityTableProps {
   selectedChannel: string | null;
   /** Pooled click→incremental NAU rate across all live newsletters, for vs-avg display */
   clickConversionAvg?: number;
+  /** Dub click data per activity ID (from getDubClicksByActivity) */
+  dubClicksMap?: Record<string, { dubClicks: number; dubLeads: number; shortLink: string }>;
 }
 
-export function ActivityTable({ reports, selectedChannel, clickConversionAvg }: ActivityTableProps) {
+export function ActivityTable({ reports, selectedChannel, clickConversionAvg, dubClicksMap }: ActivityTableProps) {
   const [sortColumn, setSortColumn] = useState<SortColumn>("date");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
@@ -159,6 +161,11 @@ export function ActivityTable({ reports, selectedChannel, clickConversionAvg }: 
               <SortableHeader column="actualClicks" align="right">
                 Actual Clicks
               </SortableHeader>
+              {dubClicksMap && (
+                <th className="py-2 pr-4 text-xs font-medium text-right">
+                  Dub Clicks
+                </th>
+              )}
               <SortableHeader column="clickConversion" align="right">
                 Click → Incr. NAU %
               </SortableHeader>
@@ -230,6 +237,34 @@ export function ActivityTable({ reports, selectedChannel, clickConversionAvg }: 
                   <td className="py-2 pr-4 text-right font-mono text-gray-500">
                     {r.activity.actualClicks?.toLocaleString() ?? "—"}
                   </td>
+                  {dubClicksMap && (
+                    <td className="py-2 pr-4 text-right font-mono">
+                      {(() => {
+                        const dub = dubClicksMap[r.activity.id];
+                        if (!dub) return <span className="text-gray-300">—</span>;
+                        const actual = r.activity.actualClicks ?? 0;
+                        const diff = actual > 0 ? ((dub.dubClicks - actual) / actual) * 100 : 0;
+                        const showDiff = actual > 0 && dub.dubClicks > 0;
+                        return (
+                          <span>
+                            <span className="text-gray-500">{dub.dubClicks.toLocaleString()}</span>
+                            {showDiff && (
+                              <span
+                                className={`ml-1 text-[10px] ${
+                                  Math.abs(diff) > 30
+                                    ? "text-amber-500"
+                                    : "text-gray-400"
+                                }`}
+                                title={`${diff > 0 ? "+" : ""}${diff.toFixed(0)}% vs actual`}
+                              >
+                                {diff > 0 ? "+" : ""}{diff.toFixed(0)}%
+                              </span>
+                            )}
+                          </span>
+                        );
+                      })()}
+                    </td>
+                  )}
                   <td className="py-2 pr-4 text-right font-mono">
                     {(() => {
                       const clicks = r.activity.actualClicks ?? 0;
