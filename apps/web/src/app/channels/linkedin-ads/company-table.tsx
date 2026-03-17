@@ -9,6 +9,9 @@ interface CompanyRow {
   impressions: number;
   clicks: number;
   ctr: number;
+  spend: number;
+  landingPageClicks: number;
+  cpc: number;
 }
 
 export function CompanyTable({ companies }: { companies: CompanyRow[] }) {
@@ -73,7 +76,10 @@ export function CompanyTable({ companies }: { companies: CompanyRow[] }) {
               <th className="pb-2 pr-4">Company</th>
               <th className="pb-2 pr-4 text-right">Impressions</th>
               <th className="pb-2 pr-4 text-right">Clicks</th>
-              <th className="pb-2 text-right">CTR</th>
+              <th className="pb-2 pr-4 text-right">LP Clicks</th>
+              <th className="pb-2 pr-4 text-right">CTR</th>
+              <th className="pb-2 pr-4 text-right">Spend</th>
+              <th className="pb-2 text-right">CPC</th>
             </tr>
           </thead>
           <tbody>
@@ -96,8 +102,22 @@ export function CompanyTable({ companies }: { companies: CompanyRow[] }) {
                 <td className="py-2 pr-4 text-right font-mono">
                   {company.clicks.toLocaleString()}
                 </td>
-                <td className="py-2 text-right font-mono">
+                <td className="py-2 pr-4 text-right font-mono">
+                  {company.landingPageClicks.toLocaleString()}
+                </td>
+                <td className="py-2 pr-4 text-right font-mono">
                   {(company.ctr * 100).toFixed(2)}%
+                </td>
+                <td className="py-2 pr-4 text-right font-mono">
+                  ${company.spend.toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </td>
+                <td className="py-2 text-right font-mono">
+                  {company.cpc > 0
+                    ? `$${company.cpc.toFixed(2)}`
+                    : "—"}
                 </td>
               </tr>
             ))}
