@@ -81,8 +81,10 @@ export default async function LinkedInAdsPage({
     getLinkedInAdsCompanyStats(dateRange),
   ]);
 
-  // Ensure cache entries exist for discovered org IDs (non-blocking)
-  const orgIds = companyStats.map((c) => c.orgId).filter(Boolean);
+  // Ensure cache entries exist for discovered org IDs (non-blocking, skip __other__)
+  const orgIds = companyStats
+    .map((c) => c.orgId)
+    .filter((id) => id && id !== "__other__");
   if (orgIds.length > 0) {
     ensureOrgCacheEntries(orgIds).catch(() => {});
   }

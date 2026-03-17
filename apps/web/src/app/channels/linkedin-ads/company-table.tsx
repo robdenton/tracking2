@@ -41,7 +41,9 @@ export function CompanyTable({ companies }: { companies: CompanyRow[] }) {
     }
   }
 
-  const unresolvedCount = companies.filter((c) => !c.name).length;
+  const unresolvedCount = companies.filter(
+    (c) => !c.name && c.orgId !== "__other__"
+  ).length;
 
   return (
     <div>
@@ -85,14 +87,26 @@ export function CompanyTable({ companies }: { companies: CompanyRow[] }) {
             </tr>
           </thead>
           <tbody>
-            {companies.map((company, i) => (
+            {companies.map((company, i) => {
+              const isOther = company.orgId === "__other__";
+              return (
               <tr
                 key={company.orgId}
-                className="border-b border-gray-100 dark:border-gray-800/50"
+                className={
+                  isOther
+                    ? "border-t-2 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/50 font-medium"
+                    : "border-b border-gray-100 dark:border-gray-800/50"
+                }
               >
-                <td className="py-2 pr-4 text-gray-400 text-xs">{i + 1}</td>
+                <td className="py-2 pr-4 text-gray-400 text-xs">
+                  {isOther ? "" : i + 1}
+                </td>
                 <td className="py-2 pr-4 font-medium">
-                  {company.name || (
+                  {isOther ? (
+                    <span className="text-gray-500 italic">{company.name}</span>
+                  ) : company.name ? (
+                    company.name
+                  ) : (
                     <span className="text-gray-400">
                       org:{company.orgId}
                     </span>
@@ -127,7 +141,8 @@ export function CompanyTable({ companies }: { companies: CompanyRow[] }) {
                     : "—"}
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>

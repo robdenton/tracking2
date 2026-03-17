@@ -1255,18 +1255,33 @@ export async function getLinkedInAdsCompanyStats(dateRange?: DateRange) {
     { start: range.from, end: range.to }
   );
 
-  // Sort by impressions descending, take top 100
+  // Sort by impressions descending
   rows.sort((a, b) => b.impressions - a.impressions);
-  const top = rows.slice(0, 100);
 
-  // Fetch cached names
-  const orgIds = top.map((r) => r.orgId).filter(Boolean);
+  // Split: named companies (>=1000 impressions) + "Other" bucket
+  const named = rows.filter((r) => r.impressions >= 1000);
+  const rest = rows.filter((r) => r.impressions < 1000);
+
+  // Aggregate the "other" bucket
+  const otherBucket = {
+    orgId: "__other__",
+    orgUrn: "",
+    impressions: rest.reduce((s, r) => s + r.impressions, 0),
+    clicks: rest.reduce((s, r) => s + r.clicks, 0),
+    spend: rest.reduce((s, r) => s + r.spend, 0),
+    landingPageClicks: rest.reduce((s, r) => s + r.landingPageClicks, 0),
+    conversions: rest.reduce((s, r) => s + r.conversions, 0),
+    companyCount: rest.length,
+  };
+
+  // Fetch cached names for named companies
+  const orgIds = named.map((r) => r.orgId).filter(Boolean);
   const cached = await prisma.linkedInOrgNameCache.findMany({
     where: { orgId: { in: orgIds } },
   });
   const nameMap = new Map(cached.map((c) => [c.orgId, c.name]));
 
-  return top.map((r) => ({
+  const result = named.map((r) => ({
     orgId: r.orgId,
     orgUrn: r.orgUrn,
     name: nameMap.get(r.orgId) ?? null,
@@ -1278,6 +1293,30 @@ export async function getLinkedInAdsCompanyStats(dateRange?: DateRange) {
     cpc: r.clicks > 0 ? r.spend / r.clicks : 0,
     conversions: r.conversions,
   }));
+
+  // Append "Other" row at the end
+  if (rest.length > 0) {
+    result.push({
+      orgId: "__other__",
+      orgUrn: "",
+      name: `Other (${rest.length} companies)`,
+      impressions: otherBucket.impressions,
+      clicks: otherBucket.clicks,
+      ctr:
+        otherBucket.impressions > 0
+          ? otherBucket.clicks / otherBucket.impressions
+          : 0,
+      spend: otherBucket.spend,
+      landingPageClicks: otherBucket.landingPageClicks,
+      cpc:
+        otherBucket.clicks > 0
+          ? otherBucket.spend / otherBucket.clicks
+          : 0,
+      conversions: otherBucket.conversions,
+    });
+  }
+
+  return result;
 }
 
 /** Resolve unresolved org names via Unipile and cache them */
@@ -1304,8 +1343,8 @@ export async function resolveUnresolvedOrgNames(limit = 50): Promise<{
     });
     if (name) resolved++;
     else failed++;
-    // Rate limit Unipile calls
-    await new Promise((r) => setTimeout(r, 300));
+    // Rate limit Unipile calls (500ms avoids throttling)
+    await new Promise((r) => setTimeout(r, 500));
   }
 
   return { resolved, failed };
