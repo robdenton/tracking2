@@ -5,6 +5,7 @@ import {
   getLinkedInAdsWeeklyStats,
   getLinkedInAdsTotals,
   getLinkedInAdsCompanyStats,
+  getLinkedInAdsCreativeStats,
   ensureOrgCacheEntries,
   type DateRange,
 } from "@/lib/data";
@@ -12,6 +13,7 @@ import { ConnectLinkedInAdsButton } from "./connect-button";
 import { LinkedInAdsCharts } from "./charts";
 import { CampaignsTable } from "./campaigns-table";
 import { CompanyTable } from "./company-table";
+import { CreativesTable } from "./creatives-table";
 import { DateRangePicker } from "@/app/components/DateRangePicker";
 
 export const dynamic = "force-dynamic";
@@ -74,12 +76,14 @@ export default async function LinkedInAdsPage({
   }
 
   // Fetch data in parallel
-  const [campaigns, weeklyStats, totals, companyStats] = await Promise.all([
-    getLinkedInAdsCampaigns(),
-    getLinkedInAdsWeeklyStats(dateRange),
-    getLinkedInAdsTotals(dateRange),
-    getLinkedInAdsCompanyStats(dateRange),
-  ]);
+  const [campaigns, weeklyStats, totals, companyStats, creativeStats] =
+    await Promise.all([
+      getLinkedInAdsCampaigns(),
+      getLinkedInAdsWeeklyStats(dateRange),
+      getLinkedInAdsTotals(dateRange),
+      getLinkedInAdsCompanyStats(dateRange),
+      getLinkedInAdsCreativeStats(dateRange),
+    ]);
 
   // Ensure cache entries exist for discovered org IDs (non-blocking, skip __other__)
   const orgIds = companyStats
@@ -115,7 +119,7 @@ export default async function LinkedInAdsPage({
       />
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-6">
         <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-4">
           <div className="text-xs text-gray-500 mb-1">Total Spend</div>
           <div className="text-2xl font-mono font-semibold">
@@ -150,6 +154,12 @@ export default async function LinkedInAdsPage({
           </div>
         </div>
         <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-4">
+          <div className="text-xs text-gray-500 mb-1">CPM</div>
+          <div className="text-2xl font-mono font-semibold">
+            ${totals.cpm.toFixed(2)}
+          </div>
+        </div>
+        <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-4">
           <div className="text-xs text-gray-500 mb-1">Conversions</div>
           <div className="text-2xl font-mono font-semibold">
             {totals.totalConversions.toLocaleString()}
@@ -169,6 +179,18 @@ export default async function LinkedInAdsPage({
       {companyStats.length > 0 && (
         <div className="mb-8">
           <CompanyTable companies={companyStats} />
+        </div>
+      )}
+
+      {/* Creatives Performance */}
+      {creativeStats.length > 0 && (
+        <div className="mb-8">
+          <h2 className="text-lg font-semibold mb-1">Creative Performance</h2>
+          <p className="text-xs text-gray-500 mb-3">
+            Assets used across multiple campaigns are grouped together. Click to
+            expand campaign-level breakdown.
+          </p>
+          <CreativesTable creatives={creativeStats} />
         </div>
       )}
 

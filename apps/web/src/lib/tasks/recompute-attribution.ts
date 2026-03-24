@@ -55,10 +55,26 @@ export async function recomputeAttribution(): Promise<RecomputeResult> {
   // daily baseline model and returns fully attributed figures inline — no separate
   // applyProportionalAttribution() step is needed.
   const allReports = [];
+  // Upper-bound reports (7-day post-window) for newsletter, keyed by activity ID
+  const upperBoundMap = new Map<string, { signups: number; activations: number; activationsAll: number }>();
+
   for (const [channel, channelActivities] of activitiesByChannel) {
     const channelMetrics = metricsByChannel.get(channel) ?? [];
     const channelReports = computeAllReports(channelActivities, channelMetrics, config);
     allReports.push(...channelReports);
+
+    // For newsletter: also compute 7-day upper-bound estimates
+    if (channel === "newsletter") {
+      const upperReports = computeAllReports(channelActivities, channelMetrics, config, 7);
+      for (const ur of upperReports) {
+        const attr = ur.postWindowAttribution;
+        upperBoundMap.set(ur.activity.id, {
+          signups: attr?.attributedIncrementalSignups ?? ur.incremental,
+          activations: attr?.attributedIncremental ?? ur.incrementalActivations,
+          activationsAll: ur.incrementalActivationsAllDevices,
+        });
+      }
+    }
   }
 
   // Delete existing uplift records and write fresh ones.
@@ -84,6 +100,8 @@ export async function recomputeAttribution(): Promise<RecomputeResult> {
       const attributedIncrementalActivations =
         attr?.attributedIncremental ?? report.incrementalActivations;
 
+      const ub = upperBoundMap.get(report.activity.id);
+
       return {
         activityId: report.activity.id,
         baselineWindowStart: report.baselineWindowStart,
@@ -93,6 +111,10 @@ export async function recomputeAttribution(): Promise<RecomputeResult> {
         rawIncrementalActivations,
         attributedIncrementalSignups,
         attributedIncrementalActivations,
+        attributedIncrActAllDevices: report.incrementalActivationsAllDevices,
+        upperBoundIncrSignups: ub?.signups ?? 0,
+        upperBoundIncrActivations: ub?.activations ?? 0,
+        upperBoundIncrActAllDevices: ub?.activationsAll ?? 0,
         clicksUsed: attr?.clicksUsed ?? null,
         clicksSource: attr?.clicksSource ?? null,
         confidence: report.confidence,

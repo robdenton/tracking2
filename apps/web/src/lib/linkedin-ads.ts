@@ -244,6 +244,94 @@ function parseBudget(budget: unknown): number | undefined {
 }
 
 // ---------------------------------------------------------------------------
+// Creatives
+// ---------------------------------------------------------------------------
+
+export interface LinkedInCreative {
+  id: string; // numeric ID
+  urn: string; // "urn:li:sponsoredCreative:123"
+  campaignUrn: string;
+  name: string | null;
+  intendedStatus: string | null;
+  contentRef: string | null; // content.reference URN (same asset across campaigns shares this)
+  isServing: boolean;
+  createdBy: string | null; // "urn:li:person:XXX" who created this creative
+  apiCreatedAt: Date | null; // creation timestamp from LinkedIn API
+}
+
+/**
+ * List all creatives for a given ad account.
+ * Uses cursor-based pagination (pageSize + pageToken).
+ */
+export async function getCreatives(
+  accessToken: string,
+  accountUrn: string
+): Promise<LinkedInCreative[]> {
+  const all: LinkedInCreative[] = [];
+  const accountId = accountUrn.split(":").pop();
+  let pageToken: string | null = null;
+
+  while (true) {
+    let url =
+      `${LINKEDIN_API_BASE}/rest/adAccounts/${accountId}/creatives?q=criteria` +
+      `&sortOrder=ASCENDING&pageSize=100`;
+    if (pageToken) url += `&pageToken=${encodeURIComponent(pageToken)}`;
+
+    const headers = {
+      ...apiHeaders(accessToken),
+      "X-RestLi-Method": "FINDER",
+    };
+
+    const res = await fetch(url, { headers });
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(
+        `LinkedIn getCreatives failed (${res.status}): ${body}`
+      );
+    }
+
+    const data = await res.json();
+    const elements: Array<Record<string, unknown>> = data.elements ?? [];
+
+    for (const el of elements) {
+      const urn = String(el.id ?? "");
+      const id = urn.split(":").pop() ?? "";
+      const content = el.content as Record<string, unknown> | null;
+
+      // Parse creation timestamp from LinkedIn (millisecond epoch)
+      const apiCreatedAt = el.createdAt
+        ? new Date(Number(el.createdAt))
+        : null;
+
+      all.push({
+        id,
+        urn,
+        campaignUrn: String(el.campaign ?? ""),
+        name: el.name ? String(el.name) : null,
+        intendedStatus: el.intendedStatus
+          ? String(el.intendedStatus)
+          : null,
+        contentRef: content?.reference ? String(content.reference) : null,
+        isServing: Boolean(el.isServing),
+        createdBy: el.createdBy ? String(el.createdBy) : null,
+        apiCreatedAt:
+          apiCreatedAt && !isNaN(apiCreatedAt.getTime())
+            ? apiCreatedAt
+            : null,
+      });
+    }
+
+    // Cursor-based pagination
+    const nextToken = data.metadata?.nextPageToken;
+    if (!nextToken || elements.length === 0) break;
+    pageToken = nextToken;
+    await sleep(200);
+  }
+
+  return all;
+}
+
+// ---------------------------------------------------------------------------
 // Analytics
 // ---------------------------------------------------------------------------
 
@@ -311,6 +399,86 @@ export async function getAnalytics(
 
     return {
       campaignUrn,
+      date: dateStr,
+      impressions: Number(el.impressions ?? 0),
+      clicks: Number(el.clicks ?? 0),
+      costInLocalCurrency: parseFloat(String(el.costInLocalCurrency ?? "0")),
+      landingPageClicks: Number(el.landingPageClicks ?? 0),
+      reactions: Number(el.likes ?? 0),
+      comments: Number(el.comments ?? 0),
+      shares: Number(el.shares ?? 0),
+      follows: Number(el.follows ?? 0),
+      conversions: Number(el.externalWebsiteConversions ?? 0),
+    };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Creative-level Analytics (CREATIVE pivot)
+// ---------------------------------------------------------------------------
+
+export interface LinkedInCreativeAnalyticsRow {
+  creativeUrn: string;
+  date: string; // YYYY-MM-DD
+  impressions: number;
+  clicks: number;
+  costInLocalCurrency: number;
+  landingPageClicks: number;
+  reactions: number;
+  comments: number;
+  shares: number;
+  follows: number;
+  conversions: number;
+}
+
+/**
+ * Fetch daily ad analytics for an account, pivoted by creative.
+ * Returns one row per creative per day.
+ */
+export async function getCreativeAnalytics(
+  accessToken: string,
+  accountUrn: string,
+  dateRange: { start: string; end: string }
+): Promise<LinkedInCreativeAnalyticsRow[]> {
+  const [startYear, startMonth, startDay] = dateRange.start
+    .split("-")
+    .map(Number);
+  const [endYear, endMonth, endDay] = dateRange.end.split("-").map(Number);
+
+  const url =
+    `${LINKEDIN_API_BASE}/rest/adAnalytics?q=analytics` +
+    `&pivot=CREATIVE` +
+    `&timeGranularity=DAILY` +
+    `&dateRange=(start:(year:${startYear},month:${startMonth},day:${startDay}),end:(year:${endYear},month:${endMonth},day:${endDay}))` +
+    `&accounts=List(${encodeURIComponent(accountUrn)})` +
+    `&fields=impressions,clicks,costInLocalCurrency,landingPageClicks,likes,comments,shares,follows,externalWebsiteConversions,dateRange,pivotValues`;
+
+  const res = await fetch(url, { headers: apiHeaders(accessToken) });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(
+      `LinkedIn getCreativeAnalytics failed (${res.status}): ${body}`
+    );
+  }
+
+  const data = await res.json();
+  const elements: Array<Record<string, unknown>> = data.elements ?? [];
+
+  return elements.map((el) => {
+    const dr = el.dateRange as Record<
+      string,
+      Record<string, number>
+    > | null;
+    const start = dr?.start;
+    const dateStr = start
+      ? `${start.year}-${String(start.month).padStart(2, "0")}-${String(start.day).padStart(2, "0")}`
+      : "";
+
+    const pivotValues = el.pivotValues as string[] | undefined;
+    const creativeUrn = pivotValues?.[0] ?? String(el.pivotValue ?? "");
+
+    return {
+      creativeUrn,
       date: dateStr,
       impressions: Number(el.impressions ?? 0),
       clicks: Number(el.clicks ?? 0),
@@ -412,6 +580,33 @@ export async function lookupOrgName(orgId: string): Promise<string | null> {
     if (!res.ok) return null;
     const data = await res.json();
     return data.name || null;
+  } catch {
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Person Name Resolution via Unipile
+// ---------------------------------------------------------------------------
+
+/**
+ * Look up a LinkedIn person by their person URN ID via Unipile.
+ * Returns the person's display name or null if lookup fails.
+ */
+export async function lookupPersonName(
+  personId: string
+): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `${UNIPILE_DSN}/api/v1/linkedin/profile/${personId}?account_id=${UNIPILE_ACCOUNT_ID}`,
+      { headers: { "X-API-KEY": UNIPILE_API_KEY } }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const firstName = data.first_name || data.firstName || "";
+    const lastName = data.last_name || data.lastName || "";
+    const fullName = `${firstName} ${lastName}`.trim();
+    return fullName || data.name || null;
   } catch {
     return null;
   }

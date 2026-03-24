@@ -8,6 +8,7 @@ export type {
   DecontaminatedBaseline,
   DecontaminationConfig,
   DailyAttributionShare,
+  FixedBaselineConfig,
   PostWindowAttributionConfig,
   UpliftConfig,
 } from "./types";

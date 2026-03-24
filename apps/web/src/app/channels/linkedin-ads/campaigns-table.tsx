@@ -10,6 +10,7 @@ interface Campaign {
   totalSpend: number;
   totalConversions: number;
   ctr: number;
+  cpm: number;
 }
 
 function statusBadge(status: string) {
@@ -52,6 +53,7 @@ export function CampaignsTable({ campaigns }: { campaigns: Campaign[] }) {
             <th className="px-4 py-2 font-medium text-right">Clicks</th>
             <th className="px-4 py-2 font-medium text-right">CTR</th>
             <th className="px-4 py-2 font-medium text-right">Spend</th>
+            <th className="px-4 py-2 font-medium text-right">CPM</th>
             <th className="px-4 py-2 font-medium text-right">Conversions</th>
           </tr>
         </thead>
@@ -76,6 +78,9 @@ export function CampaignsTable({ campaigns }: { campaigns: Campaign[] }) {
               </td>
               <td className="px-4 py-2 text-right font-mono">
                 ${c.totalSpend.toFixed(2)}
+              </td>
+              <td className="px-4 py-2 text-right font-mono">
+                ${c.cpm.toFixed(2)}
               </td>
               <td className="px-4 py-2 text-right font-mono">
                 {c.totalConversions.toLocaleString()}

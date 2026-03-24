@@ -45,9 +45,10 @@ export function getPostWindowDays(channel: string, defaultDays: number): number 
 function getActivityPostWindowDates(
   activity: Activity,
   config: UpliftConfig,
+  postWindowOverride?: number,
 ): string[] {
   if (activity.status !== "live") return [];
-  const pwDays = getPostWindowDays(activity.channel, config.postWindowDays);
+  const pwDays = postWindowOverride ?? getPostWindowDays(activity.channel, config.postWindowDays);
   return dateRange(activity.date, addDays(activity.date, pwDays - 1));
 }
 
@@ -59,10 +60,11 @@ function getActivityPostWindowDates(
 function buildGlobalPostWindowSet(
   activities: Activity[],
   config: UpliftConfig,
+  postWindowOverride?: number,
 ): Set<string> {
   const set = new Set<string>();
   for (const activity of activities) {
-    for (const d of getActivityPostWindowDates(activity, config)) {
+    for (const d of getActivityPostWindowDates(activity, config, postWindowOverride)) {
       set.add(d);
     }
   }
@@ -71,6 +73,7 @@ function buildGlobalPostWindowSet(
 
 interface DailyBaseline {
   activationsAvg: number;
+  activationsAllDevicesAvg: number;
   signupsAvg: number;
   signupsSigma: number; // std dev of signups on clean days (for confidence scoring)
   cleanDays: string[];  // most-recent-first list of clean days used
@@ -84,28 +87,48 @@ const BASELINE_LOOKBACK_MAX = 60;
 // ---------------------------------------------------------------------------
 
 /**
- * For every post-window date D, compute the channel-level daily baseline:
- * the average activations/signups on the N most-recent "clean" days before D,
- * where "clean" = that day is not in ANY activity's post-window.
+ * For every post-window date D, compute the channel-level daily baseline.
  *
- * This replaces the old per-activity 14-day pre-window baseline and the
- * downstream decontamination loop. Because all overlapping activities share
- * the same baseline[D], their attributed incremental figures always sum to
- * the portfolio total, which is bounded by the observed daily channel NAU.
+ * Two modes:
+ *
+ * 1. **Fixed baseline** (configured via `config.fixedBaselines[channel]`):
+ *    Uses a fixed historical period (e.g. Nov 1 – Dec 6 2025) as the baseline.
+ *    Every post-window date gets the same baseline values — the median of
+ *    activations/signups across all days in the fixed period. This avoids the
+ *    stale-baseline problem when activities run densely with no clean days.
+ *
+ * 2. **Rolling baseline** (default):
+ *    For each post-window date D, find the N most-recent "clean" days before D
+ *    (where "clean" = not in ANY activity's post-window) and take the median.
+ *
+ * Because all overlapping activities share the same baseline[D], their
+ * attributed incremental figures always sum to the portfolio total, which
+ * is bounded by the observed daily channel NAU.
  */
 function computeChannelDailyBaselines(
   activities: Activity[],
   metrics: DailyMetric[],
   config: UpliftConfig,
+  postWindowOverride?: number,
 ): Map<string, DailyBaseline> {
   const metricsMap = buildMetricsMap(metrics);
-  const postWindowDateSet = buildGlobalPostWindowSet(activities, config);
+
+  // Check if this channel has a fixed baseline configured.
+  const channel = activities[0]?.channel;
+  const fixedConfig = channel ? config.fixedBaselines?.[channel] : undefined;
+
+  if (fixedConfig) {
+    return computeFixedBaseline(activities, metricsMap, config, fixedConfig, postWindowOverride);
+  }
+
+  // --- Rolling baseline (existing logic) ---
+  const postWindowDateSet = buildGlobalPostWindowSet(activities, config, postWindowOverride);
   const target = config.baselineWindowDays; // typically 14
 
   // Collect every post-window date that needs a baseline.
   const datesToBaseline = new Set<string>();
   for (const activity of activities) {
-    for (const d of getActivityPostWindowDates(activity, config)) {
+    for (const d of getActivityPostWindowDates(activity, config, postWindowOverride)) {
       datesToBaseline.add(d);
     }
   }
@@ -126,25 +149,88 @@ function computeChannelDailyBaselines(
     }
 
     if (cleanDays.length === 0) {
-      result.set(date, { activationsAvg: 0, signupsAvg: 0, signupsSigma: 0, cleanDays: [] });
+      result.set(date, { activationsAvg: 0, activationsAllDevicesAvg: 0, signupsAvg: 0, signupsSigma: 0, cleanDays: [] });
       continue;
     }
 
     const actVals = cleanDays.map(d => metricsMap.get(d)!.activations);
+    const actAllVals = cleanDays.map(d => metricsMap.get(d)!.activationsAllDevices);
     const sigVals = cleanDays.map(d => metricsMap.get(d)!.signups);
 
     // Use median (not mean) to make baselines robust to outlier high days.
-    // The mean is skewed by extreme values (e.g. Jan 6: 41 activations, 96 signups)
-    // which inflates the baseline above observed NAU on many newsletter days.
-    // Since newsletters can only ADD to NAU (never reduce it), observed < baseline
-    // implies the organic level was lower than the mean suggests. Median gives a
-    // more representative "typical" organic level for pool computation.
     result.set(date, {
       activationsAvg: median(actVals),
+      activationsAllDevicesAvg: median(actAllVals),
       signupsAvg: median(sigVals),
       signupsSigma: stddev(sigVals),
       cleanDays,
     });
+  }
+
+  return result;
+}
+
+/**
+ * Compute weekday/weekend split baselines from a fixed historical period
+ * and assign the appropriate one to each post-window date.
+ *
+ * Days without metric data in the fixed period are treated as zeros
+ * (missing row = no survey-attributed signups/activations that day).
+ */
+function computeFixedBaseline(
+  activities: Activity[],
+  metricsMap: Map<string, DailyMetric>,
+  config: UpliftConfig,
+  fixedConfig: { startDate: string; endDate: string },
+  postWindowOverride?: number,
+): Map<string, DailyBaseline> {
+  // Generate every calendar day in the fixed period (including zeros for missing data)
+  const fixedDates = dateRange(fixedConfig.startDate, fixedConfig.endDate);
+
+  const wdAct: number[] = [], wdActAll: number[] = [], wdSig: number[] = [];
+  const weAct: number[] = [], weActAll: number[] = [], weSig: number[] = [];
+  const cleanDays: string[] = [];
+
+  for (const d of fixedDates) {
+    const m = metricsMap.get(d);
+    const act = m?.activations ?? 0;
+    const actAll = m?.activationsAllDevices ?? 0;
+    const sig = m?.signups ?? 0;
+    cleanDays.push(d);
+
+    const dow = new Date(d + "T00:00:00Z").getUTCDay();
+    if (dow >= 1 && dow <= 5) {
+      wdAct.push(act); wdActAll.push(actAll); wdSig.push(sig);
+    } else {
+      weAct.push(act); weActAll.push(actAll); weSig.push(sig);
+    }
+  }
+
+  // Weekday baseline
+  const wdBaseline: DailyBaseline = {
+    activationsAvg: wdAct.length > 0 ? median(wdAct) : 0,
+    activationsAllDevicesAvg: wdActAll.length > 0 ? median(wdActAll) : 0,
+    signupsAvg: wdSig.length > 0 ? median(wdSig) : 0,
+    signupsSigma: wdSig.length > 0 ? stddev(wdSig) : 0,
+    cleanDays,
+  };
+
+  // Weekend baseline
+  const weBaseline: DailyBaseline = {
+    activationsAvg: weAct.length > 0 ? median(weAct) : 0,
+    activationsAllDevicesAvg: weActAll.length > 0 ? median(weActAll) : 0,
+    signupsAvg: weSig.length > 0 ? median(weSig) : 0,
+    signupsSigma: weSig.length > 0 ? stddev(weSig) : 0,
+    cleanDays,
+  };
+
+  // Assign weekday or weekend baseline to each post-window date.
+  const result = new Map<string, DailyBaseline>();
+  for (const activity of activities) {
+    for (const d of getActivityPostWindowDates(activity, config, postWindowOverride)) {
+      const dow = new Date(d + "T00:00:00Z").getUTCDay();
+      result.set(d, dow >= 1 && dow <= 5 ? wdBaseline : weBaseline);
+    }
   }
 
   return result;
@@ -173,18 +259,21 @@ export function computeAllReports(
   activities: Activity[],
   metrics: DailyMetric[],
   config: UpliftConfig,
+  postWindowOverride?: number,
 ): ActivityReport[] {
   const metricsMap = buildMetricsMap(metrics);
 
   // Step 1: Channel-level daily baselines for every post-window date.
-  const baselines = computeChannelDailyBaselines(activities, metrics, config);
+  const baselines = computeChannelDailyBaselines(activities, metrics, config, postWindowOverride);
 
   // Step 2: Daily pool per date.
   const poolActivations = new Map<string, number>();
+  const poolActivationsAll = new Map<string, number>();
   const poolSignups    = new Map<string, number>();
   for (const [date, b] of baselines) {
     const m = metricsMap.get(date);
     poolActivations.set(date, m ? Math.max(0, m.activations - b.activationsAvg) : 0);
+    poolActivationsAll.set(date, m ? Math.max(0, m.activationsAllDevices - b.activationsAllDevicesAvg) : 0);
     poolSignups.set(date,     m ? Math.max(0, m.signups    - b.signupsAvg)    : 0);
   }
 
@@ -192,7 +281,7 @@ export function computeAllReports(
   const dateToActivityIds = new Map<string, string[]>();
   for (const activity of activities) {
     if (activity.status !== "live") continue;
-    for (const d of getActivityPostWindowDates(activity, config)) {
+    for (const d of getActivityPostWindowDates(activity, config, postWindowOverride)) {
       const ids = dateToActivityIds.get(d) ?? [];
       ids.push(activity.id);
       dateToActivityIds.set(d, ids);
@@ -207,7 +296,7 @@ export function computeAllReports(
 
   // Step 4: Build one ActivityReport per activity.
   return activities.map((activity): ActivityReport => {
-    const pwDays    = getPostWindowDays(activity.channel, config.postWindowDays);
+    const pwDays    = postWindowOverride ?? getPostWindowDays(activity.channel, config.postWindowDays);
     const postStart = activity.date;
     const postEnd   = addDays(activity.date, pwDays - 1);
     const postDates = dateRange(postStart, postEnd);
@@ -219,10 +308,10 @@ export function computeAllReports(
     const displayBaselineDates = dateRange(displayBaselineStart, displayBaselineEnd);
 
     // Observed totals across the post-window.
-    let observedTotal = 0, observedActivations = 0;
+    let observedTotal = 0, observedActivations = 0, observedActivationsAll = 0;
     for (const d of postDates) {
       const m = metricsMap.get(d);
-      if (m) { observedTotal += m.signups; observedActivations += m.activations; }
+      if (m) { observedTotal += m.signups; observedActivations += m.activations; observedActivationsAll += m.activationsAllDevices; }
     }
 
     // Non-live activities: return a zero-incremental shell using a simple baseline
@@ -245,6 +334,7 @@ export function computeAllReports(
         postWindowStart: postStart, postWindowEnd: postEnd,
         observedTotal, expectedTotal: bAvg * pwDays, incremental: 0,
         observedActivations, expectedActivations: bActAvg * pwDays, incrementalActivations: 0,
+        observedActivationsAllDevices: observedActivationsAll, expectedActivationsAllDevices: 0, incrementalActivationsAllDevices: 0,
         floorSignups: activity.deterministicTrackedSignups ?? 0,
         confidence: "LOW", confidenceExplanation: "Activity is not live.",
         dailyData,
@@ -254,13 +344,15 @@ export function computeAllReports(
     // Live activity: attribute from the daily pool.
     const { weight: myWeight, source } = weightsMap.get(activity.id)!;
     const dailyShares: DailyAttributionShare[] = [];
-    let totalAttribSignups = 0, totalAttribActivations = 0;
-    let rawWindowActivations = 0, rawWindowSignups = 0;
+    let totalAttribSignups = 0, totalAttribActivations = 0, totalAttribActivationsAll = 0;
+    let rawWindowActivations = 0, rawWindowSignups = 0, rawWindowActivationsAll = 0;
 
     for (const d of postDates) {
       const pa = poolActivations.get(d) ?? 0;
+      const paAll = poolActivationsAll.get(d) ?? 0;
       const ps = poolSignups.get(d) ?? 0;
       rawWindowActivations += pa;
+      rawWindowActivationsAll += paAll;
       rawWindowSignups     += ps;
 
       const overlappingIds = dateToActivityIds.get(d) ?? [];
@@ -288,8 +380,10 @@ export function computeAllReports(
       }
 
       const attribAct = pa * share;
+      const attribActAll = paAll * share;
       const attribSig = ps * share;
       totalAttribActivations += attribAct;
+      totalAttribActivationsAll += attribActAll;
       totalAttribSignups     += attribSig;
 
       dailyShares.push({
@@ -347,6 +441,9 @@ export function computeAllReports(
       observedActivations,
       expectedActivations: bAvgActivations * pwDays,
       incrementalActivations: totalAttribActivations,
+      observedActivationsAllDevices: observedActivationsAll,
+      expectedActivationsAllDevices: (refBaseline?.activationsAllDevicesAvg ?? 0) * pwDays,
+      incrementalActivationsAllDevices: totalAttribActivationsAll,
       floorSignups:        activity.deterministicTrackedSignups ?? 0,
       confidence,
       confidenceExplanation: explanation,
@@ -426,6 +523,7 @@ export function computeActivityReport(
     postWindowStart: postStart, postWindowEnd: postEnd,
     observedTotal, expectedTotal, incremental,
     observedActivations, expectedActivations: expectedAct, incrementalActivations: incrementalAct,
+    observedActivationsAllDevices: 0, expectedActivationsAllDevices: 0, incrementalActivationsAllDevices: 0,
     floorSignups: activity.deterministicTrackedSignups ?? 0,
     confidence, confidenceExplanation: explanation,
     dailyData,
@@ -496,6 +594,7 @@ export function computeActivityReportWithCleanedBaseline(
     postWindowStart: postStart, postWindowEnd: postEnd,
     observedTotal, expectedTotal, incremental,
     observedActivations, expectedActivations: expectedAct, incrementalActivations: incrementalAct,
+    observedActivationsAllDevices: 0, expectedActivationsAllDevices: 0, incrementalActivationsAllDevices: 0,
     floorSignups: activity.deterministicTrackedSignups ?? 0,
     confidence, confidenceExplanation: explanation,
     dailyData,

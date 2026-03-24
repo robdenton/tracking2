@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
     });
 
     console.log(
-      `[Cron] LinkedIn Ads sync completed: ${result.campaigns} campaigns, ${result.analytics} analytics, ${result.errors} errors`
+      `[Cron] LinkedIn Ads sync completed: ${result.campaigns} campaigns, ${result.creatives} creatives, ${result.analytics} campaign analytics, ${result.creativeAnalytics} creative analytics, ${result.errors} errors`
     );
 
     return Response.json({

@@ -15,6 +15,25 @@ interface DubLink {
   leads: number;
 }
 
+interface DubPartner {
+  id: string;
+  name: string;
+  companyName: string | null;
+  email: string | null;
+  country: string | null;
+  description: string | null;
+  website: string | null;
+  totalClicks: number;
+  totalLeads: number;
+  links: {
+    shortLink: string;
+    url: string;
+    key: string;
+    clicks: number;
+    leads: number;
+  }[];
+}
+
 interface Mapping {
   shortLink: string;
   partnerName: string;
@@ -25,6 +44,8 @@ interface Suggestion {
   partnerName: string;
   confidence: "high" | "medium" | "low";
   reasoning: string;
+  dubPartnerId?: string;
+  dubPartnerName?: string;
 }
 
 interface Props {
@@ -34,6 +55,7 @@ interface Props {
 
 export function DubLinksManager({ newsletterPartners, initialMappings }: Props) {
   const [links, setLinks] = useState<DubLink[]>([]);
+  const [dubPartners, setDubPartners] = useState<DubPartner[]>([]);
   const [mappings, setMappings] = useState<Mapping[]>(initialMappings);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
@@ -41,16 +63,36 @@ export function DubLinksManager({ newsletterPartners, initialMappings }: Props) 
   const [filter, setFilter] = useState("");
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [suggesting, setSuggesting] = useState(false);
+  const [autoMatched, setAutoMatched] = useState<string[]>([]);
+  const [autoMatchStatus, setAutoMatchStatus] = useState<string | null>(null);
 
+  // Fetch partner links only (not regular workspace links)
   useEffect(() => {
-    fetch("/api/dub/links")
+    fetch("/api/dub/partners")
       .then((r) => r.json())
       .then((data) => {
-        if (data.error) {
-          setError(data.error);
-        } else {
-          setLinks(data);
+        if (!Array.isArray(data)) {
+          setError(data.error || "Failed to load Dub partners");
+          return;
         }
+        setDubPartners(data);
+
+        // Convert partner links into the DubLink format for display and dropdowns
+        const partnerLinks: DubLink[] = data.flatMap((p: DubPartner) =>
+          p.links.map((l) => ({
+            shortLink: l.shortLink,
+            url: l.url,
+            key: l.key,
+            domain: l.shortLink.split("/")[2] ?? "",
+            title: null,
+            description: null,
+            comments: `Partner: ${p.name}${p.companyName ? ` (${p.companyName})` : ""}`,
+            tags: ["partner"],
+            clicks: l.clicks,
+            leads: l.leads,
+          }))
+        );
+        setLinks(partnerLinks);
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
@@ -71,10 +113,10 @@ export function DubLinksManager({ newsletterPartners, initialMappings }: Props) 
           const without = prev.filter((m) => m.shortLink !== shortLink);
           return [...without, { shortLink, partnerName }];
         });
-        // Remove from suggestions once accepted
         setSuggestions((prev) =>
           prev.filter(
-            (s) => !(s.shortLink === shortLink && s.partnerName === partnerName)
+            (s) =>
+              !(s.shortLink === shortLink && s.partnerName === partnerName)
           )
         );
       } catch (e) {
@@ -105,19 +147,23 @@ export function DubLinksManager({ newsletterPartners, initialMappings }: Props) 
   }, []);
 
   const runAutoSuggest = useCallback(async () => {
-    if (links.length === 0) return;
+    if (links.length === 0 && dubPartners.length === 0) return;
     setSuggesting(true);
     setError(null);
+    setAutoMatchStatus(null);
     try {
       const mappedLinkSet = new Set(mappings.map((m) => m.shortLink));
       const mappedPartnerSet = new Set(mappings.map((m) => m.partnerName));
-      const unmappedLinks = links.filter((l) => !mappedLinkSet.has(l.shortLink));
+      const unmappedLinks = links.filter(
+        (l) => !mappedLinkSet.has(l.shortLink)
+      );
       const unmappedPartners = newsletterPartners.filter(
         (p) => !mappedPartnerSet.has(p)
       );
 
       if (unmappedPartners.length === 0) {
         setSuggestions([]);
+        setAutoMatchStatus("All partners are already mapped.");
         return;
       }
 
@@ -127,33 +173,96 @@ export function DubLinksManager({ newsletterPartners, initialMappings }: Props) 
         body: JSON.stringify({
           links: unmappedLinks,
           partners: unmappedPartners,
+          dubPartners: dubPartners,
         }),
       });
 
-      if (!res.ok) throw new Error("Suggest API failed");
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `Suggest API failed (${res.status})`);
+      }
 
       const data = await res.json();
-      if (Array.isArray(data)) {
-        setSuggestions(data);
-      } else if (data.error) {
-        setError(data.error);
+      if (!Array.isArray(data)) {
+        if (data.error) setError(data.error);
+        return;
+      }
+
+      // Auto-save high-confidence matches
+      const highConfidence = data.filter(
+        (s: Suggestion) => s.confidence === "high"
+      );
+      const rest = data.filter(
+        (s: Suggestion) => s.confidence !== "high"
+      );
+
+      const autoSaved: string[] = [];
+
+      for (const match of highConfidence) {
+        try {
+          const saveRes = await fetch("/api/dub/mappings", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              shortLink: match.shortLink,
+              partnerName: match.partnerName,
+            }),
+          });
+          if (saveRes.ok) {
+            setMappings((prev) => {
+              const without = prev.filter(
+                (m) => m.shortLink !== match.shortLink
+              );
+              return [
+                ...without,
+                {
+                  shortLink: match.shortLink,
+                  partnerName: match.partnerName,
+                },
+              ];
+            });
+            autoSaved.push(match.partnerName);
+          }
+        } catch {
+          // If auto-save fails, fall through to manual suggestions
+          rest.push(match);
+        }
+      }
+
+      setAutoMatched(autoSaved);
+      setSuggestions(rest);
+
+      if (autoSaved.length > 0 && rest.length > 0) {
+        setAutoMatchStatus(
+          `Auto-matched ${autoSaved.length} partner${autoSaved.length !== 1 ? "s" : ""} (high confidence). ${rest.length} remaining for manual review.`
+        );
+      } else if (autoSaved.length > 0) {
+        setAutoMatchStatus(
+          `Auto-matched ${autoSaved.length} partner${autoSaved.length !== 1 ? "s" : ""} (high confidence). No remaining matches to review.`
+        );
+      } else if (rest.length > 0) {
+        setAutoMatchStatus(
+          `No high-confidence matches found. ${rest.length} suggestion${rest.length !== 1 ? "s" : ""} for manual review.`
+        );
+      } else {
+        setAutoMatchStatus(
+          "No matches could be inferred from the available data."
+        );
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Auto-suggest failed");
     } finally {
       setSuggesting(false);
     }
-  }, [links, mappings, newsletterPartners]);
+  }, [links, dubPartners, mappings, newsletterPartners]);
 
   const mappedPartners = new Set(mappings.map((m) => m.partnerName));
   const mappedLinks = new Set(mappings.map((m) => m.shortLink));
 
-  // Partners not yet mapped
   const unmappedPartners = newsletterPartners.filter(
     (p) => !mappedPartners.has(p)
   );
 
-  // Filter links
   const filteredLinks = links.filter((l) => {
     if (!filter) return true;
     const q = filter.toLowerCase();
@@ -169,7 +278,7 @@ export function DubLinksManager({ newsletterPartners, initialMappings }: Props) 
   if (loading) {
     return (
       <div className="text-gray-500 text-sm py-8">
-        Loading Dub links from API...
+        Loading Dub partner links...
       </div>
     );
   }
@@ -190,6 +299,39 @@ export function DubLinksManager({ newsletterPartners, initialMappings }: Props) 
 
   return (
     <div className="space-y-8">
+      {/* Data source summary */}
+      <div className="text-xs text-gray-500 flex gap-4">
+        <span>{dubPartners.length} Dub partners loaded</span>
+        <span>{links.length} partner links</span>
+        <span>
+          {mappings.length} mapped, {unmappedPartners.length} unmapped
+        </span>
+      </div>
+
+      {/* Auto-match status */}
+      {autoMatchStatus && (
+        <div className="bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 p-4 rounded-lg text-sm flex items-start justify-between">
+          <div>
+            <div className="font-medium mb-1">Auto-match results</div>
+            <div>{autoMatchStatus}</div>
+            {autoMatched.length > 0 && (
+              <div className="mt-2 text-xs text-blue-600 dark:text-blue-400">
+                Auto-matched: {autoMatched.join(", ")}
+              </div>
+            )}
+          </div>
+          <button
+            onClick={() => {
+              setAutoMatchStatus(null);
+              setAutoMatched([]);
+            }}
+            className="text-xs underline shrink-0 ml-4"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {/* Existing Mappings */}
       {mappings.length > 0 && (
         <section>
@@ -220,7 +362,14 @@ export function DubLinksManager({ newsletterPartners, initialMappings }: Props) 
                   const link = links.find((l) => l.shortLink === m.shortLink);
                   return (
                     <tr key={m.shortLink}>
-                      <td className="px-4 py-2 font-medium">{m.partnerName}</td>
+                      <td className="px-4 py-2 font-medium">
+                        {m.partnerName}
+                        {autoMatched.includes(m.partnerName) && (
+                          <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
+                            auto
+                          </span>
+                        )}
+                      </td>
                       <td className="px-4 py-2 text-gray-600 dark:text-gray-400 font-mono text-xs">
                         <a
                           href={m.shortLink}
@@ -255,15 +404,15 @@ export function DubLinksManager({ newsletterPartners, initialMappings }: Props) 
         </section>
       )}
 
-      {/* LLM Suggestions */}
+      {/* Medium/Low Confidence Suggestions for Manual Review */}
       {suggestions.length > 0 && (
         <section>
           <h2 className="text-lg font-semibold mb-3">
-            Suggested Matches ({suggestions.length})
+            Review Suggestions ({suggestions.length})
           </h2>
           <p className="text-sm text-gray-500 mb-3">
-            AI-suggested matches based on link metadata. Review and accept or
-            dismiss each suggestion.
+            These matches need manual review — the AI wasn&apos;t confident
+            enough to auto-match them.
           </p>
           <div className="border border-gray-200 dark:border-gray-700 rounded-lg divide-y divide-gray-100 dark:divide-gray-800">
             {suggestions.map((s) => (
@@ -276,15 +425,13 @@ export function DubLinksManager({ newsletterPartners, initialMappings }: Props) 
                     <span className="font-medium text-sm">
                       {s.partnerName}
                     </span>
-                    <span className="text-gray-400">→</span>
+                    <span className="text-gray-400">&rarr;</span>
                     <span className="font-mono text-xs text-blue-600 dark:text-blue-400">
                       {s.shortLink.replace("https://", "")}
                     </span>
                     <span
                       className={`text-[10px] px-1.5 py-0.5 rounded ${
-                        s.confidence === "high"
-                          ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
-                          : s.confidence === "medium"
+                        s.confidence === "medium"
                           ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300"
                           : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
                       }`}
@@ -295,6 +442,11 @@ export function DubLinksManager({ newsletterPartners, initialMappings }: Props) 
                   <div className="text-xs text-gray-500 mt-0.5">
                     {s.reasoning}
                   </div>
+                  {s.dubPartnerName && (
+                    <div className="text-xs text-purple-600 dark:text-purple-400 mt-0.5">
+                      Dub partner: {s.dubPartnerName}
+                    </div>
+                  )}
                 </div>
                 <div className="flex gap-2 shrink-0">
                   <button
@@ -334,17 +486,19 @@ export function DubLinksManager({ newsletterPartners, initialMappings }: Props) 
             <h2 className="text-lg font-semibold">Match Links to Partners</h2>
             <p className="text-sm text-gray-500 mt-1">
               {unmappedPartners.length} unmapped newsletter partner
-              {unmappedPartners.length !== 1 ? "s" : ""}. Select a Dub link for
-              each partner.
+              {unmappedPartners.length !== 1 ? "s" : ""}. Auto-match saves
+              high-confidence matches automatically.
             </p>
           </div>
           {unmappedPartners.length > 0 && (
             <button
               onClick={runAutoSuggest}
-              disabled={suggesting || links.length === 0}
+              disabled={
+                suggesting || (links.length === 0 && dubPartners.length === 0)
+              }
               className="px-4 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {suggesting ? "Analyzing..." : "Auto-suggest matches"}
+              {suggesting ? "Analyzing..." : "Auto-match partners"}
             </button>
           )}
         </div>
@@ -353,7 +507,7 @@ export function DubLinksManager({ newsletterPartners, initialMappings }: Props) 
         <div className="mb-4">
           <input
             type="text"
-            placeholder="Filter Dub links by URL, title, comments, or tag..."
+            placeholder="Filter partner links by URL, partner name, or tag..."
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
             className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 focus:ring-2 focus:ring-blue-500 outline-none"
@@ -390,7 +544,7 @@ export function DubLinksManager({ newsletterPartners, initialMappings }: Props) 
           {/* Right: Dub Links */}
           <div>
             <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
-              Available Dub Links (
+              Partner Links (
               {
                 filteredLinks.filter((l) => !mappedLinks.has(l.shortLink))
                   .length
@@ -477,7 +631,7 @@ function PartnerRow({
           onChange={(e) => setSelected(e.target.value)}
           className="flex-1 text-xs px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900"
         >
-          <option value="">Select a Dub link...</option>
+          <option value="">Select a partner link...</option>
           {links
             .sort((a, b) => b.clicks - a.clicks)
             .map((l) => (

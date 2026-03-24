@@ -21,7 +21,8 @@ export interface DailyMetric {
   date: string; // YYYY-MM-DD
   channel: string;
   signups: number;
-  activations: number;
+  activations: number; // NAU desktop (primary)
+  activationsAllDevices: number; // NAU all devices
 }
 
 export type Confidence = "HIGH" | "MED" | "LOW";
@@ -57,10 +58,20 @@ export interface ActivityReport {
   expectedTotal: number;
   incremental: number;
 
-  // Post window (activations)
+  // Post window (activations — desktop)
   observedActivations: number;
   expectedActivations: number;
   incrementalActivations: number;
+
+  // Post window (activations — all devices)
+  observedActivationsAllDevices: number;
+  expectedActivationsAllDevices: number;
+  incrementalActivationsAllDevices: number;
+
+  // Upper-bound estimates (7-day post-window, optional — only for newsletter)
+  upperBoundIncrementalSignups?: number;
+  upperBoundIncrementalActivations?: number;
+  upperBoundIncrementalActivationsAllDevices?: number;
 
   // Floor
   floorSignups: number;
@@ -146,10 +157,17 @@ export interface PostWindowAttributionConfig {
   channels: string[]; // Which channels to apply attribution to (e.g., ["newsletter"])
 }
 
+/** Fixed historical baseline period for a channel */
+export interface FixedBaselineConfig {
+  startDate: string; // YYYY-MM-DD inclusive
+  endDate: string;   // YYYY-MM-DD inclusive
+}
+
 /** Config for the uplift model */
 export interface UpliftConfig {
   baselineWindowDays: number;
   postWindowDays: number;
   decontamination?: DecontaminationConfig;
   postWindowAttribution?: PostWindowAttributionConfig;
+  fixedBaselines?: Record<string, FixedBaselineConfig>; // keyed by channel name
 }

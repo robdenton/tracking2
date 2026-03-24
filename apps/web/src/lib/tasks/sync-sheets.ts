@@ -525,10 +525,15 @@ export async function syncGoogleSheets(): Promise<{
     "date": "date",
     "Channel Group": "channel",
     "channel": "channel",
+    // Account created (all devices) → signups
     "Total Account Created Extrapolated": "signups",
     "signups": "signups",
-    "Total Au Desktop Extrapolated": "activations",
+    // NAU desktop (primary activation metric)
+    "Total Nau Desktop Extrapolated": "activations",
+    "Total Au Desktop Extrapolated": "activations", // legacy column name
     "activations": "activations",
+    // NAU all devices (stored but not used as primary)
+    "Total Nau All Devices Extrapolated": "nauAllDevices",
   };
 
   function normaliseMetricChannel(raw: string): string {
@@ -639,6 +644,7 @@ export async function syncGoogleSheets(): Promise<{
           channel: row["channel"],
           signups: intOrNull(row["signups"]) ?? 0,
           activations: intOrNull(row["activations"]) ?? 0,
+          activationsAllDevices: intOrNull(row["nauAllDevices"]) ?? 0,
         })),
       });
     });

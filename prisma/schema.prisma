@@ -49,6 +49,12 @@ model ActivityUplift {
   // Attributed uplift (after click-share splitting — the canonical figures)
   attributedIncrementalSignups     Float    @map("attributed_incremental_signups")
   attributedIncrementalActivations Float    @map("attributed_incremental_activations")
+  attributedIncrActAllDevices      Float    @default(0) @map("attributed_incr_act_all_devices")
+
+  // Upper-bound estimates (7-day post-window)
+  upperBoundIncrSignups            Float    @default(0) @map("upper_bound_incr_signups")
+  upperBoundIncrActivations        Float    @default(0) @map("upper_bound_incr_activations")
+  upperBoundIncrActAllDevices      Float    @default(0) @map("upper_bound_incr_act_all_devices")
 
   // Attribution metadata
   clicksUsed                       Int?     @map("clicks_used")
@@ -68,10 +74,11 @@ model ActivityUplift {
 }
 
 model DailyMetric {
-  date        String  // YYYY-MM-DD
-  channel     String
-  signups     Int
-  activations Int
+  date                 String  // YYYY-MM-DD
+  channel              String
+  signups              Int
+  activations          Int     // NAU desktop (primary)
+  activationsAllDevices Int    @default(0) @map("activations_all_devices") // NAU all devices
 
   @@id([date, channel])
   @@map("daily_metrics")
@@ -412,6 +419,7 @@ model LinkedInAdCampaign {
   updatedAt       DateTime @updatedAt @map("updated_at")
 
   dailyStats LinkedInAdDaily[]
+  creatives  LinkedInAdCreative[]
 
   @@map("linkedin_ad_campaigns")
 }
@@ -448,4 +456,48 @@ model LinkedInAdDaily {
   @@unique([campaignId, date])
   @@index([date])
   @@map("linkedin_ad_daily")
+}
+
+// LinkedIn ad creative metadata
+model LinkedInAdCreative {
+  id              String   @id @default(uuid())
+  creativeUrn     String   @unique @map("creative_urn") // "urn:li:sponsoredCreative:123"
+  campaignId      String   @map("campaign_id")
+  name            String?
+  intendedStatus  String?  @map("intended_status") // ACTIVE, PAUSED, DRAFT, ARCHIVED
+  contentRef      String?  @map("content_ref") // content.reference URN (shared = same asset)
+  isServing       Boolean  @default(false) @map("is_serving")
+  createdBy       String?  @map("created_by") // "urn:li:person:XXX" who created this creative
+  creatorName     String?  @map("creator_name") // resolved display name of the creator
+  apiCreatedAt    DateTime? @map("api_created_at") // creation timestamp from LinkedIn API
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  campaign   LinkedInAdCampaign      @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  dailyStats LinkedInAdCreativeDaily[]
+
+  @@map("linkedin_ad_creatives")
+}
+
+// Daily ad performance metrics per creative
+model LinkedInAdCreativeDaily {
+  id                String  @id @default(uuid())
+  creativeId        String  @map("creative_id")
+  date              String  // YYYY-MM-DD
+  impressions       Int     @default(0)
+  clicks            Int     @default(0)
+  spend             Float   @default(0)
+  landingPageClicks Int     @default(0) @map("landing_page_clicks")
+  reactions         Int     @default(0)
+  comments          Int     @default(0)
+  shares            Int     @default(0)
+  follows           Int     @default(0)
+  conversions       Int     @default(0)
+  costPerClick      Float?  @map("cost_per_click")
+
+  creative LinkedInAdCreative @relation(fields: [creativeId], references: [id], onDelete: Cascade)
+
+  @@unique([creativeId, date])
+  @@index([date])
+  @@map("linkedin_ad_creative_daily")
 }

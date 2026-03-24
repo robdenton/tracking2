@@ -76,12 +76,16 @@ function computeAggregates(reports: ActivityReport[]) {
     (s, r) => s + r.incrementalActivations,
     0,
   );
+  const totalClicks = liveReports.reduce(
+    (s, r) => s + (r.activity.actualClicks ?? 0),
+    0,
+  );
   const blendedCPA =
     totalSpend > 0 && totalIncremental > 0
       ? totalSpend / totalIncremental
       : null;
 
-  return { totalSpend, totalIncremental, blendedCPA, count: reports.length };
+  return { totalSpend, totalIncremental, totalClicks, blendedCPA, count: reports.length };
 }
 
 // ---------------------------------------------------------------------------
@@ -106,7 +110,7 @@ export default async function PartnerPage({
   );
 
   // Aggregate stats
-  const { totalSpend, totalIncremental, blendedCPA, count } =
+  const { totalSpend, totalIncremental, totalClicks, blendedCPA, count } =
     computeAggregates(reports);
 
   // Channel URL — use first non-null across activities
@@ -166,7 +170,7 @@ export default async function PartnerPage({
       {/* Aggregate stats */}
       <div className="mb-8">
         <h2 className="text-sm font-semibold mb-3">Overview</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <StatCard
             label="Activities"
             value={String(count)}
@@ -176,6 +180,11 @@ export default async function PartnerPage({
             label="Total Spend"
             value={totalSpend > 0 ? `$${totalSpend.toLocaleString()}` : "—"}
             sub="live activities only"
+          />
+          <StatCard
+            label="Total Clicks"
+            value={totalClicks > 0 ? totalClicks.toLocaleString() : "—"}
+            sub="from import sheet"
           />
           <StatCard
             label="Total Incr. Activations"
@@ -262,6 +271,9 @@ export default async function PartnerPage({
                 <th className="py-2 pr-4 text-xs font-medium text-right">
                   Cost
                 </th>
+                <th className="py-2 pr-4 text-xs font-medium text-right">
+                  Clicks
+                </th>
                 <th className="py-2 pr-4 text-xs font-medium">The Bet</th>
                 <th className="py-2 pr-4 text-xs font-medium text-right">
                   Incr. Activations
@@ -294,6 +306,11 @@ export default async function PartnerPage({
                   <td className="py-2 pr-4 text-right font-mono text-gray-500">
                     {r.activity.costUsd
                       ? `$${r.activity.costUsd.toLocaleString()}`
+                      : "—"}
+                  </td>
+                  <td className="py-2 pr-4 text-right font-mono text-gray-500">
+                    {r.activity.actualClicks != null
+                      ? r.activity.actualClicks.toLocaleString()
                       : "—"}
                   </td>
                   <td className="py-2 pr-4 text-xs text-gray-500">

@@ -55,11 +55,13 @@ export function toDailyMetric(row: {
   channel: string;
   signups: number;
   activations: number;
+  activationsAllDevices?: number;
 }): DailyMetric {
   return {
     date: row.date,
     channel: row.channel,
     signups: row.signups,
     activations: row.activations,
+    activationsAllDevices: row.activationsAllDevices ?? 0,
   };
 }

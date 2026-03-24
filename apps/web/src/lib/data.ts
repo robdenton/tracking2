@@ -14,6 +14,10 @@ interface StoredUplift {
   rawIncrementalActivations: number;
   attributedIncrementalSignups: number;
   attributedIncrementalActivations: number;
+  attributedIncrActAllDevices: number;
+  upperBoundIncrSignups: number;
+  upperBoundIncrActivations: number;
+  upperBoundIncrActAllDevices: number;
   clicksUsed: number | null;
   clicksSource: string | null;
   confidence: string;
@@ -41,6 +45,11 @@ function applyStoredUplift(report: ActivityReport, stored: StoredUplift): Activi
     // Overwrite with stored attributed values
     incremental: stored.attributedIncrementalSignups,
     incrementalActivations: stored.attributedIncrementalActivations,
+    incrementalActivationsAllDevices: stored.attributedIncrActAllDevices,
+    // Upper-bound estimates (7-day post-window)
+    upperBoundIncrementalSignups: stored.upperBoundIncrSignups,
+    upperBoundIncrementalActivations: stored.upperBoundIncrActivations,
+    upperBoundIncrementalActivationsAllDevices: stored.upperBoundIncrActAllDevices,
     // Restore stored daily data
     dailyData,
     // Populate postWindowAttribution from stored metadata
@@ -1170,6 +1179,12 @@ export async function getLinkedInAdsCampaigns() {
         ? c.dailyStats.reduce((s, d) => s + d.clicks, 0) /
           c.dailyStats.reduce((s, d) => s + d.impressions, 0)
         : 0,
+    cpm:
+      c.dailyStats.reduce((s, d) => s + d.impressions, 0) > 0
+        ? (c.dailyStats.reduce((s, d) => s + d.spend, 0) /
+            c.dailyStats.reduce((s, d) => s + d.impressions, 0)) *
+          1000
+        : 0,
   }));
 }
 
@@ -1404,7 +1419,275 @@ export async function getLinkedInAdsTotals(dateRange?: DateRange) {
     totalLandingPageClicks,
     ctr: totalImpressions > 0 ? totalClicks / totalImpressions : 0,
     cpc: totalClicks > 0 ? totalSpend / totalClicks : 0,
+    cpm: totalImpressions > 0 ? (totalSpend / totalImpressions) * 1000 : 0,
   };
+}
+
+// ---------------------------------------------------------------------------
+// LinkedIn Ads Creative Stats
+// ---------------------------------------------------------------------------
+
+export interface CreativeWithCampaign {
+  creativeId: string;
+  creativeUrn: string;
+  name: string | null;
+  intendedStatus: string | null;
+  contentRef: string | null;
+  isServing: boolean;
+  creatorName: string | null;
+  apiCreatedAt: Date | null;
+  campaignId: string;
+  campaignName: string;
+  campaignStatus: string;
+  impressions: number;
+  clicks: number;
+  ctr: number;
+  spend: number;
+  cpc: number;
+  cpm: number;
+  conversions: number;
+  landingPageClicks: number;
+}
+
+export interface AggregatedCreative {
+  contentRef: string;
+  name: string | null;
+  displayName: string; // Always has a value: name, campaign-derived label, or short ID
+  linkedInPostUrl: string | null; // Link to view the post on LinkedIn
+  campaignCount: number;
+  totalImpressions: number;
+  totalClicks: number;
+  totalCtr: number;
+  totalSpend: number;
+  totalCpc: number;
+  totalCpm: number;
+  totalConversions: number;
+  totalLandingPageClicks: number;
+  campaigns: {
+    campaignId: string;
+    campaignName: string;
+    campaignStatus: string;
+    creativeUrn: string;
+    intendedStatus: string | null;
+    isServing: boolean;
+    impressions: number;
+    clicks: number;
+    ctr: number;
+    spend: number;
+    cpc: number;
+    cpm: number;
+    conversions: number;
+    landingPageClicks: number;
+  }[];
+}
+
+/**
+ * Get creative performance stats aggregated by content asset.
+ * Creatives sharing the same contentRef (same underlying post/asset)
+ * are grouped together with a nested campaign-level breakdown.
+ */
+export async function getLinkedInAdsCreativeStats(
+  dateRange?: DateRange
+): Promise<AggregatedCreative[]> {
+  const dateWhere: Record<string, unknown> = {};
+  if (dateRange) {
+    dateWhere.date = { gte: dateRange.from, lte: dateRange.to };
+  }
+
+  // Get all creatives with their campaign info and daily stats
+  const creatives = await prisma.linkedInAdCreative.findMany({
+    include: {
+      campaign: { select: { id: true, campaignUrn: true, name: true, status: true } },
+      dailyStats: {
+        where: dateWhere,
+        select: {
+          impressions: true,
+          clicks: true,
+          spend: true,
+          conversions: true,
+          landingPageClicks: true,
+        },
+      },
+    },
+    // Include creatorName and apiCreatedAt for display name generation
+  });
+
+  // Compute per-creative totals
+  const creativeRows: CreativeWithCampaign[] = creatives.map((cr) => {
+    const impressions = cr.dailyStats.reduce((s, d) => s + d.impressions, 0);
+    const clicks = cr.dailyStats.reduce((s, d) => s + d.clicks, 0);
+    const spend = cr.dailyStats.reduce((s, d) => s + d.spend, 0);
+    const conversions = cr.dailyStats.reduce((s, d) => s + d.conversions, 0);
+    const landingPageClicks = cr.dailyStats.reduce(
+      (s, d) => s + d.landingPageClicks,
+      0
+    );
+
+    return {
+      creativeId: cr.id,
+      creativeUrn: cr.creativeUrn,
+      name: cr.name,
+      intendedStatus: cr.intendedStatus,
+      contentRef: cr.contentRef,
+      isServing: cr.isServing,
+      creatorName: cr.creatorName,
+      apiCreatedAt: cr.apiCreatedAt,
+      campaignId: cr.campaign.id,
+      campaignName: cr.campaign.name,
+      campaignStatus: cr.campaign.status,
+      impressions,
+      clicks,
+      ctr: impressions > 0 ? clicks / impressions : 0,
+      spend,
+      cpc: clicks > 0 ? spend / clicks : 0,
+      cpm: impressions > 0 ? (spend / impressions) * 1000 : 0,
+      conversions,
+      landingPageClicks,
+    };
+  });
+
+  // Group by contentRef (or creativeUrn if no contentRef)
+  const groups = new Map<string, CreativeWithCampaign[]>();
+  for (const row of creativeRows) {
+    const key = row.contentRef || row.creativeUrn;
+    const existing = groups.get(key) || [];
+    existing.push(row);
+    groups.set(key, existing);
+  }
+
+  // Build aggregated result
+  const result: AggregatedCreative[] = [];
+  for (const [contentRef, rows] of groups) {
+    const totalImpressions = rows.reduce((s, r) => s + r.impressions, 0);
+    const totalClicks = rows.reduce((s, r) => s + r.clicks, 0);
+    const totalSpend = rows.reduce((s, r) => s + r.spend, 0);
+    const totalConversions = rows.reduce((s, r) => s + r.conversions, 0);
+    const totalLandingPageClicks = rows.reduce(
+      (s, r) => s + r.landingPageClicks,
+      0
+    );
+
+    // Use the first creative's name as the group name
+    const name = rows.find((r) => r.name)?.name || null;
+
+    // Get creator name(s) for this group
+    const creatorNames = [
+      ...new Set(rows.map((r) => r.creatorName).filter(Boolean)),
+    ] as string[];
+    const creatorLabel = creatorNames.length > 0 ? creatorNames[0] : null;
+
+    // Get earliest creation date for this group
+    const creationDates = rows
+      .map((r) => r.apiCreatedAt)
+      .filter(Boolean) as Date[];
+    const earliestDate =
+      creationDates.length > 0
+        ? new Date(Math.min(...creationDates.map((d) => d.getTime())))
+        : null;
+    const dateLabel = earliestDate
+      ? earliestDate.toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        })
+      : null;
+
+    // Build a display name with rich context
+    // Priority: explicit name + date > campaign-derived + date > ID
+    let displayName = name || "";
+    if (!displayName) {
+      const campaignNames = [...new Set(rows.map((r) => r.campaignName))];
+
+      // Extract meaningful parts from structured campaign names
+      // e.g. "KV_Video TL ads_03/26_Sales_UK/NA_Cold" → "Video TL · Sales · UK/NA"
+      const summarizeCampaign = (cn: string): string => {
+        // Try to extract type (Video, TL), audience (Sales, Product/Operations), and geo
+        const parts: string[] = [];
+        if (/video/i.test(cn)) parts.push("Video");
+        else if (/TL\b/i.test(cn)) parts.push("TL");
+        if (/sales/i.test(cn)) parts.push("Sales");
+        if (/product|operations/i.test(cn)) parts.push("Product/Ops");
+        if (/brand\s*awareness/i.test(cn)) parts.push("Brand");
+        if (parts.length > 0) return parts.join(" · ");
+        return cn; // Fallback to full name
+      };
+
+      if (campaignNames.length === 1) {
+        const summary = summarizeCampaign(campaignNames[0]);
+        displayName = dateLabel
+          ? `${summary} · ${dateLabel}`
+          : summary;
+      } else if (campaignNames.length > 1) {
+        // Multi-campaign: show common themes
+        const summaries = [
+          ...new Set(campaignNames.map(summarizeCampaign)),
+        ];
+        const label =
+          summaries.length <= 2
+            ? summaries.join(" + ")
+            : `${summaries[0]} +${summaries.length - 1} more`;
+        displayName = dateLabel
+          ? `${label} · ${dateLabel}`
+          : label;
+      } else {
+        displayName = dateLabel
+          ? `Ad created ${dateLabel}`
+          : `Ad asset #${contentRef.split(":").pop()?.slice(-6) ?? "?"}`;
+      }
+    } else if (dateLabel) {
+      // Explicit name exists — append date for context
+      displayName = `${displayName} · ${dateLabel}`;
+    }
+
+    // Prefix with creator name if available
+    if (creatorLabel && !displayName.includes(creatorLabel)) {
+      displayName = `${creatorLabel} · ${displayName}`;
+    }
+
+    // Build LinkedIn post URL from contentRef if it's a share or ugcPost
+    let linkedInPostUrl: string | null = null;
+    const ref = rows[0]?.contentRef;
+    if (ref && (ref.includes("share:") || ref.includes("ugcPost:"))) {
+      linkedInPostUrl = `https://www.linkedin.com/feed/update/${ref}`;
+    }
+
+    result.push({
+      contentRef,
+      name,
+      displayName,
+      linkedInPostUrl,
+      campaignCount: new Set(rows.map((r) => r.campaignId)).size,
+      totalImpressions,
+      totalClicks,
+      totalCtr: totalImpressions > 0 ? totalClicks / totalImpressions : 0,
+      totalSpend,
+      totalCpc: totalClicks > 0 ? totalSpend / totalClicks : 0,
+      totalCpm: totalImpressions > 0 ? (totalSpend / totalImpressions) * 1000 : 0,
+      totalConversions,
+      totalLandingPageClicks,
+      campaigns: rows.map((r) => ({
+        campaignId: r.campaignId,
+        campaignName: r.campaignName,
+        campaignStatus: r.campaignStatus,
+        creativeUrn: r.creativeUrn,
+        intendedStatus: r.intendedStatus,
+        isServing: r.isServing,
+        impressions: r.impressions,
+        clicks: r.clicks,
+        ctr: r.ctr,
+        spend: r.spend,
+        cpc: r.cpc,
+        cpm: r.cpm,
+        conversions: r.conversions,
+        landingPageClicks: r.landingPageClicks,
+      })),
+    });
+  }
+
+  // Sort by total impressions descending
+  result.sort((a, b) => b.totalImpressions - a.totalImpressions);
+
+  return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -1473,4 +1756,278 @@ function addDaysStr(dateStr: string, n: number): string {
   const d = new Date(dateStr + "T00:00:00Z");
   d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);
+}
+
+// ---------------------------------------------------------------------------
+// LinkedIn Overview — Combined daily dataset
+// ---------------------------------------------------------------------------
+
+export interface LinkedInDailyRow {
+  date: string;
+  isWeekday: boolean;
+  linkedinNau: number;
+  linkedinSignups: number;
+  adImpressions: number;
+  adClicks: number;
+  adSpend: number;
+  empImpressions: number;
+  empReactions: number;
+  empPostCount: number;
+  influencerImpressions: number;
+  influencerSpend: number;
+}
+
+export interface LinkedInOverviewData {
+  dailyData: LinkedInDailyRow[];
+  baseline: { weekdayNau: number; weekendNau: number; weekdaySignups: number; weekendSignups: number };
+  summary: {
+    totalNau: number;
+    totalSignups: number;
+    incrementalNau: number;
+    incrementalSignups: number;
+    totalAdSpend: number;
+    totalInfluencerSpend: number;
+    totalPaidSpend: number;
+    incrementalCpa: number | null;
+  };
+  employeeSummary: Array<{
+    name: string;
+    postCount: number;
+    totalImpressions: number;
+    totalReactions: number;
+    totalComments: number;
+    totalReposts: number;
+  }>;
+  influencerActivities: Array<{
+    partnerName: string;
+    date: string;
+    activityType: string;
+    actualClicks: number;
+    costUsd: number;
+    contentUrl: string | null;
+  }>;
+}
+
+/**
+ * Build a unified daily LinkedIn dataset combining ads, employee posts,
+ * influencer activities, and survey-attributed outcomes.
+ *
+ * Employee & influencer post impressions are decayed over 3 days: 50/30/20%.
+ * Baseline is computed from the pre-ads period (Sep 1 – Dec 15) using
+ * weekday/weekend medians.
+ */
+export async function getLinkedInOverviewData(
+  dateRange?: DateRange
+): Promise<LinkedInOverviewData> {
+  const today = new Date().toISOString().slice(0, 10);
+  const startDate = dateRange?.from ?? "2025-09-01";
+  const endDate = dateRange?.to ?? today;
+
+  // --- Fetch all data in parallel ---
+  const [metrics, adDaily, empPosts, influencerActs] = await Promise.all([
+    prisma.dailyMetric.findMany({
+      where: { channel: "linkedin" },
+      orderBy: { date: "asc" },
+    }),
+    prisma.linkedInAdDaily.findMany({
+      orderBy: { date: "asc" },
+    }),
+    prisma.employeeLinkedInPost.findMany({
+      where: { postDate: { gte: "2026-01-01" } },
+      include: { account: { select: { linkedinName: true } } },
+      orderBy: { postDate: "asc" },
+    }),
+    prisma.activity.findMany({
+      where: { channel: "linkedin", status: "live" },
+      orderBy: { date: "asc" },
+    }),
+  ]);
+
+  // --- Build lookup maps ---
+  const metricsMap = new Map<string, { signups: number; activations: number }>();
+  for (const m of metrics) {
+    metricsMap.set(m.date, { signups: m.signups, activations: m.activations });
+  }
+
+  // Ads: aggregate by date (sum across campaigns)
+  const adsMap = new Map<string, { impressions: number; clicks: number; spend: number }>();
+  for (const d of adDaily) {
+    const existing = adsMap.get(d.date) ?? { impressions: 0, clicks: 0, spend: 0 };
+    existing.impressions += d.impressions;
+    existing.clicks += d.clicks;
+    existing.spend += d.spend;
+    adsMap.set(d.date, existing);
+  }
+
+  // Employee posts: decay 50/30/20 over 3 days
+  const empDecay = new Map<string, { impressions: number; reactions: number; postCount: number }>();
+  const decayWeights = [0.5, 0.3, 0.2];
+  for (const post of empPosts) {
+    // Raw post count only on post date
+    const existing0 = empDecay.get(post.postDate) ?? { impressions: 0, reactions: 0, postCount: 0 };
+    existing0.postCount++;
+    empDecay.set(post.postDate, existing0);
+
+    for (let i = 0; i < 3; i++) {
+      const dayStr = addDaysStr(post.postDate, i);
+      const existing = empDecay.get(dayStr) ?? { impressions: 0, reactions: 0, postCount: existing0.postCount };
+      if (i > 0 && !empDecay.has(dayStr)) {
+        existing.postCount = 0; // Only count raw posts on post date
+      }
+      existing.impressions += Math.round(post.impressions * decayWeights[i]);
+      existing.reactions += Math.round(post.reactions * decayWeights[i]);
+      empDecay.set(dayStr, existing);
+    }
+  }
+
+  // Influencer activities: decay 50/30/20
+  const influencerDecay = new Map<string, { impressions: number; spend: number }>();
+  for (const act of influencerActs) {
+    // metadata may be a JSON string or an object depending on Prisma's handling
+    let meta: Record<string, number> = {};
+    if (typeof act.metadata === "string") {
+      try { meta = JSON.parse(act.metadata); } catch { /* ignore */ }
+    } else if (act.metadata && typeof act.metadata === "object") {
+      meta = act.metadata as Record<string, number>;
+    }
+    const impressions = act.actualClicks ?? meta.impressions ?? 0;
+    const cost = act.costUsd ?? 0;
+    for (let i = 0; i < 3; i++) {
+      const dayStr = addDaysStr(act.date, i);
+      const existing = influencerDecay.get(dayStr) ?? { impressions: 0, spend: 0 };
+      existing.impressions += Math.round(impressions * decayWeights[i]);
+      existing.spend += cost * decayWeights[i];
+      influencerDecay.set(dayStr, existing);
+    }
+  }
+
+  // --- Build daily rows ---
+  const dailyData: LinkedInDailyRow[] = [];
+  const cursor = new Date(startDate + "T00:00:00Z");
+  const endD = new Date(endDate + "T00:00:00Z");
+
+  while (cursor <= endD) {
+    const ds = cursor.toISOString().slice(0, 10);
+    const dow = cursor.getUTCDay();
+    const isWeekday = dow >= 1 && dow <= 5;
+    const met = metricsMap.get(ds);
+    const ad = adsMap.get(ds);
+    const emp = empDecay.get(ds);
+    const inf = influencerDecay.get(ds);
+
+    dailyData.push({
+      date: ds,
+      isWeekday,
+      linkedinNau: met?.activations ?? 0,
+      linkedinSignups: met?.signups ?? 0,
+      adImpressions: ad?.impressions ?? 0,
+      adClicks: ad?.clicks ?? 0,
+      adSpend: ad?.spend ?? 0,
+      empImpressions: emp?.impressions ?? 0,
+      empReactions: emp?.reactions ?? 0,
+      empPostCount: emp?.postCount ?? 0,
+      influencerImpressions: inf?.impressions ?? 0,
+      influencerSpend: inf?.spend ?? 0,
+    });
+
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+
+  // --- Compute baseline from pre-ads period (Sep 1 – Dec 15) ---
+  const baselineDays: LinkedInDailyRow[] = [];
+  const bCursor = new Date("2025-09-01T00:00:00Z");
+  const bEnd = new Date("2025-12-15T00:00:00Z");
+  while (bCursor <= bEnd) {
+    const ds = bCursor.toISOString().slice(0, 10);
+    const dow = bCursor.getUTCDay();
+    const met = metricsMap.get(ds);
+    baselineDays.push({
+      date: ds,
+      isWeekday: dow >= 1 && dow <= 5,
+      linkedinNau: met?.activations ?? 0,
+      linkedinSignups: met?.signups ?? 0,
+      adImpressions: 0, adClicks: 0, adSpend: 0,
+      empImpressions: 0, empReactions: 0, empPostCount: 0,
+      influencerImpressions: 0, influencerSpend: 0,
+    });
+    bCursor.setUTCDate(bCursor.getUTCDate() + 1);
+  }
+
+  function median(arr: number[]): number {
+    if (arr.length === 0) return 0;
+    const s = [...arr].sort((a, b) => a - b);
+    return s[Math.floor(s.length / 2)];
+  }
+
+  const bWD = baselineDays.filter(d => d.isWeekday);
+  const bWE = baselineDays.filter(d => !d.isWeekday);
+  const baseline = {
+    weekdayNau: median(bWD.map(d => d.linkedinNau)),
+    weekendNau: median(bWE.map(d => d.linkedinNau)),
+    weekdaySignups: median(bWD.map(d => d.linkedinSignups)),
+    weekendSignups: median(bWE.map(d => d.linkedinSignups)),
+  };
+
+  // --- Portfolio incremental (from Dec 16 onwards, or from first ad day) ---
+  const paidPeriod = dailyData.filter(d => d.date >= "2025-12-16");
+  const ppWD = paidPeriod.filter(d => d.isWeekday);
+  const ppWE = paidPeriod.filter(d => !d.isWeekday);
+  const totalNau = paidPeriod.reduce((s, d) => s + d.linkedinNau, 0);
+  const totalSignups = paidPeriod.reduce((s, d) => s + d.linkedinSignups, 0);
+  const expectedNau = baseline.weekdayNau * ppWD.length + baseline.weekendNau * ppWE.length;
+  const expectedSignups = baseline.weekdaySignups * ppWD.length + baseline.weekendSignups * ppWE.length;
+  const incrementalNau = Math.round(totalNau - expectedNau);
+  const incrementalSignups = Math.round(totalSignups - expectedSignups);
+
+  const totalAdSpend = paidPeriod.reduce((s, d) => s + d.adSpend, 0);
+  const totalInfluencerSpend = influencerActs.reduce((s, a) => s + (a.costUsd ?? 0), 0);
+  const totalPaidSpend = totalAdSpend + totalInfluencerSpend;
+
+  // --- Employee summary by person ---
+  const empByPerson = new Map<string, { count: number; imp: number; react: number; comments: number; reposts: number }>();
+  for (const post of empPosts) {
+    const name = post.account.linkedinName || "Unknown";
+    const e = empByPerson.get(name) ?? { count: 0, imp: 0, react: 0, comments: 0, reposts: 0 };
+    e.count++;
+    e.imp += post.impressions;
+    e.react += post.reactions;
+    e.comments += post.comments;
+    e.reposts += post.reposts;
+    empByPerson.set(name, e);
+  }
+
+  const employeeSummary = Array.from(empByPerson.entries())
+    .map(([name, v]) => ({
+      name,
+      postCount: v.count,
+      totalImpressions: v.imp,
+      totalReactions: v.react,
+      totalComments: v.comments,
+      totalReposts: v.reposts,
+    }))
+    .sort((a, b) => b.totalImpressions - a.totalImpressions);
+
+  return {
+    dailyData,
+    baseline,
+    summary: {
+      totalNau,
+      totalSignups,
+      incrementalNau,
+      incrementalSignups,
+      totalAdSpend,
+      totalInfluencerSpend,
+      totalPaidSpend,
+      incrementalCpa: incrementalNau > 0 ? totalPaidSpend / incrementalNau : null,
+    },
+    employeeSummary,
+    influencerActivities: influencerActs.map(a => ({
+      partnerName: a.partnerName,
+      date: a.date,
+      activityType: a.activityType,
+      actualClicks: a.actualClicks ?? 0,
+      costUsd: a.costUsd ?? 0,
+      contentUrl: a.contentUrl,
+    })),
+  };
 }

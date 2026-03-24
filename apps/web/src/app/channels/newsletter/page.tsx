@@ -4,7 +4,7 @@ import { getChannelAnalytics, getDubClicksByActivity } from "@/lib/data";
 import { NewsletterChart } from "./chart";
 import { ENAUChart } from "./enau-chart";
 import { DateRangePicker } from "./date-range-picker";
-import { ActivityTable } from "@/app/components/ActivityTable";
+import { NewsletterTableToggle } from "./newsletter-table-toggle";
 
 /** Stat card with an info tooltip and optional sub-label */
 function StatCard({
@@ -39,7 +39,7 @@ function StatCard({
         </div>
       </div>
       <div className="text-xs text-gray-500 mb-1 pr-4">{label}</div>
-      <div className="text-2xl font-mono font-semibold">{value}</div>
+      <div className={`font-mono font-semibold whitespace-nowrap ${value.includes("–") ? "text-lg" : "text-2xl"}`}>{value}</div>
       {sub && <div className="text-xs text-gray-400 mt-1">{sub}</div>}
     </div>
   );
@@ -298,16 +298,52 @@ export default async function NewsletterChannelPage({
   const totalActualClicks = timeSeries.reduce((sum, d) => sum + d.actualClicks, 0);
   const totalSignups = timeSeries.reduce((sum, d) => sum + d.signups, 0);
   const totalActivations = timeSeries.reduce((sum, d) => sum + d.activations, 0);
-  // Per-activity figures are already bounded by the channel-level daily pool — no cap needed.
-  const totalIncrementalSignups = timeSeries.reduce((sum, d) => sum + d.incrementalSignups, 0);
-  const totalIncrementalActivations = timeSeries.reduce((sum, d) => sum + d.incrementalActivations, 0);
   const totalENAU = enauTimeSeries.reduce((sum, d) => sum + d.eNAU, 0);
 
+  // --- Portfolio-level incremental: total observed minus baseline expected ---
+  // Weekday/weekend split baseline from pre-newsletter period (Sep 1 – Dec 6):
+  //   Weekday: NAU median=12, Signups median=24
+  //   Weekend: NAU median=0,  Signups median=6
+  // These are medians across 97 days including zero-days for missing data.
+  const BASELINE_WD_NAU = 12;
+  const BASELINE_WE_NAU = 0;
+  const BASELINE_WD_SIGNUPS = 24;
+  const BASELINE_WE_SIGNUPS = 6;
+
+  // Count all calendar days in the filtered period (not just days with data)
+  // Every day without a metric row = 0 observed
+  const firstActivity = chartActivities.find(a => a.status === "live");
+  const periodStart = firstActivity?.date ?? chartActivities[0]?.date ?? today;
+  const periodEnd = today;
+
+  let weekdaysInPeriod = 0;
+  let weekendsInPeriod = 0;
+  {
+    const cursor = new Date(periodStart + "T00:00:00Z");
+    const endD = new Date(periodEnd + "T00:00:00Z");
+    while (cursor <= endD) {
+      const dow = cursor.getUTCDay();
+      if (dow >= 1 && dow <= 5) weekdaysInPeriod++;
+      else weekendsInPeriod++;
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
+    }
+  }
+
+  const expectedSignups = (BASELINE_WD_SIGNUPS * weekdaysInPeriod) + (BASELINE_WE_SIGNUPS * weekendsInPeriod);
+  const expectedNau = (BASELINE_WD_NAU * weekdaysInPeriod) + (BASELINE_WE_NAU * weekendsInPeriod);
+
+  // Only count observed values from the newsletter period (first activity onwards)
+  // — dailyMetrics includes pre-newsletter baseline data which must not be counted as observed
+  const nlPeriodMetrics = dailyMetrics.filter(m => m.date >= periodStart);
+  const observedSignups = nlPeriodMetrics.reduce((s, m) => s + m.signups, 0);
+  const observedNau = nlPeriodMetrics.reduce((s, m) => s + m.activations, 0);
+  const portfolioIncrSignups = Math.round(observedSignups - expectedSignups);
+  const portfolioIncrActivations = Math.round(observedNau - expectedNau);
+
   const totalCost = chartActivities.reduce((sum, a) => sum + (a.costUsd ?? 0), 0);
-  const blendedCpaSignup = totalSignups > 0 ? totalCost / totalSignups : null;
   const blendedCpaActivation = totalActivations > 0 ? totalCost / totalActivations : null;
-  const incrementalCpaSignup = totalIncrementalSignups > 0 ? totalCost / totalIncrementalSignups : null;
-  const incrementalCpaActivation = totalIncrementalActivations > 0 ? totalCost / totalIncrementalActivations : null;
+  const incrementalCpaSignup = portfolioIncrSignups > 0 ? totalCost / portfolioIncrSignups : null;
+  const incrementalCpaNau = portfolioIncrActivations > 0 ? totalCost / portfolioIncrActivations : null;
 
   return (
     <div className="max-w-6xl">
@@ -350,37 +386,37 @@ export default async function NewsletterChannelPage({
           learnMoreHref="/measurement-explained#enau"
         />
         <StatCard
-          label="Account created"
-          value={totalSignups.toLocaleString()}
-          sub="Actual"
-          tooltip="Total Granola accounts created during the post-windows of all newsletter activities. This is the raw observed count, not adjusted for baseline."
+          label="Account Created"
+          value={observedSignups.toLocaleString()}
+          sub="Observed"
+          tooltip="Total accounts created on the newsletter channel from the first activity onwards. This is the raw observed count from the 'how did you hear about us' survey."
           learnMoreHref="/measurement-explained#account-created"
         />
         <StatCard
-          label="NAU"
-          value={totalActivations.toLocaleString()}
-          sub="Actual"
-          tooltip="New Activated Users: accounts that completed activation (paid or trial) during the post-windows. Raw observed count, not adjusted for baseline."
+          label="NAU (Desktop)"
+          value={observedNau.toLocaleString()}
+          sub="Observed"
+          tooltip="Total desktop NAU on the newsletter channel from the first activity onwards. Raw observed count from the survey, not adjusted for baseline."
           learnMoreHref="/measurement-explained#nau"
         />
         <StatCard
-          label="Incremental account created"
-          value={Math.round(totalIncrementalSignups).toLocaleString()}
-          sub="Attributed"
-          tooltip="Accounts created above the expected baseline, attributed to newsletters. Uses a 2-day post-window uplift model with proportional credit-splitting when sends overlap."
+          label="Incr. Account Created"
+          value={portfolioIncrSignups.toLocaleString()}
+          sub={`vs ${BASELINE_WD_SIGNUPS}/${BASELINE_WE_SIGNUPS} wd/we baseline`}
+          tooltip="Total accounts created minus baseline expected. Baseline uses pre-newsletter (Sep–Dec 6) weekday/weekend medians. Weekday: 24/day, Weekend: 6/day."
           learnMoreHref="/measurement-explained#incremental-account-created"
         />
         <StatCard
-          label="Incremental NAU"
-          value={Math.round(totalIncrementalActivations).toLocaleString()}
-          sub="Attributed"
-          tooltip="Activations above the expected baseline, attributed to newsletters. Same uplift methodology as incremental account created, applied to activation events."
+          label="Incr. NAU (Desktop)"
+          value={portfolioIncrActivations.toLocaleString()}
+          sub={`vs ${BASELINE_WD_NAU}/${BASELINE_WE_NAU} wd/we baseline`}
+          tooltip="Total desktop NAU minus baseline expected. Baseline uses pre-newsletter (Sep–Dec 6) weekday/weekend medians. Weekday: 12/day, Weekend: 0/day."
           learnMoreHref="/measurement-explained#incremental-nau"
         />
       </div>
 
       {/* CPA Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6 overflow-visible">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6 overflow-visible">
         <StatCard
           label="Total Spend"
           value={formatCurrency(totalCost)}
@@ -396,31 +432,24 @@ export default async function NewsletterChannelPage({
           learnMoreHref="/measurement-explained#newsletter"
         />
         <StatCard
-          label="Blended CPA"
-          value={formatCurrency(blendedCpaSignup) ?? "—"}
-          sub="Cost / Account created"
-          tooltip="Total newsletter spend divided by all accounts created in post-windows. Blended (not incremental) — does not subtract baseline."
-          learnMoreHref="/measurement-explained#cpa"
-        />
-        <StatCard
-          label="Blended Cost per NAU"
+          label="Blended Cost / NAU"
           value={formatCurrency(blendedCpaActivation) ?? "—"}
           sub="Cost / Total NAU"
           tooltip="Total newsletter spend divided by all NAU in post-windows. Blended — does not subtract baseline."
           learnMoreHref="/measurement-explained#cpa"
         />
         <StatCard
-          label="Incremental CPA"
+          label="Incr. CPA"
           value={formatCurrency(incrementalCpaSignup) ?? "—"}
-          sub="Cost / Incr. Account created"
+          sub="Cost / Incr. Signups"
           tooltip="Total newsletter spend divided by incremental accounts created. This is the true cost of an additional signup driven by newsletters."
           learnMoreHref="/measurement-explained#cpa"
         />
         <StatCard
-          label="Incremental Cost per NAU"
-          value={formatCurrency(incrementalCpaActivation) ?? "—"}
-          sub="Cost / Incr. NAU"
-          tooltip="Total newsletter spend divided by incremental NAU. The true cost of an additional activation driven by newsletters."
+          label="Incr. Cost / NAU"
+          value={formatCurrency(incrementalCpaNau) ?? "—"}
+          sub="Cost / Incr. NAU (Desktop)"
+          tooltip="Total newsletter spend divided by portfolio-level incremental NAU desktop (total observed minus baseline × days)."
           learnMoreHref="/measurement-explained#cpa"
         />
       </div>
@@ -461,10 +490,57 @@ export default async function NewsletterChannelPage({
         <ENAUChart data={enauTimeSeries} grouping={timeGrouping} />
       </div>
 
-      {/* Activity Detail Table */}
+      {/* Publisher / Activity Toggle Table */}
       <div className="mb-8">
-        <h2 className="text-sm font-semibold mb-3">Activity Detail</h2>
-        <ActivityTable
+        <NewsletterTableToggle
+          publishers={(() => {
+            // Aggregate reports by partnerName
+            const pubMap = new Map<string, {
+              activityCount: number;
+              totalClicks: number;
+              totalSpend: number;
+              incrementalSignups: number;
+              incrementalActivations: number;
+              incrementalActivationsAllDevices: number;
+              ubIncrSignups: number;
+              ubIncrActivations: number;
+              ubIncrActivationsAll: number;
+            }>();
+
+            for (const report of reports) {
+              const partner = report.activity.partnerName;
+              const existing = pubMap.get(partner) ?? {
+                activityCount: 0,
+                totalClicks: 0,
+                totalSpend: 0,
+                incrementalSignups: 0,
+                incrementalActivations: 0,
+                incrementalActivationsAllDevices: 0,
+                ubIncrSignups: 0,
+                ubIncrActivations: 0,
+                ubIncrActivationsAll: 0,
+              };
+              existing.activityCount++;
+              existing.totalClicks += report.activity.actualClicks ?? 0;
+              existing.totalSpend += report.activity.costUsd ?? 0;
+              existing.incrementalSignups += report.incremental;
+              existing.incrementalActivations += report.incrementalActivations;
+              existing.incrementalActivationsAllDevices += report.incrementalActivationsAllDevices;
+              existing.ubIncrSignups += report.upperBoundIncrementalSignups ?? report.incremental;
+              existing.ubIncrActivations += report.upperBoundIncrementalActivations ?? report.incrementalActivations;
+              existing.ubIncrActivationsAll += report.upperBoundIncrementalActivationsAllDevices ?? report.incrementalActivationsAllDevices;
+              pubMap.set(partner, existing);
+            }
+
+            return Array.from(pubMap.entries()).map(([partnerName, data]) => ({
+              partnerName,
+              ...data,
+              cpc: data.totalClicks > 0 ? data.totalSpend / data.totalClicks : null,
+              incrementalCpa: data.incrementalActivations > 0
+                ? data.totalSpend / data.incrementalActivations
+                : null,
+            }));
+          })()}
           reports={reports}
           selectedChannel="newsletter"
           clickConversionAvg={
