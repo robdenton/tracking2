@@ -614,8 +614,8 @@ export async function syncGoogleSheets(): Promise<{
   // Prisma interactive-transaction timeouts on Vercel serverless.
   try {
     await prisma.$transaction(async (tx) => {
-      // Clear existing data
-      await tx.activity.deleteMany();
+      // Clear existing sheet-sourced data (preserve API-sourced activities like Podscribe)
+      await tx.activity.deleteMany({ where: { source: "sheets" } });
       await tx.dailyMetric.deleteMany();
 
       // Bulk-insert activities

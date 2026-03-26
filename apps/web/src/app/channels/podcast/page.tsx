@@ -2,7 +2,9 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { getChannelAnalytics } from "@/lib/data";
 import { PodcastChart } from "./chart";
+import { PodcastShowTable } from "./show-table";
 import { DateRangePicker } from "../newsletter/date-range-picker";
+import { prisma } from "@/lib/prisma";
 
 /** Stat card with an info tooltip and optional sub-label */
 function StatCard({
@@ -20,12 +22,10 @@ function StatCard({
 }) {
   return (
     <div className="relative border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-      {/* Tooltip — group scoped to the icon only, not the whole card */}
       <div className="group absolute top-2 right-2 z-10">
         <span className="text-gray-300 dark:text-gray-600 group-hover:text-gray-500 dark:group-hover:text-gray-400 cursor-help text-xs select-none">
           ⓘ
         </span>
-        {/* Tooltip bubble — opens upward to avoid grid clipping */}
         <div className="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-150 absolute right-0 bottom-6 z-50 w-60 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-xl p-3 text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
           {tooltip}
           <a
@@ -91,7 +91,6 @@ function aggregateToPodcastTimeSeries(
   }>,
   grouping: TimeSeriesGrouping
 ): PodcastTimeSeriesDataPoint[] {
-  // Group activities by period for est. downloads
   const downloadsByPeriod = new Map<string, number>();
   for (const activity of activities) {
     const period = getPeriodKey(activity.date, grouping);
@@ -99,7 +98,6 @@ function aggregateToPodcastTimeSeries(
     downloadsByPeriod.set(period, (downloadsByPeriod.get(period) ?? 0) + downloads);
   }
 
-  // Group daily metrics by period
   const metricsByPeriod = new Map<string, { signups: number; activations: number }>();
   for (const metric of dailyMetrics) {
     const period = getPeriodKey(metric.date, grouping);
@@ -110,7 +108,6 @@ function aggregateToPodcastTimeSeries(
     });
   }
 
-  // Group incremental values by period
   const incrSignupsByPeriod = new Map<string, number>();
   const incrActivationsByPeriod = new Map<string, number>();
   for (const report of reports) {
@@ -119,7 +116,6 @@ function aggregateToPodcastTimeSeries(
     incrActivationsByPeriod.set(period, (incrActivationsByPeriod.get(period) ?? 0) + report.incrementalActivations);
   }
 
-  // Combine into time series
   const allPeriods = new Set([
     ...downloadsByPeriod.keys(),
     ...metricsByPeriod.keys(),
@@ -153,6 +149,55 @@ function formatCurrency(value: number | null): string {
   }).format(value);
 }
 
+/**
+ * Compute podcast baseline from pre-podcast period (Sep 1 – Feb 22, 2026).
+ * Uses weekday/weekend median split, zero-filling missing days.
+ */
+async function computePodcastBaseline() {
+  const metrics = await prisma.dailyMetric.findMany({
+    where: { channel: "podcast" },
+    orderBy: { date: "asc" },
+  });
+  const metricsMap = new Map<string, { signups: number; activations: number }>();
+  for (const m of metrics) metricsMap.set(m.date, { signups: m.signups, activations: m.activations });
+
+  const wdNau: number[] = [];
+  const weNau: number[] = [];
+  const wdSig: number[] = [];
+  const weSig: number[] = [];
+
+  // Sep 1 to Feb 22 (pre-podcast ads)
+  const cursor = new Date("2025-09-01T00:00:00Z");
+  const end = new Date("2026-02-22T00:00:00Z");
+  while (cursor <= end) {
+    const ds = cursor.toISOString().slice(0, 10);
+    const dow = cursor.getUTCDay();
+    const m = metricsMap.get(ds);
+    const nau = m?.activations ?? 0;
+    const sig = m?.signups ?? 0;
+    if (dow >= 1 && dow <= 5) {
+      wdNau.push(nau);
+      wdSig.push(sig);
+    } else {
+      weNau.push(nau);
+      weSig.push(sig);
+    }
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+
+  function median(arr: number[]) {
+    const s = [...arr].sort((a, b) => a - b);
+    return s[Math.floor(s.length / 2)] ?? 0;
+  }
+
+  return {
+    nauWeekday: median(wdNau),
+    nauWeekend: median(weNau),
+    sigWeekday: median(wdSig),
+    sigWeekend: median(weSig),
+  };
+}
+
 export default async function PodcastChannelPage({
   searchParams,
 }: {
@@ -161,8 +206,11 @@ export default async function PodcastChannelPage({
   const { grouping = "monthly", startDate = "", endDate = "" } = await searchParams;
   const timeGrouping = (grouping === "weekly" ? "weekly" : "monthly") as TimeSeriesGrouping;
 
-  const { activities: allActivities, dailyMetrics: allDailyMetrics, reports: allReports } =
-    await getChannelAnalytics("podcast");
+  const [channelData, baseline] = await Promise.all([
+    getChannelAnalytics("podcast"),
+    computePodcastBaseline(),
+  ]);
+  const { activities: allActivities, dailyMetrics: allDailyMetrics, reports: allReports } = channelData;
 
   // Apply date range filter
   const activities = allActivities.filter((a) => {
@@ -180,24 +228,48 @@ export default async function PodcastChannelPage({
   const activityIdsInRange = new Set(activities.map((a) => a.id));
   const reports = allReports.filter((r) => activityIdsInRange.has(r.activity.id));
 
-  const timeSeries = aggregateToPodcastTimeSeries(activities, dailyMetrics, reports, timeGrouping);
+  // Charts should only show data up to today
+  const today = new Date().toISOString().slice(0, 10);
+  const chartActivities = activities.filter((a) => a.date <= today);
 
-  // Totals
+  const timeSeries = aggregateToPodcastTimeSeries(chartActivities, dailyMetrics, reports, timeGrouping);
+
+  // Totals from daily metrics
   const totalEstDownloads = activities.reduce((s, a) => s + (a.metadata?.estDownloads ?? 0), 0);
-  const totalSignups = timeSeries.reduce((s, d) => s + d.signups, 0);
-  const totalActivations = timeSeries.reduce((s, d) => s + d.activations, 0);
-
-  const rawIncrementalSignups = timeSeries.reduce((s, d) => s + d.incrementalSignups, 0);
-  const rawIncrementalActivations = timeSeries.reduce((s, d) => s + d.incrementalActivations, 0);
-  const totalIncrementalSignups = Math.min(rawIncrementalSignups, totalSignups);
-  const totalIncrementalActivations = Math.min(rawIncrementalActivations, totalActivations);
-
+  const totalSignups = dailyMetrics.reduce((s, m) => s + m.signups, 0);
+  const totalActivations = dailyMetrics.reduce((s, m) => s + m.activations, 0);
   const totalCost = activities.reduce((s, a) => s + (a.costUsd ?? 0), 0);
-  const cpm = totalEstDownloads > 0 ? (totalCost / totalEstDownloads) * 1000 : null;
+
+  // Portfolio-level incremental using weekday/weekend baseline
+  // Count calendar days in the daily metrics range
+  const metricDates = dailyMetrics.map((m) => m.date).sort();
+  const periodStart = metricDates[0] || today;
+  const periodEnd = metricDates[metricDates.length - 1] || today;
+
+  let periodWD = 0;
+  let periodWE = 0;
+  {
+    const cursor = new Date(periodStart + "T00:00:00Z");
+    const end = new Date(periodEnd + "T00:00:00Z");
+    while (cursor <= end) {
+      const dow = cursor.getUTCDay();
+      if (dow >= 1 && dow <= 5) periodWD++;
+      else periodWE++;
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
+    }
+  }
+
+  const expectedSignups = baseline.sigWeekday * periodWD + baseline.sigWeekend * periodWE;
+  const expectedNau = baseline.nauWeekday * periodWD + baseline.nauWeekend * periodWE;
+  const incrSignups = totalSignups - expectedSignups;
+  const incrNau = totalActivations - expectedNau;
+
+  // CPA metrics
   const blendedCpaSignup = totalSignups > 0 ? totalCost / totalSignups : null;
-  const blendedCpaActivation = totalActivations > 0 ? totalCost / totalActivations : null;
-  const incrementalCpaSignup = totalIncrementalSignups > 0 ? totalCost / totalIncrementalSignups : null;
-  const incrementalCpaActivation = totalIncrementalActivations > 0 ? totalCost / totalIncrementalActivations : null;
+  const blendedCpaNau = totalActivations > 0 ? totalCost / totalActivations : null;
+  const incrCpaSignup = incrSignups > 0 ? totalCost / incrSignups : null;
+  const incrCpaNau = incrNau > 0 ? totalCost / incrNau : null;
+  const cpm = totalEstDownloads > 0 ? (totalCost / totalEstDownloads) * 1000 : null;
 
   return (
     <div className="max-w-6xl">
@@ -219,7 +291,7 @@ export default async function PodcastChannelPage({
       </Suspense>
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-4 overflow-visible">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-4 overflow-visible">
         <StatCard
           label="Total Activities"
           value={activities.length.toString()}
@@ -230,81 +302,67 @@ export default async function PodcastChannelPage({
           label="Est. Downloads"
           value={totalEstDownloads > 0 ? totalEstDownloads.toLocaleString() : "—"}
           sub="From bet"
-          tooltip="Sum of estimated downloads across all podcast activities in the date range. Entered at booking time."
+          tooltip="Sum of estimated downloads across all podcast activities. Entered at booking time."
           learnMoreHref="/measurement-explained"
         />
         <StatCard
-          label="Account created"
+          label="Account Created"
           value={totalSignups.toLocaleString()}
-          sub="Actual"
-          tooltip="Total Granola accounts created during the post-windows of all podcast activities. Raw observed count, not adjusted for baseline."
+          sub="Observed"
+          tooltip="Total accounts created by users who said 'podcast' in the how-did-you-hear survey. Includes organic podcast attribution."
           learnMoreHref="/measurement-explained#account-created"
         />
         <StatCard
-          label="NAU"
-          value={totalActivations.toLocaleString()}
-          sub="Actual"
-          tooltip="New Activated Users: accounts that completed activation (paid or trial) during the post-windows. Raw observed count, not adjusted for baseline."
-          learnMoreHref="/measurement-explained#nau"
-        />
-        <StatCard
-          label="Incremental account created"
-          value={Math.round(totalIncrementalSignups).toLocaleString()}
-          sub="Attributed"
-          tooltip="Accounts created above the expected baseline, attributed to podcast sponsorships. Uses a 5-day post-window uplift model."
+          label="Incr. Account Created"
+          value={Math.round(incrSignups).toLocaleString()}
+          sub={`vs ${baseline.sigWeekday}/${baseline.sigWeekend} wd/we baseline`}
+          tooltip={`Accounts created above the expected baseline. Baseline: ${baseline.sigWeekday}/weekday, ${baseline.sigWeekend}/weekend (median from Sep–Feb pre-podcast period).`}
           learnMoreHref="/measurement-explained#incremental-account-created"
         />
         <StatCard
-          label="Incremental NAU"
-          value={Math.round(totalIncrementalActivations).toLocaleString()}
-          sub="Attributed"
-          tooltip="Activations above the expected baseline, attributed to podcast sponsorships. Same uplift methodology as incremental account created, applied to activation events."
+          label="Incr. NAU (Desktop)"
+          value={Math.round(incrNau).toLocaleString()}
+          sub={`vs ${baseline.nauWeekday}/${baseline.nauWeekend} wd/we baseline`}
+          tooltip={`Activations above the expected baseline. Baseline: ${baseline.nauWeekday}/weekday, ${baseline.nauWeekend}/weekend (median from Sep–Feb pre-podcast period).`}
           learnMoreHref="/measurement-explained#incremental-nau"
         />
       </div>
 
       {/* Cost / Efficiency Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6 overflow-visible">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6 overflow-visible">
         <StatCard
           label="Total Spend"
           value={formatCurrency(totalCost)}
           sub={`${activities.length} activities`}
-          tooltip="Total podcast sponsorship spend across all activities in the selected date range."
+          tooltip="Total podcast sponsorship spend across all activities."
           learnMoreHref="/measurement-explained#cpa"
         />
         <StatCard
           label="CPM"
           value={cpm !== null ? formatCurrency(cpm) : "—"}
           sub="Cost / 1K downloads"
-          tooltip="Total spend divided by estimated downloads × 1,000. Standard podcast pricing metric."
+          tooltip="Total spend divided by estimated downloads × 1,000."
           learnMoreHref="/measurement-explained"
         />
         <StatCard
-          label="Blended CPA"
-          value={formatCurrency(blendedCpaSignup) ?? "—"}
-          sub="Cost / Account created"
-          tooltip="Total podcast spend divided by all accounts created in post-windows. Blended — does not subtract baseline."
-          learnMoreHref="/measurement-explained#cpa"
-        />
-        <StatCard
-          label="Blended Cost per NAU"
-          value={formatCurrency(blendedCpaActivation) ?? "—"}
+          label="Blended Cost / NAU"
+          value={formatCurrency(blendedCpaNau)}
           sub="Cost / Total NAU"
-          tooltip="Total podcast spend divided by all NAU in post-windows. Blended — does not subtract baseline."
+          tooltip="Total podcast spend divided by all NAU. Blended — does not subtract baseline."
           learnMoreHref="/measurement-explained#cpa"
         />
         <StatCard
-          label="Incremental CPA"
-          value={formatCurrency(incrementalCpaSignup) ?? "—"}
-          sub="Cost / Incr. Account created"
-          tooltip="Total podcast spend divided by incremental accounts created. The true cost of an additional signup driven by podcast sponsorships."
+          label="Incr. CPA"
+          value={formatCurrency(incrCpaSignup)}
+          sub="Cost / Incr. Signups"
+          tooltip="Total podcast spend divided by incremental accounts created above baseline."
           learnMoreHref="/measurement-explained#cpa"
         />
         <StatCard
-          label="Incremental Cost per NAU"
-          value={formatCurrency(incrementalCpaActivation) ?? "—"}
-          sub="Cost / Incr. NAU"
-          tooltip="Total podcast spend divided by incremental NAU. The true cost of an additional activation driven by podcast sponsorships."
+          label="Incr. Cost / NAU"
+          value={formatCurrency(incrCpaNau)}
+          sub="Cost / Incr. NAU (Desktop)"
+          tooltip="Total podcast spend divided by incremental NAU above baseline. The true cost of an additional activation driven by podcasts."
           learnMoreHref="/measurement-explained#cpa"
         />
       </div>
@@ -338,6 +396,32 @@ export default async function PodcastChannelPage({
         <h2 className="text-sm font-semibold mb-3">Est. Downloads vs Performance</h2>
         <PodcastChart data={timeSeries} grouping={timeGrouping} />
       </div>
+
+      {/* Podcast Activities Table */}
+      {activities.length > 0 && (
+        <div className="mb-8">
+          <h2 className="text-sm font-semibold mb-1">Podcast Performance</h2>
+          <p className="text-xs text-gray-500 mb-3">
+            Grouped by show. Data from Podscribe.
+          </p>
+          <PodcastShowTable
+            activities={activities.map((a) => {
+              const meta = typeof a.metadata === "string"
+                ? JSON.parse(a.metadata)
+                : (a.metadata ?? {});
+              return {
+                partnerName: a.partnerName,
+                date: a.date,
+                costUsd: a.costUsd ?? 0,
+                impressions: meta.totalImpressions ?? 0,
+                visitors: meta.totalVisitors ?? 0,
+                visits: meta.totalVisits ?? 0,
+                publisher: meta.publisher ?? "",
+              };
+            })}
+          />
+        </div>
+      )}
     </div>
   );
 }

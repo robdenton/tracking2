@@ -22,6 +22,7 @@ export function toActivity(row: {
   metadata: string | null;
   contentUrl: string | null;
   channelUrl: string | null;
+  tag?: string | null;
 }): Activity {
   let metadata: Record<string, number> | null = null;
   if (row.metadata) {
@@ -46,6 +47,7 @@ export function toActivity(row: {
     metadata,
     contentUrl: row.contentUrl,
     channelUrl: row.channelUrl,
+    tag: row.tag ?? null,
   };
 }
 

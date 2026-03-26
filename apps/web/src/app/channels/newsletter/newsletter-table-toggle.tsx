@@ -75,6 +75,7 @@ export function NewsletterTableToggle({
           selectedChannel={selectedChannel}
           clickConversionAvg={clickConversionAvg}
           dubClicksMap={dubClicksMap}
+          showTagColumn
         />
       )}
     </div>

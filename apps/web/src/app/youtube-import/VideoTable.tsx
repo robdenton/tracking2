@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 
 interface VideoRow {
@@ -41,6 +41,132 @@ const DEPTH_BADGE: Record<
       "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400",
   },
 };
+
+const SOURCE_OPTIONS: {
+  value: string;
+  label: string;
+  badgeLabel: string | null;
+  className: string;
+}[] = [
+  {
+    value: "organic",
+    label: "Organic",
+    badgeLabel: null,
+    className: "",
+  },
+  {
+    value: "paid_sponsorship",
+    label: "Paid Sponsorship",
+    badgeLabel: "Paid",
+    className: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
+  },
+  {
+    value: "affiliate",
+    label: "Affiliate",
+    badgeLabel: "Affiliate",
+    className: "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300",
+  },
+  {
+    value: "podcast",
+    label: "Podcast",
+    badgeLabel: "Podcast",
+    className: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300",
+  },
+];
+
+function SourceBadge({
+  videoId,
+  source: initialSource,
+}: {
+  videoId: string;
+  source: string;
+}) {
+  const [source, setSource] = useState(initialSource);
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    if (open) document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open]);
+
+  const current = SOURCE_OPTIONS.find((o) => o.value === source) ?? SOURCE_OPTIONS[0];
+
+  async function handleSelect(value: string) {
+    if (value === source) {
+      setOpen(false);
+      return;
+    }
+    setSaving(true);
+    setSource(value);
+    setOpen(false);
+    try {
+      await fetch("/api/youtube/update-source", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ videoId, source: value }),
+      });
+    } catch {
+      setSource(source); // revert on error
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="relative shrink-0" ref={ref}>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen(!open);
+        }}
+        className={`inline-block px-1 py-0.5 rounded text-[9px] font-medium cursor-pointer transition-opacity ${
+          saving ? "opacity-50" : ""
+        } ${
+          current.badgeLabel
+            ? current.className
+            : "bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700"
+        }`}
+        title="Click to change source tag"
+      >
+        {current.badgeLabel ?? "Tag"}
+      </button>
+      {open && (
+        <div className="absolute z-50 top-full left-0 mt-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl py-1 min-w-[140px]">
+          {SOURCE_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => handleSelect(opt.value)}
+              className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2 ${
+                opt.value === source ? "font-semibold" : ""
+              }`}
+            >
+              {opt.badgeLabel ? (
+                <span
+                  className={`inline-block px-1 py-0.5 rounded text-[9px] font-medium ${opt.className}`}
+                >
+                  {opt.badgeLabel}
+                </span>
+              ) : (
+                <span className="text-gray-400 text-[9px]">None</span>
+              )}
+              <span>{opt.label}</span>
+              {opt.value === source && (
+                <span className="ml-auto text-blue-500 text-[10px]">✓</span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 type SortDirection = "asc" | "desc";
 
@@ -118,6 +244,7 @@ export function VideoTable({
           <tr>
             <th className="text-left py-1.5 px-2 text-[11px] font-medium">Title</th>
             <th className="text-left py-1.5 px-1 text-[11px] font-medium">Channel</th>
+            <th className="py-1.5 px-1 text-[11px] font-medium text-center">Type</th>
             <SortHeader colKey="depthScore">Depth</SortHeader>
             {dates.map((date) => (
               <SortHeader key={date} colKey={date}>
@@ -143,11 +270,6 @@ export function VideoTable({
                   >
                     {video.title}
                   </Link>
-                  {video.source === "paid_sponsorship" && (
-                    <span className="shrink-0 inline-block px-1 py-0.5 rounded text-[9px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
-                      Paid
-                    </span>
-                  )}
                 </div>
               </td>
               <td className="py-1.5 px-1 text-gray-500 max-w-[100px] truncate">
@@ -158,6 +280,9 @@ export function VideoTable({
                 >
                   {video.channelTitle}
                 </Link>
+              </td>
+              <td className="py-1.5 px-1 text-center">
+                <SourceBadge videoId={video.id} source={video.source} />
               </td>
               <td className="py-1.5 px-1 text-center whitespace-nowrap">
                 {video.depthTier && DEPTH_BADGE[video.depthTier] ? (

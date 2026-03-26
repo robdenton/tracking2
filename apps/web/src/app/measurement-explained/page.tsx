@@ -15,7 +15,7 @@
 export const dynamic = "force-dynamic";
 
 // ─── Bump this whenever the content changes ───────────────────────────────────
-const LAST_UPDATED = "23 February 2026";
+const LAST_UPDATED = "26 March 2026";
 // ─────────────────────────────────────────────────────────────────────────────
 
 const tocItems = [
@@ -387,6 +387,27 @@ export default function MeasurementExplainedPage() {
         back to <strong>deterministic estimated clicks</strong>, then{" "}
         <strong>metadata estimated clicks</strong>. Activities with no click data
         receive zero attributed incremental.
+      </Para>
+
+      <SubHeading title="Affiliate newsletters" />
+      <Para>
+        Some newsletter activities are run through affiliate partners who send
+        dedicated newsletters as part of a broader affiliate programme. These
+        are captured in the newsletter tracking alongside paid sponsorship
+        newsletters so that we maintain an exhaustive list of all newsletter
+        sends. This is necessary for the attribution and uplift analysis to
+        work correctly — if an affiliate send is excluded, its post-window
+        signups would be incorrectly absorbed into the baseline or attributed
+        to a neighbouring paid send.
+      </Para>
+      <Para>
+        Each activity can be tagged as &ldquo;affiliate&rdquo; using the tag
+        dropdown in the Activities table. A toggle at the top of the page lets
+        you include or exclude affiliate activities from all summary metrics,
+        charts, and CPA calculations. When excluded, the affiliate spend,
+        clicks, and attributed incrementals are removed from the totals —
+        useful for evaluating the performance of paid newsletter sponsorships
+        independently of the affiliate programme.
       </Para>
 
       <SubHeading title="Baseline decontamination" />

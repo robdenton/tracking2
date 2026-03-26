@@ -56,7 +56,7 @@ export default async function RootLayout({
                         { href: "/channels/newsletter", label: "Newsletter" },
                         { href: "/channels/podcast", label: "Podcast" },
                         { href: "/youtube-import", label: "YouTube" },
-                        { href: "/linkedin-analysis", label: "LinkedIn" },
+                        { href: "/channels/linkedin-overview", label: "LinkedIn Overview" },
                         {
                           href: "/channels/company-linkedin",
                           label: "Company LinkedIn",
@@ -65,6 +65,9 @@ export default async function RootLayout({
                           href: "/channels/linkedin-ads",
                           label: "LinkedIn Ads",
                         },
+                        { href: "/channels/ugc", label: "UGC" },
+                        { href: "/channels/affiliates", label: "Affiliates" },
+                        { href: "/okrs", label: "OKRs" },
                       ]}
                     />
                     <a

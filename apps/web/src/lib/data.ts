@@ -340,6 +340,21 @@ export async function getImportedVideos() {
   return prisma.importedYouTubeVideo.findMany({
     where: { status: "active" },
     orderBy: { importedDate: "desc" },
+    select: {
+      id: true,
+      videoId: true,
+      title: true,
+      channelTitle: true,
+      channelId: true,
+      publishedAt: true,
+      url: true,
+      thumbnailUrl: true,
+      importedDate: true,
+      status: true,
+      source: true,
+      depthTier: true,
+      depthScore: true,
+    },
   });
 }
 
@@ -751,6 +766,20 @@ export const PIPELINE_CONFIGS: PipelineConfig[] = [
     description: "Syncs LinkedIn posts and engagement metrics for connected employee accounts via Unipile",
     scheduleHour: 9,
     scheduleMinute: 0,
+  },
+  {
+    taskName: "sync-growi",
+    label: "Growi UGC Sync",
+    description: "Imports daily UGC creator programme stats from Growi (TikTok & Instagram)",
+    scheduleHour: 12,
+    scheduleMinute: 25,
+  },
+  {
+    taskName: "sync-podscribe",
+    label: "Podscribe Podcast Sync",
+    description: "Imports podcast campaign impressions, spend, and creates activities from Podscribe",
+    scheduleHour: 12,
+    scheduleMinute: 30,
   },
 ];
 

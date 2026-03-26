@@ -14,6 +14,7 @@ export interface Activity {
   metadata: Record<string, number> | null; // channel-specific bet metrics
   contentUrl: string | null; // URL to the actual content (e.g. YouTube video)
   channelUrl: string | null; // URL to the partner's channel
+  tag: string | null; // affiliate, paid, etc. — user-set label
 }
 
 /** A daily metrics row from the daily_metrics CSV / DB */

@@ -5,6 +5,7 @@ import { NewsletterChart } from "./chart";
 import { ENAUChart } from "./enau-chart";
 import { DateRangePicker } from "./date-range-picker";
 import { NewsletterTableToggle } from "./newsletter-table-toggle";
+import { AffiliateToggle } from "./affiliate-toggle";
 
 /** Stat card with an info tooltip and optional sub-label */
 function StatCard({
@@ -253,9 +254,10 @@ function formatCurrency(value: number | null): string {
 export default async function NewsletterChannelPage({
   searchParams,
 }: {
-  searchParams: Promise<{ grouping?: string; startDate?: string; endDate?: string }>;
+  searchParams: Promise<{ grouping?: string; startDate?: string; endDate?: string; excludeAffiliates?: string }>;
 }) {
-  const { grouping = "monthly", startDate = "", endDate = "" } = await searchParams;
+  const { grouping = "monthly", startDate = "", endDate = "", excludeAffiliates = "" } = await searchParams;
+  const shouldExcludeAffiliates = excludeAffiliates === "1";
   const timeGrouping = (grouping === "weekly" ? "weekly" : "monthly") as TimeSeriesGrouping;
 
   const [channelData, dubClicksMap] = await Promise.all([
@@ -271,11 +273,17 @@ export default async function NewsletterChannelPage({
   }
 
   // Apply date range filter to each data source
-  const activities = allActivities.filter((a) => {
+  // Keep all activities for the table (so user can tag them), but filter for metrics
+  const activitiesInRange = allActivities.filter((a) => {
     if (startDate && a.date < startDate) return false;
     if (endDate && a.date > endDate) return false;
     return true;
   });
+
+  // For metrics computation, optionally exclude affiliates
+  const activities = shouldExcludeAffiliates
+    ? activitiesInRange.filter((a) => a.tag !== "affiliate")
+    : activitiesInRange;
 
   const dailyMetrics = allDailyMetrics.filter((m) => {
     if (startDate && m.date < startDate) return false;
@@ -283,9 +291,13 @@ export default async function NewsletterChannelPage({
     return true;
   });
 
-  // Reports are keyed by activity date; filter to activities in range
-  const activityIdsInRange = new Set(activities.map((a) => a.id));
-  const reports = allReports.filter((r) => activityIdsInRange.has(r.activity.id));
+  // Reports for metrics (respects affiliate filter)
+  const activityIdsFiltered = new Set(activities.map((a) => a.id));
+  const reports = allReports.filter((r) => activityIdsFiltered.has(r.activity.id));
+
+  // Reports for the table (always show all activities in range so user can tag them)
+  const allActivityIdsInRange = new Set(activitiesInRange.map((a) => a.id));
+  const allReportsInRange = allReports.filter((r) => allActivityIdsInRange.has(r.activity.id));
 
   // Charts should only show data up to today (no future booked activities)
   const today = new Date().toISOString().slice(0, 10);
@@ -340,10 +352,19 @@ export default async function NewsletterChannelPage({
   const portfolioIncrSignups = Math.round(observedSignups - expectedSignups);
   const portfolioIncrActivations = Math.round(observedNau - expectedNau);
 
+  // When affiliates are excluded, use per-activity attributed incrementals
+  // (which respect the filter) instead of portfolio-level (which can't be split by tag)
+  const displayIncrSignups = shouldExcludeAffiliates
+    ? Math.round(chartReports.reduce((s, r) => s + r.incremental, 0))
+    : portfolioIncrSignups;
+  const displayIncrActivations = shouldExcludeAffiliates
+    ? Math.round(chartReports.reduce((s, r) => s + r.incrementalActivations, 0))
+    : portfolioIncrActivations;
+
   const totalCost = chartActivities.reduce((sum, a) => sum + (a.costUsd ?? 0), 0);
   const blendedCpaActivation = totalActivations > 0 ? totalCost / totalActivations : null;
-  const incrementalCpaSignup = portfolioIncrSignups > 0 ? totalCost / portfolioIncrSignups : null;
-  const incrementalCpaNau = portfolioIncrActivations > 0 ? totalCost / portfolioIncrActivations : null;
+  const incrementalCpaSignup = displayIncrSignups > 0 ? totalCost / displayIncrSignups : null;
+  const incrementalCpaNau = displayIncrActivations > 0 ? totalCost / displayIncrActivations : null;
 
   return (
     <div className="max-w-6xl">
@@ -359,10 +380,15 @@ export default async function NewsletterChannelPage({
         Aggregated performance across all newsletter activities
       </p>
 
-      {/* Date Range Picker */}
-      <Suspense>
-        <DateRangePicker startDate={startDate} endDate={endDate} />
-      </Suspense>
+      {/* Date Range Picker + Affiliate Toggle */}
+      <div className="flex items-center gap-3 flex-wrap mb-4">
+        <Suspense>
+          <DateRangePicker startDate={startDate} endDate={endDate} />
+        </Suspense>
+        <Suspense>
+          <AffiliateToggle excluded={shouldExcludeAffiliates} />
+        </Suspense>
+      </div>
 
       {/* Summary Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-4 overflow-visible">
@@ -401,16 +427,20 @@ export default async function NewsletterChannelPage({
         />
         <StatCard
           label="Incr. Account Created"
-          value={portfolioIncrSignups.toLocaleString()}
-          sub={`vs ${BASELINE_WD_SIGNUPS}/${BASELINE_WE_SIGNUPS} wd/we baseline`}
-          tooltip="Total accounts created minus baseline expected. Baseline uses pre-newsletter (Sep–Dec 6) weekday/weekend medians. Weekday: 24/day, Weekend: 6/day."
+          value={displayIncrSignups.toLocaleString()}
+          sub={shouldExcludeAffiliates ? "Per-activity attributed" : `vs ${BASELINE_WD_SIGNUPS}/${BASELINE_WE_SIGNUPS} wd/we baseline`}
+          tooltip={shouldExcludeAffiliates
+            ? "Sum of per-activity attributed incremental signups (excluding affiliates). Uses click-share attribution model."
+            : "Total accounts created minus baseline expected. Baseline uses pre-newsletter (Sep–Dec 6) weekday/weekend medians. Weekday: 24/day, Weekend: 6/day."}
           learnMoreHref="/measurement-explained#incremental-account-created"
         />
         <StatCard
           label="Incr. NAU (Desktop)"
-          value={portfolioIncrActivations.toLocaleString()}
-          sub={`vs ${BASELINE_WD_NAU}/${BASELINE_WE_NAU} wd/we baseline`}
-          tooltip="Total desktop NAU minus baseline expected. Baseline uses pre-newsletter (Sep–Dec 6) weekday/weekend medians. Weekday: 12/day, Weekend: 0/day."
+          value={displayIncrActivations.toLocaleString()}
+          sub={shouldExcludeAffiliates ? "Per-activity attributed" : `vs ${BASELINE_WD_NAU}/${BASELINE_WE_NAU} wd/we baseline`}
+          tooltip={shouldExcludeAffiliates
+            ? "Sum of per-activity attributed incremental NAU (excluding affiliates). Uses click-share attribution model."
+            : "Total desktop NAU minus baseline expected. Baseline uses pre-newsletter (Sep–Dec 6) weekday/weekend medians. Weekday: 12/day, Weekend: 0/day."}
           learnMoreHref="/measurement-explained#incremental-nau"
         />
       </div>
@@ -541,7 +571,7 @@ export default async function NewsletterChannelPage({
                 : null,
             }));
           })()}
-          reports={reports}
+          reports={allReportsInRange}
           selectedChannel="newsletter"
           clickConversionAvg={
             (() => {

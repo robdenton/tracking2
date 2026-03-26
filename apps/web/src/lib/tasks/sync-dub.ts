@@ -108,55 +108,58 @@ export async function syncDubAnalytics(startDate?: string): Promise<{
   let stored = 0;
   let errors = 0;
 
-  // 3. Per-link, per-chunk: fetch daily timeseries and upsert
-  for (const link of links) {
-    for (const chunk of chunks) {
-      await delay(RATE_LIMIT_DELAY_MS);
-      try {
-        const url =
-          `${DUB_API_BASE}/analytics` +
-          `?groupBy=timeseries` +
-          `&linkId=${encodeURIComponent(link.id)}` +
-          `&start=${chunk.start}` +
-          `&end=${chunk.end}` +
-          `&event=clicks`;
+  // 3. Per-link, per-chunk: fetch daily timeseries for both clicks and leads
+  const events = ["clicks", "leads"] as const;
+  for (const event of events) {
+    log(`Fetching ${event} timeseries...`);
+    for (const link of links) {
+      for (const chunk of chunks) {
+        await delay(RATE_LIMIT_DELAY_MS);
+        try {
+          const url =
+            `${DUB_API_BASE}/analytics` +
+            `?groupBy=timeseries` +
+            `&linkId=${encodeURIComponent(link.id)}` +
+            `&start=${chunk.start}` +
+            `&end=${chunk.end}` +
+            `&event=${event}`;
 
-        const res = await fetch(url, {
-          headers: { Authorization: `Bearer ${apiKey}` },
-        });
+          const res = await fetch(url, {
+            headers: { Authorization: `Bearer ${apiKey}` },
+          });
 
-        if (res.status === 429) {
-          // Rate limited — back off and retry once
-          log(`Rate limited for ${link.shortLink}, waiting 2s...`);
-          await delay(2000);
-          const retry = await fetch(url, { headers: { Authorization: `Bearer ${apiKey}` } });
-          if (!retry.ok) {
-            logError(`Retry failed for ${link.shortLink} ${chunk.start}–${chunk.end}: ${retry.status}`);
+          if (res.status === 429) {
+            log(`Rate limited for ${link.shortLink}, waiting 2s...`);
+            await delay(2000);
+            const retry = await fetch(url, { headers: { Authorization: `Bearer ${apiKey}` } });
+            if (!retry.ok) {
+              logError(`Retry failed for ${link.shortLink} ${chunk.start}–${chunk.end}: ${retry.status}`);
+              errors++;
+              continue;
+            }
+            const points: DubTimeseriesPoint[] = await retry.json();
+            for (const point of points) {
+              await upsertPoint(link, point, event);
+              stored++;
+            }
+            continue;
+          }
+
+          if (!res.ok) {
+            logError(`${link.shortLink} ${chunk.start}–${chunk.end}: ${res.status}`);
             errors++;
             continue;
           }
-          const points: DubTimeseriesPoint[] = await retry.json();
+
+          const points: DubTimeseriesPoint[] = await res.json();
           for (const point of points) {
-            await upsertPoint(link, point);
+            await upsertPoint(link, point, event);
             stored++;
           }
-          continue;
-        }
-
-        if (!res.ok) {
-          logError(`${link.shortLink} ${chunk.start}–${chunk.end}: ${res.status}`);
+        } catch (e) {
+          logError(`${link.shortLink} ${chunk.start}–${chunk.end}: ${e}`);
           errors++;
-          continue;
         }
-
-        const points: DubTimeseriesPoint[] = await res.json();
-        for (const point of points) {
-          await upsertPoint(link, point);
-          stored++;
-        }
-      } catch (e) {
-        logError(`${link.shortLink} ${chunk.start}–${chunk.end}: ${e}`);
-        errors++;
       }
     }
   }
@@ -165,8 +168,9 @@ export async function syncDubAnalytics(startDate?: string): Promise<{
   return { stored, errors };
 }
 
-async function upsertPoint(link: DubLink, point: DubTimeseriesPoint) {
+async function upsertPoint(link: DubLink, point: DubTimeseriesPoint, event: "clicks" | "leads") {
   const date = point.start.slice(0, 10); // ISO → YYYY-MM-DD
+  const value = event === "clicks" ? (point.clicks ?? 0) : (point.leads ?? 0);
   await prisma.dubLinkDaily.upsert({
     where: {
       shortLink_date: { shortLink: link.shortLink, date },
@@ -175,12 +179,11 @@ async function upsertPoint(link: DubLink, point: DubTimeseriesPoint) {
       shortLink: link.shortLink,
       url: link.url,
       date,
-      clicks: point.clicks,
-      leads: point.leads,
+      clicks: event === "clicks" ? value : 0,
+      leads: event === "leads" ? value : 0,
     },
     update: {
-      clicks: point.clicks,
-      leads: point.leads,
+      [event]: value,
     },
   });
 }

@@ -33,9 +33,46 @@ interface ActivityTableProps {
   clickConversionAvg?: number;
   /** Dub click data per activity ID (from getDubClicksByActivity) */
   dubClicksMap?: Record<string, { dubClicks: number; dubLeads: number; shortLink: string }>;
+  /** Show tag column for tagging activities as affiliate etc */
+  showTagColumn?: boolean;
 }
 
-export function ActivityTable({ reports, selectedChannel, clickConversionAvg, dubClicksMap }: ActivityTableProps) {
+function TagDropdown({ activityId, currentTag }: { activityId: string; currentTag: string | null }) {
+  const [tag, setTag] = useState<string>(currentTag || "");
+  const [saving, setSaving] = useState(false);
+
+  async function handleChange(newTag: string) {
+    setTag(newTag);
+    setSaving(true);
+    try {
+      await fetch("/api/activities/tag", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ activityId, tag: newTag || null }),
+      });
+    } catch (e) {
+      console.error("Failed to save tag:", e);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <select
+      value={tag}
+      onChange={(e) => handleChange(e.target.value)}
+      className={`text-xs px-1.5 py-0.5 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 ${
+        saving ? "opacity-50" : ""
+      } ${tag === "affiliate" ? "text-amber-700 bg-amber-50 dark:text-amber-300 dark:bg-amber-900/30" : "text-gray-500"}`}
+    >
+      <option value="">—</option>
+      <option value="affiliate">affiliate</option>
+      <option value="paid">paid</option>
+    </select>
+  );
+}
+
+export function ActivityTable({ reports, selectedChannel, clickConversionAvg, dubClicksMap, showTagColumn }: ActivityTableProps) {
   const [sortColumn, setSortColumn] = useState<SortColumn>("date");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
@@ -145,6 +182,9 @@ export function ActivityTable({ reports, selectedChannel, clickConversionAvg, du
           <SortableHeader column="partner">Partner</SortableHeader>
           <th className="py-2 pr-4 text-xs font-medium">Channel</th>
           <th className="py-2 pr-4 text-xs font-medium">Status</th>
+          {showTagColumn && (
+            <th className="py-2 pr-4 text-xs font-medium">Tag</th>
+          )}
 
           <SortableHeader column="cost" align="right">
             Cost
@@ -219,6 +259,11 @@ export function ActivityTable({ reports, selectedChannel, clickConversionAvg, du
                   {r.activity.status}
                 </span>
               </td>
+              {showTagColumn && (
+                <td className="py-2 pr-4">
+                  <TagDropdown activityId={r.activity.id} currentTag={r.activity.tag} />
+                </td>
+              )}
 
               <td className="py-2 pr-4 text-right font-mono text-gray-500">
                 {r.activity.costUsd

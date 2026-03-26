@@ -25,6 +25,8 @@ model Activity {
   metadata                   String? @map("metadata") // JSON: channel-specific bet metrics
   contentUrl                 String? @map("content_url") // URL to the actual content (e.g. YouTube video)
   channelUrl                 String? @map("channel_url") // URL to the partner's channel
+  source                     String  @default("sheets") // sheets, podscribe, manual
+  tag                        String? // affiliate, paid, etc. — user-set label for filtering
 
   contentViews               ContentView[]
   linkedInEngagements        LinkedInEngagement[]
@@ -500,4 +502,67 @@ model LinkedInAdCreativeDaily {
   @@unique([creativeId, date])
   @@index([date])
   @@map("linkedin_ad_creative_daily")
+}
+
+// ---------------------------------------------------------------------------
+// Podscribe podcast attribution
+// ---------------------------------------------------------------------------
+
+model PodscribeCampaign {
+  id              String   @id @default(uuid())
+  campaignId      String   @unique @map("campaign_id") // Podscribe campaign internal ID
+  name            String   // Campaign name
+  publisher       String   // e.g. "YAP Media", "Vox Media"
+  show            String   // Show name
+  type            String?  // "baked-in" or "dai"
+  tags            String?
+  startDate       String?  @map("start_date")
+  expectedDate    String?  @map("expected_date")
+  endDate         String?  @map("end_date")
+  totalSpend      Float    @default(0) @map("total_spend") // Accumulated from daily data
+  totalImpressions Int     @default(0) @map("total_impressions")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  dailyStats PodscribeCampaignDaily[]
+
+  @@map("podscribe_campaigns")
+}
+
+model PodscribeCampaignDaily {
+  id              String  @id @default(uuid())
+  campaignId      String  @map("campaign_id")
+  date            String  // YYYY-MM-DD
+  impressions     Int     @default(0) // Podcast & Streaming Impressions
+  reach           Int     @default(0)
+  spend           Float   @default(0)
+  visitors        Float   @default(0)
+  visits          Float   @default(0)
+
+  campaign PodscribeCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, date])
+  @@index([date])
+  @@map("podscribe_campaign_daily")
+}
+
+// ---------------------------------------------------------------------------
+// UGC / Growi
+// ---------------------------------------------------------------------------
+
+// Daily snapshot from Growi API (aggregated across all creators)
+model GrowiDailySnapshot {
+  id          String   @id @default(uuid())
+  date        String   @unique // YYYY-MM-DD
+  views       Int      @default(0)
+  likes       Int      @default(0)
+  comments    Int      @default(0)
+  shares      Int      @default(0)
+  saves       Int      @default(0)
+  postsCount  Int      @default(0) @map("posts_count")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([date])
+  @@map("growi_daily_snapshots")
 }

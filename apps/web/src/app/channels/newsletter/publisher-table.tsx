@@ -219,6 +219,50 @@ export function PublisherTable({ publishers }: { publishers: PublisherRow[] }) {
             </tr>
           ))}
         </tbody>
+        <tfoot className="border-t-2 border-gray-300 dark:border-gray-600 font-semibold bg-gray-50 dark:bg-gray-900">
+          {(() => {
+            const totSends = publishers.reduce((s, p) => s + p.activityCount, 0);
+            const totClicks = publishers.reduce((s, p) => s + p.totalClicks, 0);
+            const totSpend = publishers.reduce((s, p) => s + p.totalSpend, 0);
+            const totIS = publishers.reduce((s, p) => s + p.incrementalSignups, 0);
+            const totUbIS = publishers.reduce((s, p) => s + p.ubIncrSignups, 0);
+            const totIN = publishers.reduce((s, p) => s + p.incrementalActivations, 0);
+            const totUbIN = publishers.reduce((s, p) => s + p.ubIncrActivations, 0);
+            const totINA = publishers.reduce((s, p) => s + p.incrementalActivationsAllDevices, 0);
+            const totUbINA = publishers.reduce((s, p) => s + p.ubIncrActivationsAll, 0);
+            const loIN = Math.min(totIN, totUbIN);
+            const hiIN = Math.max(totIN, totUbIN);
+            return (
+              <tr>
+                <td className="px-3 py-2 text-left">Total</td>
+                <td className="px-3 py-2 text-right font-mono">{totSends}</td>
+                <td className="px-3 py-2 text-right font-mono">{totClicks.toLocaleString()}</td>
+                <td className="px-3 py-2 text-right font-mono">{fmtCurrency(totSpend)}</td>
+                <td className="px-3 py-2 text-right font-mono">{totClicks > 0 ? fmtCurrency(totSpend / totClicks) : "—"}</td>
+                <td className="px-3 py-2 text-right font-mono whitespace-nowrap">
+                  {Math.round(Math.min(totIS, totUbIS)).toLocaleString()}
+                  <span className="text-gray-400"> – </span>
+                  {Math.round(Math.max(totIS, totUbIS)).toLocaleString()}
+                </td>
+                <td className="px-3 py-2 text-right font-mono whitespace-nowrap">
+                  {Math.round(loIN).toLocaleString()}
+                  <span className="text-gray-400"> – </span>
+                  {Math.round(hiIN).toLocaleString()}
+                </td>
+                <td className="px-3 py-2 text-right font-mono whitespace-nowrap">
+                  {Math.round(Math.min(totINA, totUbINA)).toLocaleString()}
+                  <span className="text-gray-400"> – </span>
+                  {Math.round(Math.max(totINA, totUbINA)).toLocaleString()}
+                </td>
+                <td className="px-3 py-2 text-right font-mono whitespace-nowrap">
+                  {hiIN > 0 ? fmtCurrency(totSpend / hiIN) : "—"}
+                  <span className="text-gray-400"> – </span>
+                  {loIN > 0 ? fmtCurrency(totSpend / loIN) : "—"}
+                </td>
+              </tr>
+            );
+          })()}
+        </tfoot>
       </table>
     </div>
   );
