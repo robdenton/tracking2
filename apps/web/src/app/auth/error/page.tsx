@@ -8,10 +8,10 @@ export default function AuthErrorPage({
   const error = searchParams.error;
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50">
-      <div className="w-full max-w-md space-y-8 rounded-lg bg-white p-8 shadow-lg">
+    <div className="flex min-h-screen items-center justify-center bg-surface-sunken">
+      <div className="w-full max-w-md space-y-8 rounded-lg bg-surface p-8 shadow-lg">
         <div>
-          <h2 className="text-center text-3xl font-bold tracking-tight text-gray-900">
+          <h2 className="text-center text-3xl font-bold tracking-tight text-text-primary">
             Authentication Error
           </h2>
           <div className="mt-4 rounded-md bg-red-50 p-4">
@@ -24,7 +24,7 @@ export default function AuthErrorPage({
         </div>
         <Link
           href="/auth/signin"
-          className="flex w-full justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500"
+          className="flex w-full justify-center rounded-md bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent"
         >
           Try Again
         </Link>

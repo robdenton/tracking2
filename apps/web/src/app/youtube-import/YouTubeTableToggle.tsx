@@ -44,13 +44,13 @@ export function YouTubeTableToggle({
         <h2 className="text-lg font-semibold">
           {view === "channels" ? "Channels" : "Videos"}
         </h2>
-        <div className="flex rounded-md border border-gray-200 dark:border-gray-700 text-xs overflow-hidden">
+        <div className="flex rounded-full border border-border text-[12px] overflow-hidden">
           <button
             onClick={() => setView("channels")}
             className={`px-3 py-1.5 transition-colors ${
               view === "channels"
-                ? "bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900"
-                : "text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
+                ? "bg-accent-light text-accent-strong"
+                : "text-text-secondary hover:bg-surface-sunken"
             }`}
           >
             Channels
@@ -59,8 +59,8 @@ export function YouTubeTableToggle({
             onClick={() => setView("videos")}
             className={`px-3 py-1.5 transition-colors ${
               view === "videos"
-                ? "bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900"
-                : "text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
+                ? "bg-accent-light text-accent-strong"
+                : "text-text-secondary hover:bg-surface-sunken"
             }`}
           >
             Videos

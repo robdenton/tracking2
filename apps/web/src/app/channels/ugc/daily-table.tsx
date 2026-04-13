@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useState } from "react";
+import { formatDisplayDate } from "../../format";
 
 interface DayRow {
   date: string;
@@ -11,7 +12,17 @@ interface DayRow {
   saves: number;
   postsCount: number;
   tiktokPosts: number;
+  tiktokViews: number;
+  tiktokLikes: number;
+  tiktokComments: number;
+  tiktokShares: number;
+  tiktokSaves: number;
   instagramPosts: number;
+  instagramViews: number;
+  instagramLikes: number;
+  instagramComments: number;
+  instagramShares: number;
+  instagramSaves: number;
 }
 
 function fmtNum(n: number): string {
@@ -42,17 +53,17 @@ export function UGCDailyTable({ days }: { days: DayRow[] }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
-        <thead className="border-b border-gray-200 dark:border-gray-700">
+        <thead className="border-b border-border-light">
           <tr>
             <th className="w-6 px-1" />
-            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Date</th>
-            <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">Views</th>
-            <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">Likes</th>
-            <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">Comments</th>
-            <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">Shares</th>
-            <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">Saves</th>
-            <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">Posts</th>
-            <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">Eng. Rate</th>
+            <th className="px-3 py-2 text-left text-[11px] font-medium text-text-muted">Date</th>
+            <th className="px-3 py-2 text-right text-[11px] font-medium text-text-muted">Views</th>
+            <th className="px-3 py-2 text-right text-[11px] font-medium text-text-muted">Likes</th>
+            <th className="px-3 py-2 text-right text-[11px] font-medium text-text-muted">Comments</th>
+            <th className="px-3 py-2 text-right text-[11px] font-medium text-text-muted">Shares</th>
+            <th className="px-3 py-2 text-right text-[11px] font-medium text-text-muted">Saves</th>
+            <th className="px-3 py-2 text-right text-[11px] font-medium text-text-muted">Posts</th>
+            <th className="px-3 py-2 text-right text-[11px] font-medium text-text-muted">Eng. Rate</th>
           </tr>
         </thead>
         <tbody>
@@ -68,15 +79,15 @@ export function UGCDailyTable({ days }: { days: DayRow[] }) {
               return (
                 <Fragment key={d.date}>
                   <tr
-                    className={`border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900 ${hasPlatformData ? "cursor-pointer" : ""}`}
+                    className={`border-b border-border-light hover:bg-surface-sunken ${hasPlatformData ? "cursor-pointer" : ""}`}
                     onClick={hasPlatformData ? () => toggle(d.date) : undefined}
                   >
-                    <td className="px-1 text-center text-gray-400">
+                    <td className="px-1 text-center text-text-muted">
                       {hasPlatformData && (
                         <span className="text-xs">{isExpanded ? "▼" : "▶"}</span>
                       )}
                     </td>
-                    <td className="px-3 py-2 font-mono">{d.date}</td>
+                    <td className="px-3 py-2 font-mono">{formatDisplayDate(d.date)}</td>
                     <td className="px-3 py-2 text-right font-mono">{fmtNum(d.views)}</td>
                     <td className="px-3 py-2 text-right font-mono">{fmtNum(d.likes)}</td>
                     <td className="px-3 py-2 text-right font-mono">{fmtNum(d.comments)}</td>
@@ -87,39 +98,55 @@ export function UGCDailyTable({ days }: { days: DayRow[] }) {
                   </tr>
                   {isExpanded && (
                     <>
-                      {d.tiktokPosts > 0 && (
-                        <tr className="bg-gray-50/50 dark:bg-gray-900/50 border-b border-gray-50 dark:border-gray-800">
-                          <td />
-                          <td className="px-3 py-1.5 pl-8 text-xs text-gray-500">
-                            <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-medium bg-gray-900 text-white dark:bg-white dark:text-gray-900">
-                              TikTok
-                            </span>
-                          </td>
-                          <td className="px-3 py-1.5 text-right font-mono text-xs text-gray-500" colSpan={5}>—</td>
-                          <td className="px-3 py-1.5 text-right font-mono text-xs text-gray-500">{d.tiktokPosts}</td>
-                          <td />
-                        </tr>
-                      )}
-                      {d.instagramPosts > 0 && (
-                        <tr className="bg-gray-50/50 dark:bg-gray-900/50 border-b border-gray-50 dark:border-gray-800">
-                          <td />
-                          <td className="px-3 py-1.5 pl-8 text-xs text-gray-500">
-                            <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-medium bg-gradient-to-r from-purple-500 to-pink-500 text-white">
-                              Instagram
-                            </span>
-                          </td>
-                          <td className="px-3 py-1.5 text-right font-mono text-xs text-gray-500" colSpan={5}>—</td>
-                          <td className="px-3 py-1.5 text-right font-mono text-xs text-gray-500">{d.instagramPosts}</td>
-                          <td />
-                        </tr>
-                      )}
+                      {(d.tiktokPosts > 0 || d.tiktokViews > 0) && (() => {
+                        const eng = d.tiktokLikes + d.tiktokComments + d.tiktokShares + d.tiktokSaves;
+                        const tkRate = d.tiktokViews > 0 ? (eng / d.tiktokViews) * 100 : 0;
+                        return (
+                          <tr className="bg-surface-sunken/50 border-b border-border-light ">
+                            <td />
+                            <td className="px-3 py-1.5 pl-8 text-xs text-text-secondary">
+                              <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-medium bg-accent-light text-accent-strong">
+                                TikTok
+                              </span>
+                            </td>
+                            <td className="px-3 py-1.5 text-right font-mono text-xs text-text-secondary">{fmtNum(d.tiktokViews)}</td>
+                            <td className="px-3 py-1.5 text-right font-mono text-xs text-text-secondary">{fmtNum(d.tiktokLikes)}</td>
+                            <td className="px-3 py-1.5 text-right font-mono text-xs text-text-secondary">{fmtNum(d.tiktokComments)}</td>
+                            <td className="px-3 py-1.5 text-right font-mono text-xs text-text-secondary">{fmtNum(d.tiktokShares)}</td>
+                            <td className="px-3 py-1.5 text-right font-mono text-xs text-text-secondary">{fmtNum(d.tiktokSaves)}</td>
+                            <td className="px-3 py-1.5 text-right font-mono text-xs text-text-secondary">{d.tiktokPosts}</td>
+                            <td className="px-3 py-1.5 text-right font-mono text-xs text-text-secondary">{tkRate.toFixed(1)}%</td>
+                          </tr>
+                        );
+                      })()}
+                      {(d.instagramPosts > 0 || d.instagramViews > 0) && (() => {
+                        const eng = d.instagramLikes + d.instagramComments + d.instagramShares + d.instagramSaves;
+                        const igRate = d.instagramViews > 0 ? (eng / d.instagramViews) * 100 : 0;
+                        return (
+                          <tr className="bg-surface-sunken/50 border-b border-border-light ">
+                            <td />
+                            <td className="px-3 py-1.5 pl-8 text-xs text-text-secondary">
+                              <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-medium bg-gradient-to-r from-purple-500 to-pink-500 text-white">
+                                Instagram
+                              </span>
+                            </td>
+                            <td className="px-3 py-1.5 text-right font-mono text-xs text-text-secondary">{fmtNum(d.instagramViews)}</td>
+                            <td className="px-3 py-1.5 text-right font-mono text-xs text-text-secondary">{fmtNum(d.instagramLikes)}</td>
+                            <td className="px-3 py-1.5 text-right font-mono text-xs text-text-secondary">{fmtNum(d.instagramComments)}</td>
+                            <td className="px-3 py-1.5 text-right font-mono text-xs text-text-secondary">{fmtNum(d.instagramShares)}</td>
+                            <td className="px-3 py-1.5 text-right font-mono text-xs text-text-secondary">{fmtNum(d.instagramSaves)}</td>
+                            <td className="px-3 py-1.5 text-right font-mono text-xs text-text-secondary">{d.instagramPosts}</td>
+                            <td className="px-3 py-1.5 text-right font-mono text-xs text-text-secondary">{igRate.toFixed(1)}%</td>
+                          </tr>
+                        );
+                      })()}
                     </>
                   )}
                 </Fragment>
               );
             })}
         </tbody>
-        <tfoot className="border-t-2 border-gray-300 dark:border-gray-600 font-semibold bg-gray-50 dark:bg-gray-900">
+        <tfoot className="border-t-2 border-border  font-semibold bg-surface-sunken">
           <tr>
             <td />
             <td className="px-3 py-2 text-left">Total</td>

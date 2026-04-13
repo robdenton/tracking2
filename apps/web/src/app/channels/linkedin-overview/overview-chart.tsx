@@ -2,6 +2,7 @@
 
 import {
   ComposedChart,
+  CartesianGrid,
   Line,
   Bar,
   XAxis,
@@ -89,74 +90,77 @@ export function OverviewChart({ data, baseline }: Props) {
   };
 
   return (
-    <ResponsiveContainer width="100%" height={400}>
-      <ComposedChart data={chartData}>
-        <XAxis dataKey="week" tick={{ fontSize: 11 }} />
-        <YAxis yAxisId="nau" tick={{ fontSize: 11 }} />
-        <YAxis
-          yAxisId="imp"
-          orientation="right"
-          tick={{ fontSize: 11 }}
-          label={{
-            value: "Impressions (k)",
-            angle: 90,
-            position: "insideRight",
-            style: { fontSize: 10, fill: "#999" },
-          }}
-        />
-        <Tooltip
-          formatter={(value, name) => {
-            const v = Number(value ?? 0);
-            const n = String(name);
-            if (n === "adImp" || n === "empImp" || n === "infImp")
-              return [v.toLocaleString() + "k", labelMap[n] ?? n];
-            return [v.toLocaleString(), labelMap[n] ?? n];
-          }}
-        />
-        <Legend formatter={(value) => labelMap[String(value)] ?? value} />
-        <Bar
-          yAxisId="imp"
-          dataKey="adImp"
-          fill="#15803d"
-          opacity={0.85}
-          name="adImp"
-          stackId="imp"
-        />
-        <Bar
-          yAxisId="imp"
-          dataKey="empImp"
-          fill="#22c55e"
-          opacity={0.85}
-          name="empImp"
-          stackId="imp"
-        />
-        <Bar
-          yAxisId="imp"
-          dataKey="infImp"
-          fill="#86efac"
-          opacity={0.9}
-          name="infImp"
-          stackId="imp"
-        />
-        <Line
-          yAxisId="nau"
-          type="monotone"
-          dataKey="baseline"
-          stroke="#d1d5db"
-          strokeDasharray="5 5"
-          dot={false}
-          name="baseline"
-        />
-        <Line
-          yAxisId="nau"
-          type="monotone"
-          dataKey="nau"
-          stroke="#2563eb"
-          strokeWidth={2}
-          dot={false}
-          name="nau"
-        />
-      </ComposedChart>
-    </ResponsiveContainer>
+    <div className="bg-surface border border-border-light rounded-lg p-5">
+      <ResponsiveContainer width="100%" height={400}>
+        <ComposedChart data={chartData}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#EAEBE5" />
+          <XAxis dataKey="week" tick={{ fontSize: 11, fill: "#9E9E9A" }} />
+          <YAxis yAxisId="nau" tick={{ fontSize: 11, fill: "#9E9E9A" }} />
+          <YAxis
+            yAxisId="imp"
+            orientation="right"
+            tick={{ fontSize: 11, fill: "#9E9E9A" }}
+            label={{
+              value: "Impressions (k)",
+              angle: 90,
+              position: "insideRight",
+              style: { fontSize: 10, fill: "#9E9E9A" },
+            }}
+          />
+          <Tooltip
+            formatter={(value, name) => {
+              const v = Number(value ?? 0);
+              const n = String(name);
+              if (n === "adImp" || n === "empImp" || n === "infImp")
+                return [v.toLocaleString() + "k", labelMap[n] ?? n];
+              return [v.toLocaleString(), labelMap[n] ?? n];
+            }}
+          />
+          <Legend formatter={(value) => labelMap[String(value)] ?? value} />
+          <Bar
+            yAxisId="imp"
+            dataKey="adImp"
+            fill="#788C16"
+            opacity={0.5}
+            name="adImp"
+            stackId="imp"
+          />
+          <Bar
+            yAxisId="imp"
+            dataKey="empImp"
+            fill="#B85C38"
+            opacity={0.5}
+            name="empImp"
+            stackId="imp"
+          />
+          <Bar
+            yAxisId="imp"
+            dataKey="infImp"
+            fill="#C4960C"
+            opacity={0.5}
+            name="infImp"
+            stackId="imp"
+          />
+          <Line
+            yAxisId="nau"
+            type="monotone"
+            dataKey="baseline"
+            stroke="#5B7B8A"
+            strokeDasharray="5 5"
+            dot={false}
+            name="baseline"
+          />
+          <Line
+            yAxisId="nau"
+            type="monotone"
+            dataKey="nau"
+            stroke="#788C16"
+            strokeWidth={2}
+            dot={false}
+            name="nau"
+          />
+        </ComposedChart>
+      </ResponsiveContainer>
+    </div>
   );
 }

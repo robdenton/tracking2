@@ -91,11 +91,11 @@ export function ConnectLinkedInButton({
         <button
           onClick={handleConnect}
           disabled={loading}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-4 py-2 bg-accent-light text-accent-strong rounded-md text-sm font-medium hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? "Connecting..." : "Connect LinkedIn"}
         </button>
-        {error && <p className="text-xs text-red-500">{error}</p>}
+        {error && <p className="text-xs text-[#B85C38]">{error}</p>}
       </div>
     );
   }
@@ -107,14 +107,14 @@ export function ConnectLinkedInButton({
         <button
           onClick={handleConnect}
           disabled={loading}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-4 py-2 bg-accent-light text-accent-strong rounded-md text-sm font-medium hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? "Connecting..." : "Connect LinkedIn"}
         </button>
-        <p className="text-xs text-yellow-600 dark:text-yellow-400">
+        <p className="text-xs text-[#92400E]">
           Connection in progress... complete the LinkedIn login to finish.
         </p>
-        {error && <p className="text-xs text-red-500">{error}</p>}
+        {error && <p className="text-xs text-[#B85C38]">{error}</p>}
       </div>
     );
   }
@@ -122,9 +122,9 @@ export function ConnectLinkedInButton({
   // Connected — show status panel
   return (
     <div className="flex items-center gap-4">
-      <div className="text-right text-xs text-gray-500 space-y-0.5">
+      <div className="text-right text-xs text-text-secondary space-y-0.5">
         <div>
-          <span className="font-medium text-gray-700 dark:text-gray-300">
+          <span className="font-medium text-text-primary">
             {account.linkedinName ?? "LinkedIn"}
           </span>
           {" · "}
@@ -133,7 +133,7 @@ export function ConnectLinkedInButton({
         <div>
           Last sync: {formatDate(account.lastSyncAt)}
           {account.lastSyncError && (
-            <span className="text-red-500 ml-1" title={account.lastSyncError}>
+            <span className="text-[#B85C38] ml-1" title={account.lastSyncError}>
               (error)
             </span>
           )}
@@ -142,21 +142,21 @@ export function ConnectLinkedInButton({
       <button
         onClick={handleSync}
         disabled={syncing}
-        className="px-3 py-1.5 text-xs font-medium rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800 disabled:opacity-50"
+        className="px-3 py-1.5 text-xs font-medium rounded-md border border-border text-text-primary hover:bg-surface-sunken 800 disabled:opacity-50"
       >
         {syncing ? "Syncing..." : "Sync Now"}
       </button>
       <button
         onClick={handleDisconnect}
         disabled={loading}
-        className="px-3 py-1.5 text-xs text-gray-400 hover:text-red-600 dark:hover:text-red-400 disabled:opacity-50"
+        className="px-3 py-1.5 text-xs text-text-muted hover:text-[#B85C38]400 disabled:opacity-50"
       >
         Disconnect
       </button>
       {syncResult && (
-        <span className="text-xs text-green-600">{syncResult}</span>
+        <span className="text-xs text-accent-strong">{syncResult}</span>
       )}
-      {error && <span className="text-xs text-red-500">{error}</span>}
+      {error && <span className="text-xs text-[#B85C38]">{error}</span>}
     </div>
   );
 }

@@ -49,7 +49,7 @@ function SortHeader({
   const active = key === currentKey;
   return (
     <th
-      className={`px-3 py-2 text-xs font-medium text-gray-500 cursor-pointer hover:text-gray-900 dark:hover:text-gray-200 select-none whitespace-nowrap ${
+      className={`px-3 py-2 text-xs font-medium text-text-secondary cursor-pointer hover:text-text-primary select-none whitespace-nowrap ${
         align === "left" ? "text-left" : "text-right"
       }`}
       onClick={() => onSort(key)}
@@ -104,13 +104,13 @@ export function PublisherTable({ publishers }: { publishers: PublisherRow[] }) {
       : "$" + Math.round(n).toLocaleString();
 
   if (publishers.length === 0) {
-    return <p className="text-sm text-gray-500">No publisher data available.</p>;
+    return <p className="text-sm text-text-secondary">No publisher data available.</p>;
   }
 
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
-        <thead className="border-b border-gray-200 dark:border-gray-700">
+        <thead className="border-b border-border-light">
           <tr>
             <SortHeader
               label="Publisher"
@@ -182,12 +182,12 @@ export function PublisherTable({ publishers }: { publishers: PublisherRow[] }) {
           {sorted.map((pub) => (
             <tr
               key={pub.partnerName}
-              className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900"
+              className="border-b border-border-light hover:bg-surface-sunken"
             >
               <td className="px-3 py-2 text-left font-medium max-w-[250px] truncate">
                 <Link
                   href={`/partners/${encodeURIComponent(pub.partnerName)}`}
-                  className="text-blue-600 dark:text-blue-400 hover:underline"
+                  className="text-accent-strong hover:underline"
                 >
                   {pub.partnerName}
                 </Link>
@@ -198,28 +198,28 @@ export function PublisherTable({ publishers }: { publishers: PublisherRow[] }) {
               <td className="px-3 py-2 text-right font-mono">{fmtCurrency(pub.cpc)}</td>
               <td className="px-3 py-2 text-right font-mono whitespace-nowrap">
                 {Math.round(Math.min(pub.incrementalSignups, pub.ubIncrSignups)).toLocaleString()}
-                <span className="text-gray-400"> – </span>
+                <span className="text-text-muted"> – </span>
                 {Math.round(Math.max(pub.incrementalSignups, pub.ubIncrSignups)).toLocaleString()}
               </td>
               <td className="px-3 py-2 text-right font-mono whitespace-nowrap">
                 {Math.round(Math.min(pub.incrementalActivations, pub.ubIncrActivations)).toLocaleString()}
-                <span className="text-gray-400"> – </span>
+                <span className="text-text-muted"> – </span>
                 {Math.round(Math.max(pub.incrementalActivations, pub.ubIncrActivations)).toLocaleString()}
               </td>
               <td className="px-3 py-2 text-right font-mono whitespace-nowrap">
                 {Math.round(Math.min(pub.incrementalActivationsAllDevices, pub.ubIncrActivationsAll)).toLocaleString()}
-                <span className="text-gray-400"> – </span>
+                <span className="text-text-muted"> – </span>
                 {Math.round(Math.max(pub.incrementalActivationsAllDevices, pub.ubIncrActivationsAll)).toLocaleString()}
               </td>
               <td className="px-3 py-2 text-right font-mono whitespace-nowrap">
                 {pub.ubIncrActivations > 0 ? fmtCurrency(pub.totalSpend / Math.max(pub.incrementalActivations, pub.ubIncrActivations)) : "—"}
-                <span className="text-gray-400"> – </span>
+                <span className="text-text-muted"> – </span>
                 {pub.incrementalActivations > 0 ? fmtCurrency(pub.totalSpend / Math.min(pub.incrementalActivations, pub.ubIncrActivations || pub.incrementalActivations)) : "—"}
               </td>
             </tr>
           ))}
         </tbody>
-        <tfoot className="border-t-2 border-gray-300 dark:border-gray-600 font-semibold bg-gray-50 dark:bg-gray-900">
+        <tfoot className="border-t-2 border-border  font-semibold bg-surface-sunken">
           {(() => {
             const totSends = publishers.reduce((s, p) => s + p.activityCount, 0);
             const totClicks = publishers.reduce((s, p) => s + p.totalClicks, 0);
@@ -241,22 +241,22 @@ export function PublisherTable({ publishers }: { publishers: PublisherRow[] }) {
                 <td className="px-3 py-2 text-right font-mono">{totClicks > 0 ? fmtCurrency(totSpend / totClicks) : "—"}</td>
                 <td className="px-3 py-2 text-right font-mono whitespace-nowrap">
                   {Math.round(Math.min(totIS, totUbIS)).toLocaleString()}
-                  <span className="text-gray-400"> – </span>
+                  <span className="text-text-muted"> – </span>
                   {Math.round(Math.max(totIS, totUbIS)).toLocaleString()}
                 </td>
                 <td className="px-3 py-2 text-right font-mono whitespace-nowrap">
                   {Math.round(loIN).toLocaleString()}
-                  <span className="text-gray-400"> – </span>
+                  <span className="text-text-muted"> – </span>
                   {Math.round(hiIN).toLocaleString()}
                 </td>
                 <td className="px-3 py-2 text-right font-mono whitespace-nowrap">
                   {Math.round(Math.min(totINA, totUbINA)).toLocaleString()}
-                  <span className="text-gray-400"> – </span>
+                  <span className="text-text-muted"> – </span>
                   {Math.round(Math.max(totINA, totUbINA)).toLocaleString()}
                 </td>
                 <td className="px-3 py-2 text-right font-mono whitespace-nowrap">
                   {hiIN > 0 ? fmtCurrency(totSpend / hiIN) : "—"}
-                  <span className="text-gray-400"> – </span>
+                  <span className="text-text-muted"> – </span>
                   {loIN > 0 ? fmtCurrency(totSpend / loIN) : "—"}
                 </td>
               </tr>

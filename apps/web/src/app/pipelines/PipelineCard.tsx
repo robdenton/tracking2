@@ -60,27 +60,27 @@ function formatResultSummary(taskName: string, resultJson: string | null): strin
 function StatusBadge({ status }: { status: string }) {
   if (status === "success") {
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-accent-light text-accent-strong">
         ✓ Success
       </span>
     );
   }
   if (status === "error") {
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-[#FDE8E8] text-[#B85C38]">
         ✗ Error
       </span>
     );
   }
   if (status === "running") {
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-accent-light text-accent-strong">
         ⟳ Running
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-surface-sunken text-text-secondary">
       {status}
     </span>
   );
@@ -136,66 +136,66 @@ export function PipelineCard({ pipeline }: PipelineCardProps) {
     : null;
 
   return (
-    <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-5 flex flex-col gap-3">
+    <div className="border border-border-light rounded-lg p-5 flex flex-col gap-3">
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 className="font-semibold text-sm">{config.label}</h2>
-          <p className="text-xs text-gray-500 mt-0.5">{config.description}</p>
+          <p className="text-xs text-text-secondary mt-0.5">{config.description}</p>
         </div>
         <button
           onClick={handleTrigger}
           disabled={isRunning}
           className={`shrink-0 text-xs px-3 py-1.5 rounded font-medium transition-colors ${
             isRunning
-              ? "bg-gray-100 dark:bg-gray-800 text-gray-400 cursor-not-allowed"
-              : "bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:bg-gray-700 dark:hover:bg-gray-300"
+              ? "bg-surface-sunken text-text-muted cursor-not-allowed"
+              : "bg-accent-light text-accent-strong"
           }`}
         >
           {isRunning ? "Running…" : "Run now"}
         </button>
       </div>
 
-      <hr className="border-gray-100 dark:border-gray-800" />
+      <hr className="border-border-light" />
 
       {/* Last run */}
       <div>
-        <div className="text-xs text-gray-500 mb-1">Last run</div>
+        <div className="text-xs text-text-secondary mb-1">Last run</div>
         {displayLastRun ? (
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-2 flex-wrap">
               <StatusBadge status={displayLastRun.status} />
               {"time" in displayLastRun && displayLastRun.time && (
-                <span className="text-xs text-gray-500">
+                <span className="text-xs text-text-secondary">
                   {formatRelativeTime(displayLastRun.time)}
                 </span>
               )}
               {runResult && (
-                <span className="text-xs text-gray-500">just now</span>
+                <span className="text-xs text-text-secondary">just now</span>
               )}
             </div>
             {displayLastRun.summary && (
-              <p className="text-xs font-mono text-gray-600 dark:text-gray-400">
+              <p className="text-xs font-mono text-text-secondary">
                 {displayLastRun.summary}
               </p>
             )}
             {displayLastRun.errorMessage && (
-              <p className="text-xs text-red-600 dark:text-red-400">
+              <p className="text-xs text-[#B85C38]">
                 {displayLastRun.errorMessage}
               </p>
             )}
           </div>
         ) : (
-          <p className="text-xs text-gray-400">No runs yet</p>
+          <p className="text-xs text-text-muted">No runs yet</p>
         )}
       </div>
 
       {/* Next scheduled */}
       <div>
-        <div className="text-xs text-gray-500 mb-1">Next scheduled</div>
-        <p className="text-xs font-mono text-gray-700 dark:text-gray-300">
+        <div className="text-xs text-text-secondary mb-1">Next scheduled</div>
+        <p className="text-xs font-mono text-text-primary">
           {formatUTCTime(config.scheduleHour, config.scheduleMinute)}
-          <span className="text-gray-400 ml-2">· {formatTimeUntil(nextRun)}</span>
+          <span className="text-text-muted ml-2">· {formatTimeUntil(nextRun)}</span>
         </p>
       </div>
     </div>

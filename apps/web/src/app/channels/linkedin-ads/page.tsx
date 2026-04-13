@@ -54,7 +54,7 @@ export default async function LinkedInAdsPage({
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold">LinkedIn Ads</h1>
-            <p className="text-sm text-gray-500 mt-1">
+            <p className="text-sm text-text-secondary mt-1">
               Track ad campaign performance from LinkedIn Marketing API
             </p>
           </div>
@@ -65,7 +65,7 @@ export default async function LinkedInAdsPage({
           <h2 className="text-lg font-semibold mb-2">
             Connect LinkedIn Ads
           </h2>
-          <p className="text-sm text-gray-500 mb-6 max-w-md mx-auto">
+          <p className="text-sm text-text-secondary mb-6 max-w-md mx-auto">
             Connect your LinkedIn Ads account to start tracking campaign
             performance, spend, impressions, and clicks.
           </p>
@@ -98,7 +98,7 @@ export default async function LinkedInAdsPage({
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold">LinkedIn Ads</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-sm text-text-secondary mt-1">
             Campaign performance from LinkedIn Marketing API
           </p>
         </div>
@@ -119,49 +119,49 @@ export default async function LinkedInAdsPage({
       />
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-6">
-        <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-4">
-          <div className="text-xs text-gray-500 mb-1">Total Spend</div>
-          <div className="text-2xl font-mono font-semibold">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
+        <div className="stat-card bg-surface border border-border-light rounded-lg p-4">
+          <div className="text-[11px] font-medium text-text-muted uppercase tracking-wider mb-1.5">Total Spend</div>
+          <div className="text-2xl font-display font-semibold text-text-primary tracking-tight">
             ${totals.totalSpend.toLocaleString(undefined, {
               minimumFractionDigits: 2,
               maximumFractionDigits: 2,
             })}
           </div>
         </div>
-        <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-4">
-          <div className="text-xs text-gray-500 mb-1">Impressions</div>
-          <div className="text-2xl font-mono font-semibold">
+        <div className="stat-card bg-surface border border-border-light rounded-lg p-4">
+          <div className="text-[11px] font-medium text-text-muted uppercase tracking-wider mb-1.5">Impressions</div>
+          <div className="text-2xl font-display font-semibold text-text-primary tracking-tight">
             {totals.totalImpressions.toLocaleString()}
           </div>
         </div>
-        <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-4">
-          <div className="text-xs text-gray-500 mb-1">Clicks</div>
-          <div className="text-2xl font-mono font-semibold">
+        <div className="stat-card bg-surface border border-border-light rounded-lg p-4">
+          <div className="text-[11px] font-medium text-text-muted uppercase tracking-wider mb-1.5">Clicks</div>
+          <div className="text-2xl font-display font-semibold text-text-primary tracking-tight">
             {totals.totalClicks.toLocaleString()}
           </div>
         </div>
-        <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-4">
-          <div className="text-xs text-gray-500 mb-1">CTR</div>
-          <div className="text-2xl font-mono font-semibold">
+        <div className="stat-card bg-surface border border-border-light rounded-lg p-4">
+          <div className="text-[11px] font-medium text-text-muted uppercase tracking-wider mb-1.5">CTR</div>
+          <div className="text-2xl font-display font-semibold text-text-primary tracking-tight">
             {(totals.ctr * 100).toFixed(2)}%
           </div>
         </div>
-        <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-4">
-          <div className="text-xs text-gray-500 mb-1">CPC</div>
-          <div className="text-2xl font-mono font-semibold">
+        <div className="stat-card bg-surface border border-border-light rounded-lg p-4">
+          <div className="text-[11px] font-medium text-text-muted uppercase tracking-wider mb-1.5">CPC</div>
+          <div className="text-2xl font-display font-semibold text-text-primary tracking-tight">
             ${totals.cpc.toFixed(2)}
           </div>
         </div>
-        <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-4">
-          <div className="text-xs text-gray-500 mb-1">CPM</div>
-          <div className="text-2xl font-mono font-semibold">
+        <div className="stat-card bg-surface border border-border-light rounded-lg p-4">
+          <div className="text-[11px] font-medium text-text-muted uppercase tracking-wider mb-1.5">CPM</div>
+          <div className="text-2xl font-display font-semibold text-text-primary tracking-tight">
             ${totals.cpm.toFixed(2)}
           </div>
         </div>
-        <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-4">
-          <div className="text-xs text-gray-500 mb-1">Conversions</div>
-          <div className="text-2xl font-mono font-semibold">
+        <div className="stat-card bg-surface border border-border-light rounded-lg p-4">
+          <div className="text-[11px] font-medium text-text-muted uppercase tracking-wider mb-1.5">Conversions</div>
+          <div className="text-2xl font-display font-semibold text-text-primary tracking-tight">
             {totals.totalConversions.toLocaleString()}
           </div>
         </div>
@@ -186,7 +186,7 @@ export default async function LinkedInAdsPage({
       {creativeStats.length > 0 && (
         <div className="mb-8">
           <h2 className="text-lg font-semibold mb-1">Creative Performance</h2>
-          <p className="text-xs text-gray-500 mb-3">
+          <p className="text-xs text-text-secondary mb-3">
             Assets used across multiple campaigns are grouped together. Click to
             expand campaign-level breakdown.
           </p>

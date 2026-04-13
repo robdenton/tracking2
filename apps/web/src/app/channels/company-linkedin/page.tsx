@@ -24,40 +24,40 @@ export default async function CompanyLinkedInPage() {
     <div>
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Company LinkedIn</h1>
-        <p className="text-sm text-gray-500 mt-1">
+        <p className="text-sm text-text-secondary mt-1">
           Posts and engagement from the Granola company LinkedIn page
         </p>
       </div>
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
-        <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-4">
-          <div className="text-xs text-gray-500 mb-1">Total Posts (2026)</div>
-          <div className="text-2xl font-mono font-semibold">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+        <div className="stat-card bg-surface border border-border-light rounded-lg p-4">
+          <div className="text-[11px] font-medium text-text-muted uppercase tracking-wider mb-1.5">Total Posts (2026)</div>
+          <div className="text-2xl font-display font-semibold text-text-primary tracking-tight">
             {totals.totalPosts}
           </div>
         </div>
-        <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-4">
-          <div className="text-xs text-gray-500 mb-1">Total Engagement</div>
-          <div className="text-2xl font-mono font-semibold">
+        <div className="stat-card bg-surface border border-border-light rounded-lg p-4">
+          <div className="text-[11px] font-medium text-text-muted uppercase tracking-wider mb-1.5">Total Engagement</div>
+          <div className="text-2xl font-display font-semibold text-text-primary tracking-tight">
             {totals.totalEngagement.toLocaleString()}
           </div>
         </div>
-        <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-4">
-          <div className="text-xs text-gray-500 mb-1">Reactions</div>
-          <div className="text-2xl font-mono font-semibold">
+        <div className="stat-card bg-surface border border-border-light rounded-lg p-4">
+          <div className="text-[11px] font-medium text-text-muted uppercase tracking-wider mb-1.5">Reactions</div>
+          <div className="text-2xl font-display font-semibold text-text-primary tracking-tight">
             {totals.totalReactions.toLocaleString()}
           </div>
         </div>
-        <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-4">
-          <div className="text-xs text-gray-500 mb-1">Comments</div>
-          <div className="text-2xl font-mono font-semibold">
+        <div className="stat-card bg-surface border border-border-light rounded-lg p-4">
+          <div className="text-[11px] font-medium text-text-muted uppercase tracking-wider mb-1.5">Comments</div>
+          <div className="text-2xl font-display font-semibold text-text-primary tracking-tight">
             {totals.totalComments.toLocaleString()}
           </div>
         </div>
-        <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-4">
-          <div className="text-xs text-gray-500 mb-1">Avg Engagement / Post</div>
-          <div className="text-2xl font-mono font-semibold">
+        <div className="stat-card bg-surface border border-border-light rounded-lg p-4">
+          <div className="text-[11px] font-medium text-text-muted uppercase tracking-wider mb-1.5">Avg Eng. / Post</div>
+          <div className="text-2xl font-display font-semibold text-text-primary tracking-tight">
             {avgEngagementPerPost}
           </div>
         </div>
@@ -82,7 +82,7 @@ export default async function CompanyLinkedInPage() {
       )}
 
       {totals.totalPosts === 0 && (
-        <div className="text-center py-12 text-gray-400">
+        <div className="text-center py-12 text-text-muted">
           <p className="text-lg mb-2">No company posts synced yet</p>
           <p className="text-sm">
             Posts will appear here after the daily sync runs.

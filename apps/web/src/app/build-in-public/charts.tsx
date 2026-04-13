@@ -27,13 +27,13 @@ export function BuildInPublicCharts({
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Impressions (Reach) — Stacked by Employee */}
-      <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-        <h3 className="text-sm font-medium text-gray-500 mb-3">
+      <div className="border border-border-light rounded-lg p-4">
+        <h3 className="text-sm font-medium text-text-secondary mb-3">
           Weekly Impressions (Reach)
         </h3>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+            <CartesianGrid strokeDasharray="3 3" stroke="#EAEBE5" />
             <XAxis dataKey="period" tick={{ fontSize: 11 }} />
             <YAxis tick={{ fontSize: 11 }} />
             <Tooltip />
@@ -52,13 +52,13 @@ export function BuildInPublicCharts({
       </div>
 
       {/* Engagement — Stacked by Employee */}
-      <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-        <h3 className="text-sm font-medium text-gray-500 mb-3">
+      <div className="border border-border-light rounded-lg p-4">
+        <h3 className="text-sm font-medium text-text-secondary mb-3">
           Weekly Engagement
         </h3>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+            <CartesianGrid strokeDasharray="3 3" stroke="#EAEBE5" />
             <XAxis dataKey="period" tick={{ fontSize: 11 }} />
             <YAxis tick={{ fontSize: 11 }} />
             <Tooltip />

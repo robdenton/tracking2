@@ -2,13 +2,13 @@ import { signIn } from "@/lib/auth";
 
 export default function SignInPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50">
-      <div className="w-full max-w-md space-y-8 rounded-lg bg-white p-8 shadow-lg">
+    <div className="flex min-h-screen items-center justify-center bg-surface-sunken">
+      <div className="w-full max-w-md space-y-8 rounded-lg bg-surface p-8 shadow-lg">
         <div>
-          <h2 className="text-center text-3xl font-bold tracking-tight text-gray-900">
+          <h2 className="text-center text-3xl font-bold tracking-tight text-text-primary">
             Marketing Activity Impact
           </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
+          <p className="mt-2 text-center text-sm text-text-secondary">
             Sign in with your Granola account
           </p>
         </div>
@@ -20,7 +20,7 @@ export default function SignInPage() {
         >
           <button
             type="submit"
-            className="flex w-full items-center justify-center gap-3 rounded-md bg-white px-4 py-3 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+            className="flex w-full items-center justify-center gap-3 rounded-md bg-surface px-4 py-3 text-sm font-semibold text-text-primary shadow-sm ring-1 ring-inset ring-border hover:bg-surface-sunken"
           >
             <svg className="h-5 w-5" viewBox="0 0 24 24">
               <path
@@ -43,7 +43,7 @@ export default function SignInPage() {
             Sign in with Google
           </button>
         </form>
-        <p className="text-center text-xs text-gray-500">
+        <p className="text-center text-xs text-text-secondary">
           Only @granola.so email addresses are allowed
         </p>
       </div>

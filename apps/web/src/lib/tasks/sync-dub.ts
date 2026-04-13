@@ -16,7 +16,7 @@ import { prisma } from "../prisma";
 
 const DUB_API_BASE = "https://api.dub.co";
 const CHUNK_DAYS = 30; // keep to ≤30 for daily-bucket granularity
-const RATE_LIMIT_DELAY_MS = 200; // polite pause between per-link API calls
+const RATE_LIMIT_DELAY_MS = 50; // polite pause between per-link API calls
 
 function log(msg: string) {
   const ts = new Date().toISOString().replace("T", " ").slice(0, 19);
@@ -80,24 +80,47 @@ interface DubTimeseriesPoint {
  * Syncs Dub.co click data into dub_link_daily.
  * @param startDate - YYYY-MM-DD to start from. Defaults to 30 days ago.
  */
-export async function syncDubAnalytics(startDate?: string): Promise<{
+export async function syncDubAnalytics(startDate?: string, batchIndex?: number, batchSize?: number): Promise<{
   stored: number;
   errors: number;
+  totalLinks?: number;
+  batchIndex?: number;
 }> {
   const apiKey = process.env.DUB_API_KEY;
   if (!apiKey) throw new Error("DUB_API_KEY environment variable is not set");
 
-  // 1. Discover all links in the workspace
-  log("Fetching links from Dub...");
-  const linksRes = await fetch(`${DUB_API_BASE}/links?limit=100`, {
-    headers: { Authorization: `Bearer ${apiKey}` },
-  });
-  if (!linksRes.ok) {
-    const body = await linksRes.text();
-    throw new Error(`Dub /links returned ${linksRes.status}: ${body}`);
+  // 1. Discover ALL links on go.granola.ai domain (paginated)
+  // This captures both workspace links and partner links in one pass
+  log("Fetching all links from Dub (paginated)...");
+  const linkMap = new Map<string, DubLink>();
+  let page = 1;
+  while (true) {
+    const linksRes = await fetch(
+      `${DUB_API_BASE}/links?domain=go.granola.ai&limit=100&page=${page}`,
+      { headers: { Authorization: `Bearer ${apiKey}` } }
+    );
+    if (!linksRes.ok) {
+      const body = await linksRes.text();
+      throw new Error(`Dub /links page ${page} returned ${linksRes.status}: ${body}`);
+    }
+    const pageLinks: DubLink[] = await linksRes.json();
+    if (!Array.isArray(pageLinks) || pageLinks.length === 0) break;
+    for (const l of pageLinks) linkMap.set(l.id, l);
+    log(`  Page ${page}: ${pageLinks.length} links (total: ${linkMap.size})`);
+    if (pageLinks.length < 100) break;
+    page++;
+    await delay(RATE_LIMIT_DELAY_MS);
   }
-  const links: DubLink[] = await linksRes.json();
-  log(`Found ${links.length} links`);
+  const allLinks = Array.from(linkMap.values());
+  log(`Total unique links discovered: ${allLinks.length}`);
+
+  // Apply batching if requested
+  const bs = batchSize ?? allLinks.length;
+  const bi = batchIndex ?? 0;
+  const links = allLinks.slice(bi * bs, (bi + 1) * bs);
+  if (batchSize) {
+    log(`Batch ${bi}: processing links ${bi * bs}–${bi * bs + links.length - 1} of ${allLinks.length}`);
+  }
 
   // 2. Build date range and chunks
   const today = new Date().toISOString().slice(0, 10);
@@ -164,8 +187,8 @@ export async function syncDubAnalytics(startDate?: string): Promise<{
     }
   }
 
-  log(`Done. ${stored} rows upserted, ${errors} errors.`);
-  return { stored, errors };
+  log(`Done. ${stored} rows upserted, ${errors} errors. (${links.length}/${allLinks.length} links processed)`);
+  return { stored, errors, totalLinks: allLinks.length, batchIndex: bi };
 }
 
 async function upsertPoint(link: DubLink, point: DubTimeseriesPoint, event: "clicks" | "leads") {

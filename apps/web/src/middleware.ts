@@ -3,12 +3,13 @@ import { NextResponse } from "next/server";
 
 export default auth((req) => {
   const isLoggedIn = !!req.auth;
-  const isAuthPage =
+  const isPublicPage =
     req.nextUrl.pathname.startsWith("/auth/signin") ||
-    req.nextUrl.pathname.startsWith("/auth/error");
+    req.nextUrl.pathname.startsWith("/auth/error") ||
+    req.nextUrl.pathname.startsWith("/connect-linkedin");
 
-  // Allow access to auth pages
-  if (isAuthPage) {
+  // Allow access to public pages
+  if (isPublicPage) {
     return NextResponse.next();
   }
 

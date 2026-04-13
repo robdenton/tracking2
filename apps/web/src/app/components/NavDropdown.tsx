@@ -25,7 +25,7 @@ export function NavDropdown({ label, items }: NavDropdownProps) {
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-1 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+        className="flex items-center gap-1 text-text-secondary hover:text-text-primary"
       >
         {label}
         <svg
@@ -43,12 +43,12 @@ export function NavDropdown({ label, items }: NavDropdownProps) {
         </svg>
       </button>
       {open && (
-        <div className="absolute left-0 top-full mt-1 w-40 rounded-md border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-900 z-50">
+        <div className="absolute left-0 top-full mt-1 w-40 rounded-md border border-border-light bg-surface py-1 shadow-lg 900 z-50">
           {items.map((item) => (
             <a
               key={item.href}
               href={item.href}
-              className="block px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+              className="block px-3 py-1.5 text-sm text-text-primary hover:bg-surface-sunken"
               onClick={() => setOpen(false)}
             >
               {item.label}

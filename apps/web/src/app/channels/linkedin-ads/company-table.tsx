@@ -107,7 +107,7 @@ export function CompanyTable({ companies }: { companies: CompanyRow[] }) {
     const active = sortKey === field;
     return (
       <th
-        className={`pb-2 pr-4 ${align === "right" ? "text-right" : ""} cursor-pointer select-none hover:text-gray-900 dark:hover:text-gray-200 transition-colors`}
+        className={`pb-2 pr-4 ${align === "right" ? "text-right" : ""} cursor-pointer select-none hover:text-text-primary transition-colors`}
         onClick={() => handleSort(field)}
       >
         {label}
@@ -126,14 +126,14 @@ export function CompanyTable({ companies }: { companies: CompanyRow[] }) {
         <h2 className="text-lg font-semibold">Companies Reached</h2>
         <div className="flex items-center gap-3">
           {unresolvedCount > 0 && (
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-text-secondary">
               {unresolvedCount} unresolved
             </span>
           )}
           <button
             onClick={handleResolve}
             disabled={resolving}
-            className="text-xs px-3 py-1.5 rounded border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50"
+            className="text-xs px-3 py-1.5 rounded border border-border  hover:bg-surface-sunken disabled:opacity-50"
           >
             {resolving ? "Resolving..." : "Resolve Names"}
           </button>
@@ -141,7 +141,7 @@ export function CompanyTable({ companies }: { companies: CompanyRow[] }) {
       </div>
 
       {result && (
-        <div className="text-xs text-blue-600 dark:text-blue-400 mb-3 p-2 bg-blue-50 dark:bg-blue-900/20 rounded">
+        <div className="text-xs text-accent-strong mb-3 p-2 bg-accent-light/20 rounded">
           {result}
         </div>
       )}
@@ -149,7 +149,7 @@ export function CompanyTable({ companies }: { companies: CompanyRow[] }) {
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-left text-xs text-gray-500 border-b border-gray-200 dark:border-gray-800">
+            <tr className="text-left text-xs text-text-secondary border-b border-border-light">
               <th className="pb-2 pr-4">#</th>
               <SortHeader label="Company" field="name" align="left" />
               <SortHeader label="Impressions" field="impressions" />
@@ -169,20 +169,20 @@ export function CompanyTable({ companies }: { companies: CompanyRow[] }) {
                 key={company.orgId}
                 className={
                   isOther
-                    ? "border-t-2 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/50 font-medium"
-                    : "border-b border-gray-100 dark:border-gray-800/50"
+                    ? "border-t-2 border-border  bg-surface-sunken/50 font-medium"
+                    : "border-b border-border-light/50"
                 }
               >
-                <td className="py-2 pr-4 text-gray-400 text-xs">
+                <td className="py-2 pr-4 text-text-muted text-xs">
                   {isOther ? "" : i + 1}
                 </td>
                 <td className="py-2 pr-4 font-medium">
                   {isOther ? (
-                    <span className="text-gray-500 italic">{company.name}</span>
+                    <span className="text-text-secondary italic">{company.name}</span>
                   ) : company.name ? (
                     company.name
                   ) : (
-                    <span className="text-gray-400">
+                    <span className="text-text-muted">
                       org:{company.orgId}
                     </span>
                   )}

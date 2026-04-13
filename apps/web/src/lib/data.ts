@@ -946,21 +946,23 @@ export async function getEmployeeLinkedInWeeklyStats(
       account: {
         select: {
           userId: true,
+          teamMemberName: true,
+          linkedinName: true,
           user: { select: { name: true, email: true } },
         },
       },
     },
   });
 
-  // Build employee metadata (stable key from userId)
+  // Build employee metadata (stable key from userId or account identity)
   const employeeMap = new Map<
     string,
     { key: string; name: string; userId: string }
   >();
   for (const post of posts) {
-    const uid = post.account.userId;
+    const uid = post.account.userId ?? `team-${post.account.teamMemberName ?? post.account.linkedinName ?? "unknown"}`;
     if (!employeeMap.has(uid)) {
-      const displayName = post.account.user.name ?? post.account.user.email;
+      const displayName = post.account.user?.name ?? post.account.user?.email ?? post.account.teamMemberName ?? post.account.linkedinName ?? "Unknown";
       const key = displayName
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "_")
@@ -983,7 +985,8 @@ export async function getEmployeeLinkedInWeeklyStats(
   for (const post of posts) {
     const week = getWeekKey(post.postDate);
     allWeeks.add(week);
-    const emp = employeeMap.get(post.account.userId)!;
+    const uid2 = post.account.userId ?? `team-${post.account.teamMemberName ?? post.account.linkedinName ?? "unknown"}`;
+    const emp = employeeMap.get(uid2)!;
 
     if (!weeklyMap.has(week)) weeklyMap.set(week, {});
     const row = weeklyMap.get(week)!;
@@ -1032,10 +1035,10 @@ export async function getEmployeeLinkedInBreakdown(dateRange?: DateRange) {
   });
 
   return accounts.map((account) => ({
-    userId: account.user.id,
-    name: account.user.name ?? account.user.email,
-    email: account.user.email,
-    image: account.user.image,
+    userId: account.user?.id ?? account.id,
+    name: account.user?.name ?? account.user?.email ?? account.teamMemberName ?? account.linkedinName ?? "Unknown",
+    email: account.user?.email ?? "",
+    image: account.user?.image ?? null,
     linkedinName: account.linkedinName,
     postCount: account.posts.length,
     totalImpressions: account.posts.reduce((s, p) => s + p.impressions, 0),

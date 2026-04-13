@@ -1,4 +1,13 @@
 /**
+ * Format an ISO date string (YYYY-MM-DD) to British DD-MM-YY format.
+ */
+export function formatDisplayDate(isoDate: string): string {
+  if (!isoDate || isoDate.length < 10) return isoDate;
+  const [y, m, d] = isoDate.slice(0, 10).split("-");
+  return `${d}-${m}-${y.slice(2)}`;
+}
+
+/**
  * Compact number formatting: 1,200,000 → "1.2M", 20,000 → "20K", 232 → "232"
  */
 export function formatCompact(n: number): string {

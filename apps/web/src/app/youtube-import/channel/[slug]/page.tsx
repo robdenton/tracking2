@@ -24,10 +24,10 @@ export default async function ChannelDetailPage({
   return (
     <div>
       {/* Breadcrumb */}
-      <div className="text-sm text-gray-500 mb-4">
+      <div className="text-sm text-text-secondary mb-4">
         <Link
           href="/youtube-import"
-          className="text-blue-600 dark:text-blue-400 hover:underline"
+          className="text-accent-strong hover:underline"
         >
           YouTube Tracking
         </Link>
@@ -39,20 +39,20 @@ export default async function ChannelDetailPage({
 
       {/* Summary Stats */}
       <div className="grid grid-cols-4 gap-4 mb-6">
-        <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-4">
-          <div className="text-sm text-gray-500 mb-1">Videos</div>
+        <div className="border border-border-light rounded-lg p-4">
+          <div className="text-sm text-text-secondary mb-1">Videos</div>
           <div className="text-2xl font-mono">{videos.length}</div>
         </div>
-        <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-4">
-          <div className="text-sm text-gray-500 mb-1">Total Views</div>
+        <div className="border border-border-light rounded-lg p-4">
+          <div className="text-sm text-text-secondary mb-1">Total Views</div>
           <div className="text-2xl font-mono">{totalViews.toLocaleString()}</div>
         </div>
-        <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-4">
-          <div className="text-sm text-gray-500 mb-1">Organic</div>
+        <div className="border border-border-light rounded-lg p-4">
+          <div className="text-sm text-text-secondary mb-1">Organic</div>
           <div className="text-2xl font-mono">{organicCount}</div>
         </div>
-        <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-4">
-          <div className="text-sm text-gray-500 mb-1">Paid Sponsorship</div>
+        <div className="border border-border-light rounded-lg p-4">
+          <div className="text-sm text-text-secondary mb-1">Paid Sponsorship</div>
           <div className="text-2xl font-mono">{paidCount}</div>
         </div>
       </div>

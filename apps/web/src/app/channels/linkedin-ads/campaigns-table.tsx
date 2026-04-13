@@ -15,17 +15,17 @@ interface Campaign {
 
 function statusBadge(status: string) {
   const colors: Record<string, string> = {
-    ACTIVE: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
-    PAUSED: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300",
+    ACTIVE: "bg-accent-light text-accent-strong",
+    PAUSED: "bg-[#FEF3C7] text-[#92400E]900300",
     ARCHIVED:
-      "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",
+      "bg-surface-sunken text-text-secondary",
     COMPLETED:
-      "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300",
-    DRAFT: "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-500",
+      "bg-accent-light text-accent-strong",
+    DRAFT: "bg-surface-sunken text-text-secondary",
   };
   const cls =
     colors[status] ??
-    "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400";
+    "bg-surface-sunken text-text-secondary";
   return (
     <span
       className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${cls}`}
@@ -38,15 +38,15 @@ function statusBadge(status: string) {
 export function CampaignsTable({ campaigns }: { campaigns: Campaign[] }) {
   if (campaigns.length === 0) {
     return (
-      <p className="text-gray-400 text-sm py-4">No campaigns synced yet.</p>
+      <p className="text-text-muted text-sm py-4">No campaigns synced yet.</p>
     );
   }
 
   return (
-    <div className="overflow-x-auto border border-gray-200 dark:border-gray-800 rounded-lg">
+    <div className="overflow-x-auto border border-border-light rounded-lg">
       <table className="min-w-full text-sm">
         <thead>
-          <tr className="bg-gray-50 dark:bg-gray-900 text-left">
+          <tr className="bg-surface-sunken text-left">
             <th className="px-4 py-2 font-medium">Campaign</th>
             <th className="px-4 py-2 font-medium">Status</th>
             <th className="px-4 py-2 font-medium text-right">Impressions</th>
@@ -61,7 +61,7 @@ export function CampaignsTable({ campaigns }: { campaigns: Campaign[] }) {
           {campaigns.map((c) => (
             <tr
               key={c.id}
-              className="border-t border-gray-100 dark:border-gray-800"
+              className="border-t border-border-light"
             >
               <td className="px-4 py-2 max-w-[300px] truncate" title={c.name}>
                 {c.name}

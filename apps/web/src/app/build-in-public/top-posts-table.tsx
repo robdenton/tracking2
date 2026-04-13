@@ -12,7 +12,9 @@ interface PostRow {
       name: string | null;
       email: string;
       image: string | null;
-    };
+    } | null;
+    teamMemberName?: string | null;
+    linkedinName?: string | null;
   };
 }
 
@@ -23,10 +25,10 @@ function truncate(text: string, maxLen: number): string {
 
 export function TopPostsTable({ posts }: { posts: PostRow[] }) {
   return (
-    <div className="overflow-x-auto border border-gray-200 dark:border-gray-800 rounded-lg">
+    <div className="overflow-x-auto border border-border-light rounded-lg">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900">
+          <tr className="border-b border-border-light bg-surface-sunken">
             <th className="text-left py-2 px-3 font-medium">Author</th>
             <th className="text-left py-2 px-3 font-medium">Post</th>
             <th className="text-left py-2 px-3 font-medium">Date</th>
@@ -40,10 +42,10 @@ export function TopPostsTable({ posts }: { posts: PostRow[] }) {
           {posts.map((post) => (
             <tr
               key={post.id}
-              className="border-b border-gray-100 dark:border-gray-900"
+              className="border-b border-border-light900"
             >
               <td className="py-2 px-3 whitespace-nowrap">
-                {post.account.user.name ?? post.account.user.email}
+                {post.account.user?.name ?? post.account.user?.email ?? post.account.teamMemberName ?? post.account.linkedinName ?? "Unknown"}
               </td>
               <td className="py-2 px-3 max-w-xs">
                 {post.shareUrl ? (
@@ -51,7 +53,7 @@ export function TopPostsTable({ posts }: { posts: PostRow[] }) {
                     href={post.shareUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-600 dark:text-blue-400 hover:underline"
+                    className="text-accent-strong hover:underline"
                   >
                     {post.postText
                       ? truncate(post.postText, 80)
@@ -60,10 +62,10 @@ export function TopPostsTable({ posts }: { posts: PostRow[] }) {
                 ) : post.postText ? (
                   truncate(post.postText, 80)
                 ) : (
-                  <span className="text-gray-400">No text</span>
+                  <span className="text-text-muted">No text</span>
                 )}
               </td>
-              <td className="py-2 px-3 whitespace-nowrap text-gray-500">
+              <td className="py-2 px-3 whitespace-nowrap text-text-secondary">
                 {post.postDate}
               </td>
               <td className="text-right py-2 px-3 font-mono">

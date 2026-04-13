@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback } from "react";
+import { useCallback, useState, useTransition } from "react";
 
 function formatDate(d: Date): string {
   return d.toISOString().slice(0, 10);
@@ -49,6 +49,18 @@ export function DateRangePicker({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
+  const [activePreset, setActivePreset] = useState<string | null>(() => {
+    if (!startDate && !endDate) return null;
+    const today = new Date();
+    const end = formatDate(today);
+    if (endDate !== end) return null;
+    for (const p of ["30d", "90d", "6m", "ytd", "12m"]) {
+      const range = getPresetRange(p);
+      if (range.start === startDate && range.end === endDate) return p;
+    }
+    return null;
+  });
 
   const update = useCallback(
     (key: string, value: string) => {
@@ -58,7 +70,10 @@ export function DateRangePicker({
       } else {
         params.delete(key);
       }
-      router.push(`?${params.toString()}`);
+      setActivePreset(null);
+      startTransition(() => {
+        router.push(`?${params.toString()}`);
+      });
     },
     [router, searchParams]
   );
@@ -69,7 +84,10 @@ export function DateRangePicker({
       const params = new URLSearchParams(searchParams.toString());
       params.set("startDate", start);
       params.set("endDate", end);
-      router.push(`?${params.toString()}`);
+      setActivePreset(preset);
+      startTransition(() => {
+        router.push(`?${params.toString()}`);
+      });
     },
     [router, searchParams]
   );
@@ -78,7 +96,10 @@ export function DateRangePicker({
     const params = new URLSearchParams(searchParams.toString());
     params.delete("startDate");
     params.delete("endDate");
-    router.push(`?${params.toString()}`);
+    setActivePreset(null);
+    startTransition(() => {
+      router.push(`?${params.toString()}`);
+    });
   }, [router, searchParams]);
 
   const presets = [
@@ -90,47 +111,51 @@ export function DateRangePicker({
   ];
 
   return (
-    <div className="flex flex-wrap items-center gap-3 mb-6">
-      <span className="text-xs text-gray-500 font-medium">Date range</span>
-
+    <div className={`flex flex-wrap items-center gap-2.5 ${isPending ? "opacity-60" : ""} transition-opacity`}>
       {/* Preset buttons */}
-      <div className="flex gap-1">
-        {presets.map((p) => (
-          <button
-            key={p.value}
-            onClick={() => applyPreset(p.value)}
-            className="px-2 py-1 text-xs rounded border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400"
-          >
-            {p.label}
-          </button>
-        ))}
+      <div className="flex rounded-full border border-border text-[12px] overflow-hidden">
+        {presets.map((p) => {
+          const isActive = activePreset === p.value;
+          return (
+            <button
+              key={p.value}
+              onClick={() => applyPreset(p.value)}
+              disabled={isPending}
+              className={`px-3 py-1.5 font-medium transition-colors ${
+                isActive
+                  ? "bg-accent-light text-accent-strong"
+                  : "text-text-muted hover:bg-surface-sunken hover:text-text-secondary"
+              }`}
+            >
+              {p.label}
+            </button>
+          );
+        })}
       </div>
 
-      <span className="text-xs text-gray-300 dark:text-gray-600">|</span>
-
       {/* Custom date inputs */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5">
         <input
           type="date"
           defaultValue={startDate}
           onChange={(e) => update("startDate", e.target.value)}
-          className="text-sm border border-gray-200 dark:border-gray-700 rounded px-2 py-1 bg-white dark:bg-gray-900 font-mono"
+          className="text-[12px] border border-border rounded-lg px-2.5 py-1.5 bg-surface font-mono text-text-primary focus:outline-none focus:ring-1 focus:ring-accent/30"
         />
-        <span className="text-xs text-gray-400">to</span>
+        <span className="text-[11px] text-text-muted">to</span>
         <input
           type="date"
           defaultValue={endDate}
           onChange={(e) => update("endDate", e.target.value)}
-          className="text-sm border border-gray-200 dark:border-gray-700 rounded px-2 py-1 bg-white dark:bg-gray-900 font-mono"
+          className="text-[12px] border border-border rounded-lg px-2.5 py-1.5 bg-surface font-mono text-text-primary focus:outline-none focus:ring-1 focus:ring-accent/30"
         />
       </div>
 
       {(startDate || endDate) && (
         <button
           onClick={clearDates}
-          className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 underline"
+          className="text-[12px] text-text-muted hover:text-accent-strong font-medium transition-colors"
         >
-          All time
+          Clear
         </button>
       )}
     </div>

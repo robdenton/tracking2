@@ -43,13 +43,13 @@ export function NewsletterTableToggle({
         <h2 className="text-sm font-semibold">
           {view === "publishers" ? "Publisher Performance" : "Activity Detail"}
         </h2>
-        <div className="flex rounded-md border border-gray-200 dark:border-gray-700 text-xs overflow-hidden">
+        <div className="flex rounded-md border border-border-light text-xs overflow-hidden">
           <button
             onClick={() => setView("publishers")}
             className={`px-3 py-1.5 transition-colors ${
               view === "publishers"
-                ? "bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900"
-                : "text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
+                ? "bg-accent-light text-accent-strong"
+                : "text-text-secondary hover:bg-surface-sunken"
             }`}
           >
             Publishers
@@ -58,8 +58,8 @@ export function NewsletterTableToggle({
             onClick={() => setView("activities")}
             className={`px-3 py-1.5 transition-colors ${
               view === "activities"
-                ? "bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900"
-                : "text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
+                ? "bg-accent-light text-accent-strong"
+                : "text-text-secondary hover:bg-surface-sunken"
             }`}
           >
             Activities

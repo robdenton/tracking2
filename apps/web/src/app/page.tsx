@@ -43,7 +43,7 @@ export default async function HomePage({
   return (
     <div>
       <h1 className="text-2xl font-bold mb-1">Activity Impact Summary</h1>
-      <p className="text-sm text-gray-500 mb-4">
+      <p className="text-sm text-text-secondary mb-4">
         Baseline window: {process.env.BASELINE_WINDOW_DAYS || 14} days |
         Post window: {process.env.POST_WINDOW_DAYS || 7} days
       </p>
@@ -51,9 +51,9 @@ export default async function HomePage({
       <ChannelFilter channels={channels} active={channel ?? null} />
 
       {reports.length === 0 ? (
-        <p className="text-gray-500">
+        <p className="text-text-secondary">
           No activities found. Seed the database with{" "}
-          <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">
+          <code className="bg-surface-sunken px-1 rounded">
             npm run setup
           </code>
           .

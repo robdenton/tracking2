@@ -7,6 +7,7 @@ import {
   calculateCPA,
   formatCPA,
   formatCompact,
+  formatDisplayDate,
 } from "../../format";
 
 export const dynamic = "force-dynamic";
@@ -25,19 +26,19 @@ function StatCard({
   sub?: string;
 }) {
   return (
-    <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-      <div className="text-xs text-gray-500 mb-1">{label}</div>
-      <div className="text-xl font-mono font-semibold">{value}</div>
-      {sub && <div className="text-xs text-gray-400 mt-1">{sub}</div>}
+    <div className="stat-card bg-surface border border-border-light rounded-lg p-4">
+      <div className="text-[11px] font-medium text-text-muted uppercase tracking-wider mb-1.5">{label}</div>
+      <div className={`font-display font-semibold text-text-primary whitespace-nowrap tracking-tight ${value.includes("–") ? "text-lg" : "text-2xl"}`}>{value}</div>
+      {sub && <div className="text-[11px] text-text-muted mt-1">{sub}</div>}
     </div>
   );
 }
 
 function ConfidenceBadge({ level }: { level: Confidence }) {
   const colors = {
-    HIGH: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-    MED: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
-    LOW: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",
+    HIGH: "bg-accent-light text-accent-strong",
+    MED: "bg-[#FEF3C7] text-[#92400E]",
+    LOW: "bg-surface-sunken text-text-secondary",
   };
   return (
     <span
@@ -51,10 +52,10 @@ function ConfidenceBadge({ level }: { level: Confidence }) {
 function StatusBadge({ status }: { status: string }) {
   const colors =
     status === "live"
-      ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+      ? "bg-accent-light text-accent-strong"
       : status === "booked"
-        ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
-        : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400";
+        ? "bg-accent-light text-accent-strong"
+        : "bg-surface-sunken text-text-secondary";
   return (
     <span className={`inline-block px-2 py-0.5 rounded text-xs ${colors}`}>
       {status}
@@ -142,17 +143,9 @@ export default async function PartnerPage({
 
   return (
     <div className="max-w-4xl">
-      {/* Back link */}
-      <Link
-        href="/"
-        className="text-sm text-blue-600 dark:text-blue-400 hover:underline mb-4 inline-block"
-      >
-        &larr; Back to summary
-      </Link>
-
       {/* Header */}
       <h1 className="text-2xl font-bold mb-1">{partnerName}</h1>
-      <p className="text-sm text-gray-500 mb-2">
+      <p className="text-sm text-text-secondary mb-2">
         {count} {count === 1 ? "activity" : "activities"} &middot;{" "}
         {channelNames.join(", ")}
       </p>
@@ -161,7 +154,7 @@ export default async function PartnerPage({
           href={channelUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-sm text-blue-600 dark:text-blue-400 hover:underline mb-6 inline-block"
+          className="text-sm text-accent-strong hover:underline mb-6 inline-block"
         >
           → Channel
         </a>
@@ -214,7 +207,7 @@ export default async function PartnerPage({
           <div className="overflow-x-auto">
             <table className="w-full text-sm border-collapse">
               <thead>
-                <tr className="border-b border-gray-300 dark:border-gray-700 text-left text-gray-500">
+                <tr className="border-b border-border  text-left text-text-secondary">
                   <th className="py-2 pr-4 text-xs font-medium">Channel</th>
                   <th className="py-2 pr-4 text-xs font-medium text-right">
                     Activities
@@ -231,15 +224,15 @@ export default async function PartnerPage({
                 {channelBreakdown.map((row) => (
                   <tr
                     key={row.channel}
-                    className="border-b border-gray-100 dark:border-gray-800"
+                    className="border-b border-border-light"
                   >
-                    <td className="py-2 pr-4 text-gray-600 dark:text-gray-400">
+                    <td className="py-2 pr-4 text-text-secondary">
                       {row.channel}
                     </td>
-                    <td className="py-2 pr-4 text-right font-mono text-gray-500">
+                    <td className="py-2 pr-4 text-right font-mono text-text-secondary">
                       {row.count}
                     </td>
-                    <td className="py-2 pr-4 text-right font-mono text-gray-500">
+                    <td className="py-2 pr-4 text-right font-mono text-text-secondary">
                       {row.spend > 0
                         ? `$${row.spend.toLocaleString()}`
                         : "—"}
@@ -263,7 +256,7 @@ export default async function PartnerPage({
         <div className="overflow-x-auto">
           <table className="w-full text-sm border-collapse">
             <thead>
-              <tr className="border-b border-gray-300 dark:border-gray-700 text-left text-gray-500">
+              <tr className="border-b border-border  text-left text-text-secondary">
                 <th className="py-2 pr-4 text-xs font-medium">Date</th>
                 <th className="py-2 pr-4 text-xs font-medium">Channel</th>
                 <th className="py-2 pr-4 text-xs font-medium">Type</th>
@@ -289,31 +282,31 @@ export default async function PartnerPage({
               {sorted.map((r) => (
                 <tr
                   key={r.activity.id}
-                  className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900"
+                  className="border-b border-border-light hover:bg-surface-sunken"
                 >
                   <td className="py-2 pr-4 font-mono text-xs">
-                    {r.activity.date}
+                    {formatDisplayDate(r.activity.date)}
                   </td>
-                  <td className="py-2 pr-4 text-gray-500">
+                  <td className="py-2 pr-4 text-text-secondary">
                     {r.activity.channel}
                   </td>
-                  <td className="py-2 pr-4 text-gray-600 dark:text-gray-400">
+                  <td className="py-2 pr-4 text-text-secondary">
                     {r.activity.activityType}
                   </td>
                   <td className="py-2 pr-4">
                     <StatusBadge status={r.activity.status} />
                   </td>
-                  <td className="py-2 pr-4 text-right font-mono text-gray-500">
+                  <td className="py-2 pr-4 text-right font-mono text-text-secondary">
                     {r.activity.costUsd
                       ? `$${r.activity.costUsd.toLocaleString()}`
                       : "—"}
                   </td>
-                  <td className="py-2 pr-4 text-right font-mono text-gray-500">
+                  <td className="py-2 pr-4 text-right font-mono text-text-secondary">
                     {r.activity.actualClicks != null
                       ? r.activity.actualClicks.toLocaleString()
                       : "—"}
                   </td>
-                  <td className="py-2 pr-4 text-xs text-gray-500">
+                  <td className="py-2 pr-4 text-xs text-text-secondary">
                     {formatBetSummary(
                       r.activity.channel,
                       r.activity.metadata,
@@ -324,7 +317,7 @@ export default async function PartnerPage({
                       ? `+${r.incrementalActivations.toFixed(0)}`
                       : "0"}
                   </td>
-                  <td className="py-2 pr-4 text-right font-mono text-gray-500">
+                  <td className="py-2 pr-4 text-right font-mono text-text-secondary">
                     {formatCPA(
                       calculateCPA({
                         costUsd: r.activity.costUsd,
@@ -338,7 +331,7 @@ export default async function PartnerPage({
                   <td className="py-2">
                     <Link
                       href={`/activity/${r.activity.id}`}
-                      className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                      className="text-sm text-accent-strong hover:underline"
                     >
                       Detail
                     </Link>

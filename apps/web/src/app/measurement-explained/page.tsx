@@ -15,7 +15,7 @@
 export const dynamic = "force-dynamic";
 
 // ─── Bump this whenever the content changes ───────────────────────────────────
-const LAST_UPDATED = "26 March 2026";
+const LAST_UPDATED = "27 March 2026";
 // ─────────────────────────────────────────────────────────────────────────────
 
 const tocItems = [
@@ -25,6 +25,7 @@ const tocItems = [
   { href: "#youtube", label: "YouTube" },
   { href: "#linkedin", label: "LinkedIn" },
   { href: "#socials", label: "Socials" },
+  { href: "#affiliates", label: "Affiliate Programme" },
   { href: "#methodology-notes", label: "Methodology Notes" },
 ];
 
@@ -40,7 +41,7 @@ function SectionHeading({
   return (
     <h2
       id={id}
-      className="text-xl font-bold mt-12 mb-4 pb-2 border-b border-gray-200 dark:border-gray-800 scroll-mt-6"
+      className="text-xl font-bold mt-12 mb-4 pb-2 border-b border-border-light scroll-mt-6"
     >
       {emoji} {title}
     </h2>
@@ -49,7 +50,7 @@ function SectionHeading({
 
 function SubHeading({ title }: { title: string }) {
   return (
-    <h3 className="font-semibold text-base mt-6 mb-2 text-gray-900 dark:text-gray-100">
+    <h3 className="font-semibold text-base mt-6 mb-2 text-text-primary">
       {title}
     </h3>
   );
@@ -57,7 +58,7 @@ function SubHeading({ title }: { title: string }) {
 
 function Para({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed mb-3">
+    <p className="text-sm text-text-primary leading-relaxed mb-3">
       {children}
     </p>
   );
@@ -71,11 +72,11 @@ function Callout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="my-4 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3 bg-gray-50 dark:bg-gray-900/40">
-      <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
+    <div className="my-4 border border-border-light rounded-lg px-4 py-3 bg-surface-sunken/40">
+      <div className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-1">
         {label}
       </div>
-      <div className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+      <div className="text-sm text-text-primary leading-relaxed">
         {children}
       </div>
     </div>
@@ -92,23 +93,23 @@ function Pill({
   color?: "gray" | "green" | "yellow" | "blue";
 }) {
   const colors = {
-    gray: "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300",
-    green: "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300",
-    yellow: "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300",
-    blue: "bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300",
+    gray: "bg-surface-sunken text-text-primary",
+    green: "bg-accent-light text-accent-strong",
+    yellow: "bg-[#FEF3C7] text-[#92400E]",
+    blue: "bg-accent-light/30 text-accent-strong",
   };
   return (
     <span
       className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium mr-2 ${colors[color]}`}
     >
-      <span className="text-gray-400 dark:text-gray-500">{label}</span> {value}
+      <span className="text-text-muted">{label}</span> {value}
     </span>
   );
 }
 
 function DataSourceBadge({ source }: { source: string }) {
   return (
-    <span className="inline-flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded font-mono">
+    <span className="inline-flex items-center gap-1 text-xs text-text-secondary bg-surface-sunken px-2 py-0.5 rounded font-mono">
       {source}
     </span>
   );
@@ -121,23 +122,23 @@ export default function MeasurementExplainedPage() {
       <div className="mb-8">
         <div className="flex items-baseline gap-3 flex-wrap">
           <h1 className="text-2xl font-bold">Measurement Explained</h1>
-          <span className="text-xs text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded">
+          <span className="text-xs text-text-muted bg-surface-sunken px-2 py-0.5 rounded">
             Last updated: {LAST_UPDATED}
           </span>
         </div>
-        <p className="text-sm text-gray-500 mt-2">
+        <p className="text-sm text-text-secondary mt-2">
           A plain-English guide to how we calculate incrementality for each
           marketing channel. No statistics degree required.
         </p>
       </div>
 
       {/* ── Table of contents ─────────────────────────────────────────── */}
-      <nav className="flex flex-wrap gap-x-4 gap-y-1 mb-10 pb-4 border-b border-gray-200 dark:border-gray-800">
+      <nav className="flex flex-wrap gap-x-4 gap-y-1 mb-10 pb-4 border-b border-border-light">
         {tocItems.map((item) => (
           <a
             key={item.href}
             href={item.href}
-            className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+            className="text-sm text-accent-strong hover:underline"
           >
             {item.label}
           </a>
@@ -162,7 +163,7 @@ export default function MeasurementExplainedPage() {
       <Para>
         Everything flows from two tables synced daily from Google Sheets:
       </Para>
-      <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 mb-3 space-y-1 ml-1">
+      <ul className="list-disc list-inside text-sm text-text-primary mb-3 space-y-1 ml-1">
         <li>
           <strong>Activities</strong> — one row per marketing event (newsletter
           send, YouTube video, LinkedIn post, etc.), with its channel, date,
@@ -215,21 +216,21 @@ export default function MeasurementExplainedPage() {
       <div className="flex flex-col gap-2 my-3">
         <div className="flex items-start gap-3">
           <Pill label="" value="HIGH" color="green" />
-          <span className="text-sm text-gray-700 dark:text-gray-300">
+          <span className="text-sm text-text-primary">
             The lift is more than <strong>twice</strong> the typical day-to-day
             variability in the baseline. A clear signal above the noise.
           </span>
         </div>
         <div className="flex items-start gap-3">
           <Pill label="" value="MED" color="yellow" />
-          <span className="text-sm text-gray-700 dark:text-gray-300">
+          <span className="text-sm text-text-primary">
             The lift is more than <strong>one times</strong> the variability.
             Plausible signal, but less definitive.
           </span>
         </div>
         <div className="flex items-start gap-3">
           <Pill label="" value="LOW" color="gray" />
-          <span className="text-sm text-gray-700 dark:text-gray-300">
+          <span className="text-sm text-text-primary">
             The lift is within normal baseline noise. Hard to distinguish from
             chance variation.
           </span>
@@ -335,7 +336,7 @@ export default function MeasurementExplainedPage() {
       <Para>
         Two variants are shown for each conversion type:
       </Para>
-      <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 mb-3 space-y-1 ml-1">
+      <ul className="list-disc list-inside text-sm text-text-primary mb-3 space-y-1 ml-1">
         <li>
           <strong>Blended CPA</strong> — total spend ÷ total accounts created (or
           NAU) in post-windows. This includes baseline signups that would have
@@ -421,7 +422,7 @@ export default function MeasurementExplainedPage() {
         To fix this, we iteratively subtract the estimated impact of other
         concurrent newsletters from the contaminated baseline dates, then
         recalculate. We repeat until the numbers stabilise — typically in 1–2
-        passes. See the <a href="#methodology-notes" className="text-blue-600 dark:text-blue-400 hover:underline">Methodology Notes</a> section for a worked example.
+        passes. See the <a href="#methodology-notes" className="text-accent-strong hover:underline">Methodology Notes</a> section for a worked example.
       </Para>
 
       {/* ══════════════════════════════════════════════════════════════════
@@ -519,6 +520,73 @@ export default function MeasurementExplainedPage() {
       </Para>
 
       {/* ══════════════════════════════════════════════════════════════════
+          AFFILIATE PROGRAMME
+      ══════════════════════════════════════════════════════════════════ */}
+      <SectionHeading id="affiliates" emoji="🤝" title="Affiliate Programme" />
+
+      <div className="flex flex-wrap gap-2 mb-4">
+        <DataSourceBadge source="Dub Partners API" />
+      </div>
+
+      <Para>
+        The affiliate programme is managed through Dub and tracks partners
+        across multiple incentive groups (High Tier, Default Group, Creators,
+        Audience Owners, Influencer Discount tiers, Specialists, and LinkedIn).
+        Each partner has one or more tracked short links (on go.granola.ai or
+        go.granola.so) that are used for click and conversion attribution.
+      </Para>
+
+      <SubHeading title="How attribution works" />
+      <Para>
+        The NAU metric on the affiliate page uses <strong>Dub-attributed new
+        activated users</strong>. When a user clicks a partner link and later
+        activates on Granola (desktop), Dub fires a &ldquo;lead&rdquo; event
+        which we map to NAU. This is <strong>deterministic attribution</strong>{" "}
+        tied to the Dub tracking implementation — it is not derived from the
+        &ldquo;how did you hear about us&rdquo; survey or the internal database
+        directly. The attribution should be accurate based on the Dub
+        implementation, but it is a separate measurement system from the
+        survey-based channel metrics used elsewhere in this tool.
+      </Para>
+      <Para>
+        These are <strong>desktop NAUs only</strong>. The Dub lead event is
+        triggered when a user activates on the desktop app, so mobile-only
+        activations are not captured in the affiliate programme metrics.
+      </Para>
+
+      <SubHeading title="Metrics" />
+      <Para>
+        <strong>NAU</strong> — New Activated Users attributed via Dub lead
+        events. Date-filtered from the daily stats we sync from the Dub
+        analytics API.
+      </Para>
+      <Para>
+        <strong>CPA (Cost per NAU)</strong> — Total commissions paid to partners
+        divided by the number of NAU. Commissions are all-time totals from the
+        Dub API and cannot currently be date-filtered.
+      </Para>
+      <Para>
+        <strong>Click → NAU rate</strong> — The percentage of partner link
+        clicks that result in a new activated user. This conversion rate varies
+        significantly by partner group and individual partner.
+      </Para>
+      <Para>
+        <strong>Conversions</strong> — Paid conversions (subscriptions) tracked
+        by Dub. These are all-time totals and represent the subset of NAU who
+        went on to become paying customers.
+      </Para>
+
+      <SubHeading title="Group tagging" />
+      <Para>
+        Each partner group can be tagged as &ldquo;affiliate&rdquo; using the
+        dropdown in the Group Performance table. A toggle at the top of the page
+        lets you filter to show only affiliate-tagged groups, which is useful
+        for evaluating the affiliate programme separately from influencer
+        discount and other partner tiers that have different incentive
+        structures.
+      </Para>
+
+      {/* ══════════════════════════════════════════════════════════════════
           METHODOLOGY NOTES
       ══════════════════════════════════════════════════════════════════ */}
       <SectionHeading id="methodology-notes" emoji="📝" title="Methodology Notes" />
@@ -534,7 +602,7 @@ export default function MeasurementExplainedPage() {
       <Para>
         Decontamination fixes this in three steps:
       </Para>
-      <ol className="list-decimal list-inside text-sm text-gray-700 dark:text-gray-300 mb-3 space-y-1 ml-1">
+      <ol className="list-decimal list-inside text-sm text-text-primary mb-3 space-y-1 ml-1">
         <li>Calculate rough incremental estimates for every activity using the raw (contaminated) baselines.</li>
         <li>For each activity, identify which dates in its baseline window were contaminated by concurrent activities, and subtract their estimated daily impact from those dates.</li>
         <li>Recalculate all incrementals with the cleaned baselines. Repeat until the numbers stop changing meaningfully (usually 1–2 rounds).</li>
@@ -576,9 +644,9 @@ export default function MeasurementExplainedPage() {
 
       <SubHeading title="What triggers a methodology update" />
       <Para>
-        This page (and the <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded">LAST_UPDATED</code> date at the top) should be updated whenever any of the following change:
+        This page (and the <code className="text-xs bg-surface-sunken px-1 py-0.5 rounded">LAST_UPDATED</code> date at the top) should be updated whenever any of the following change:
       </Para>
-      <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 mb-3 space-y-1 ml-1">
+      <ul className="list-disc list-inside text-sm text-text-primary mb-3 space-y-1 ml-1">
         <li>Baseline window length</li>
         <li>Post window lengths (including adding channel-specific overrides)</li>
         <li>Baseline decontamination on/off, max iterations, or convergence threshold</li>
@@ -589,13 +657,13 @@ export default function MeasurementExplainedPage() {
       </ul>
 
       {/* ── Footer spacer ─────────────────────────────────────────────── */}
-      <div className="mt-16 pb-8 text-xs text-gray-400 dark:text-gray-600 border-t border-gray-100 dark:border-gray-800 pt-4">
+      <div className="mt-16 pb-8 text-xs text-text-muted border-t border-border-light pt-4">
         Last updated {LAST_UPDATED}. To update this page, edit{" "}
-        <code className="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded">
+        <code className="bg-surface-sunken px-1 py-0.5 rounded">
           apps/web/src/app/measurement-explained/page.tsx
         </code>{" "}
         and bump the{" "}
-        <code className="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded">
+        <code className="bg-surface-sunken px-1 py-0.5 rounded">
           LAST_UPDATED
         </code>{" "}
         constant.

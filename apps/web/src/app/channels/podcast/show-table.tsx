@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { formatDisplayDate } from "../../format";
 
 interface PodcastActivity {
   partnerName: string;
@@ -12,21 +13,7 @@ interface PodcastActivity {
   publisher: string;
 }
 
-interface ShowRow {
-  show: string;
-  publisher: string;
-  episodes: number;
-  firstAir: string;
-  lastAir: string;
-  totalImpressions: number;
-  totalVisitors: number;
-  totalVisits: number;
-  totalSpend: number;
-  cpm: number | null;
-  costPerVisitor: number | null;
-}
-
-type SortKey = "show" | "episodes" | "totalImpressions" | "totalVisitors" | "totalVisits" | "totalSpend" | "cpm" | "costPerVisitor" | "firstAir";
+type SortKey = "show" | "publisher" | "date" | "impressions" | "visitors" | "visits" | "spend" | "cpm" | "costPerVisitor";
 type SortDir = "asc" | "desc";
 
 function SortHeader({
@@ -47,7 +34,7 @@ function SortHeader({
   const active = key === currentKey;
   return (
     <th
-      className={`px-3 py-2 text-xs font-medium text-gray-500 cursor-pointer hover:text-gray-900 dark:hover:text-gray-200 select-none whitespace-nowrap ${
+      className={`px-3 py-2 text-xs font-medium text-text-secondary cursor-pointer hover:text-text-primary select-none whitespace-nowrap ${
         align === "left" ? "text-left" : "text-right"
       }`}
       onClick={() => onSort(key)}
@@ -69,47 +56,47 @@ function fmtCurrency(n: number | null): string {
   return "$" + Math.round(n).toLocaleString();
 }
 
+interface EpisodeRow {
+  show: string;
+  publisher: string;
+  date: string;
+  impressions: number;
+  visitors: number;
+  visits: number;
+  spend: number;
+  cpm: number | null;
+  costPerVisitor: number | null;
+}
+
 export function PodcastShowTable({ activities }: { activities: PodcastActivity[] }) {
-  const [sortKey, setSortKey] = useState<SortKey>("totalImpressions");
+  const [sortKey, setSortKey] = useState<SortKey>("impressions");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
   function handleSort(key: SortKey) {
     if (key === sortKey) setSortDir(sortDir === "desc" ? "asc" : "desc");
-    else { setSortKey(key); setSortDir(key === "show" || key === "firstAir" ? "asc" : "desc"); }
+    else { setSortKey(key); setSortDir(key === "show" || key === "publisher" || key === "date" ? "asc" : "desc"); }
   }
 
-  const shows: ShowRow[] = useMemo(() => {
-    const map = new Map<string, { publisher: string; dates: string[]; totalImp: number; totalVisitors: number; totalVisits: number; totalSpend: number }>();
-    for (const a of activities) {
-      const key = a.partnerName;
-      const existing = map.get(key) ?? { publisher: a.publisher, dates: [], totalImp: 0, totalVisitors: 0, totalVisits: 0, totalSpend: 0 };
-      existing.dates.push(a.date);
-      existing.totalImp += a.impressions;
-      existing.totalVisitors += a.visitors;
-      existing.totalVisits += a.visits;
-      existing.totalSpend += a.costUsd;
-      map.set(key, existing);
-    }
-    return Array.from(map.entries()).map(([show, data]) => ({
-      show,
-      publisher: data.publisher,
-      episodes: data.dates.length,
-      firstAir: data.dates.sort()[0],
-      lastAir: data.dates.sort()[data.dates.length - 1],
-      totalImpressions: data.totalImp,
-      totalVisitors: data.totalVisitors,
-      totalVisits: data.totalVisits,
-      totalSpend: data.totalSpend,
-      cpm: data.totalImp > 0 ? (data.totalSpend / data.totalImp) * 1000 : null,
-      costPerVisitor: data.totalVisitors > 0 ? data.totalSpend / data.totalVisitors : null,
+  const rows: EpisodeRow[] = useMemo(() => {
+    return activities.map((a) => ({
+      show: a.partnerName,
+      publisher: a.publisher,
+      date: a.date,
+      impressions: a.impressions,
+      visitors: a.visitors,
+      visits: a.visits,
+      spend: a.costUsd,
+      cpm: a.impressions > 0 ? (a.costUsd / a.impressions) * 1000 : null,
+      costPerVisitor: a.visitors > 0 ? a.costUsd / a.visitors : null,
     }));
   }, [activities]);
 
   const sorted = useMemo(() => {
-    const items = [...shows];
+    const items = [...rows];
     items.sort((a, b) => {
-      if (sortKey === "show") {
-        const av = a.show.toLowerCase(), bv = b.show.toLowerCase();
+      if (sortKey === "show" || sortKey === "publisher" || sortKey === "date") {
+        const av = (a[sortKey] as string).toLowerCase();
+        const bv = (b[sortKey] as string).toLowerCase();
         return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
       }
       const av = a[sortKey]; const bv = b[sortKey];
@@ -121,61 +108,54 @@ export function PodcastShowTable({ activities }: { activities: PodcastActivity[]
       return 0;
     });
     return items;
-  }, [shows, sortKey, sortDir]);
+  }, [rows, sortKey, sortDir]);
 
   if (activities.length === 0) {
-    return <p className="text-sm text-gray-500">No podcast activity data. Run a Podscribe sync to import campaigns.</p>;
+    return <p className="text-sm text-text-secondary">No podcast activity data. Run a Podscribe sync to import campaigns.</p>;
   }
 
-  // Totals
-  const totEpisodes = shows.reduce((s, r) => s + r.episodes, 0);
-  const totImp = shows.reduce((s, r) => s + r.totalImpressions, 0);
-  const totVisitors = shows.reduce((s, r) => s + r.totalVisitors, 0);
-  const totVisits = shows.reduce((s, r) => s + r.totalVisits, 0);
-  const totSpend = shows.reduce((s, r) => s + r.totalSpend, 0);
+  const totImp = rows.reduce((s, r) => s + r.impressions, 0);
+  const totVisitors = rows.reduce((s, r) => s + r.visitors, 0);
+  const totVisits = rows.reduce((s, r) => s + r.visits, 0);
+  const totSpend = rows.reduce((s, r) => s + r.spend, 0);
   const totCpm = totImp > 0 ? (totSpend / totImp) * 1000 : null;
   const totCpv = totVisitors > 0 ? totSpend / totVisitors : null;
 
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
-        <thead className="border-b border-gray-200 dark:border-gray-700">
+        <thead className="border-b border-border-light">
           <tr>
             <SortHeader label="Podcast" sortKey="show" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} align="left" />
-            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Publisher</th>
-            <SortHeader label="Episodes" sortKey="episodes" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
-            <SortHeader label="Air Date" sortKey="firstAir" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
-            <SortHeader label="Impressions" sortKey="totalImpressions" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
-            <SortHeader label="Visitors" sortKey="totalVisitors" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
-            <SortHeader label="Visits" sortKey="totalVisits" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
-            <SortHeader label="Spend" sortKey="totalSpend" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
+            <SortHeader label="Publisher" sortKey="publisher" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} align="left" />
+            <SortHeader label="Air Date" sortKey="date" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
+            <SortHeader label="Impressions" sortKey="impressions" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
+            <SortHeader label="Visitors" sortKey="visitors" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
+            <SortHeader label="Visits" sortKey="visits" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
+            <SortHeader label="Spend" sortKey="spend" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
             <SortHeader label="CPM" sortKey="cpm" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
             <SortHeader label="Cost / Visitor" sortKey="costPerVisitor" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
           </tr>
         </thead>
         <tbody>
-          {sorted.map((row) => (
-            <tr key={row.show} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900">
+          {sorted.map((row, i) => (
+            <tr key={`${row.show}-${row.date}-${i}`} className="border-b border-border-light hover:bg-surface-sunken">
               <td className="px-3 py-2 font-medium max-w-[250px] truncate">{row.show}</td>
-              <td className="px-3 py-2 text-gray-500 max-w-[180px] truncate">{row.publisher}</td>
-              <td className="px-3 py-2 text-right font-mono">{row.episodes}</td>
-              <td className="px-3 py-2 text-right font-mono whitespace-nowrap">
-                {row.episodes > 1 ? `${row.firstAir} – ${row.lastAir}` : row.firstAir}
-              </td>
-              <td className="px-3 py-2 text-right font-mono">{fmtNum(row.totalImpressions)}</td>
-              <td className="px-3 py-2 text-right font-mono">{Math.round(row.totalVisitors).toLocaleString()}</td>
-              <td className="px-3 py-2 text-right font-mono">{Math.round(row.totalVisits).toLocaleString()}</td>
-              <td className="px-3 py-2 text-right font-mono">{fmtCurrency(row.totalSpend)}</td>
+              <td className="px-3 py-2 text-text-secondary max-w-[180px] truncate">{row.publisher}</td>
+              <td className="px-3 py-2 text-right font-mono whitespace-nowrap">{formatDisplayDate(row.date)}</td>
+              <td className="px-3 py-2 text-right font-mono">{fmtNum(row.impressions)}</td>
+              <td className="px-3 py-2 text-right font-mono">{Math.round(row.visitors).toLocaleString()}</td>
+              <td className="px-3 py-2 text-right font-mono">{Math.round(row.visits).toLocaleString()}</td>
+              <td className="px-3 py-2 text-right font-mono">{fmtCurrency(row.spend)}</td>
               <td className="px-3 py-2 text-right font-mono">{fmtCurrency(row.cpm)}</td>
               <td className="px-3 py-2 text-right font-mono">{fmtCurrency(row.costPerVisitor)}</td>
             </tr>
           ))}
         </tbody>
-        <tfoot className="border-t-2 border-gray-300 dark:border-gray-600 font-semibold bg-gray-50 dark:bg-gray-900">
+        <tfoot className="border-t-2 border-border  font-semibold bg-surface-sunken">
           <tr>
-            <td className="px-3 py-2 text-left">Total</td>
+            <td className="px-3 py-2 text-left">Total ({rows.length} episodes)</td>
             <td />
-            <td className="px-3 py-2 text-right font-mono">{totEpisodes}</td>
             <td />
             <td className="px-3 py-2 text-right font-mono">{fmtNum(totImp)}</td>
             <td className="px-3 py-2 text-right font-mono">{Math.round(totVisitors).toLocaleString()}</td>

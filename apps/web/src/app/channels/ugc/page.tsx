@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 import { UGCChart } from "./chart";
@@ -17,10 +16,10 @@ function StatCard({
   sub?: string;
 }) {
   return (
-    <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-      <div className="text-xs text-gray-500 mb-1">{label}</div>
-      <div className="text-2xl font-mono font-semibold">{value}</div>
-      {sub && <div className="text-xs text-gray-400 mt-1">{sub}</div>}
+    <div className="stat-card bg-surface border border-border-light rounded-lg p-4">
+      <div className="text-[11px] font-medium text-text-muted uppercase tracking-wider mb-1.5">{label}</div>
+      <div className={`font-display font-semibold text-text-primary whitespace-nowrap tracking-tight ${value.includes("–") ? "text-lg" : "text-2xl"}`}>{value}</div>
+      {sub && <div className="text-[11px] text-text-muted mt-1">{sub}</div>}
     </div>
   );
 }
@@ -186,33 +185,30 @@ export default async function UGCPage({
 
   return (
     <div className="max-w-6xl">
-      <Link
-        href="/"
-        className="text-sm text-blue-600 dark:text-blue-400 hover:underline mb-4 inline-block"
-      >
-        &larr; Back to summary
-      </Link>
-
-      <h1 className="text-2xl font-bold mb-1">UGC Programme</h1>
-      <p className="text-sm text-gray-500 mb-4">
+      <h1 className="text-xl font-semibold text-text-primary tracking-tight mb-0.5">UGC Programme</h1>
+      <p className="text-[13px] text-text-muted mb-5">
         Creator programme performance from Growi (TikTok & Instagram)
       </p>
 
       {/* Date Range Picker */}
-      <Suspense>
-        <DateRangePicker startDate={startDate} endDate={endDate} />
-      </Suspense>
+      <div className="mb-5">
+        <Suspense>
+          <DateRangePicker startDate={startDate} endDate={endDate} />
+        </Suspense>
+      </div>
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
         <StatCard label="Total Views" value={fmtNum(totalViews)} />
         <StatCard label="Total Likes" value={fmtNum(totalLikes)} />
         <StatCard label="Comments" value={fmtNum(totalComments)} />
         <StatCard label="Shares" value={fmtNum(totalShares)} />
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         <StatCard label="Saves" value={fmtNum(totalSaves)} />
         <StatCard label="Posts" value={totalPosts.toLocaleString()} />
         <StatCard
-          label="Engagement Rate"
+          label="Eng. Rate"
           value={engagementRate.toFixed(2) + "%"}
           sub="(Likes+Comments+Shares+Saves) / Views"
         />
@@ -221,18 +217,18 @@ export default async function UGCPage({
       {/* Platform Breakdown */}
       {platformBreakdown && platformBreakdown.length > 0 && (
         <div className="mb-8">
-          <h2 className="text-sm font-semibold mb-3">Channel Breakdown</h2>
+          <h2 className="text-sm font-semibold text-text-primary mb-3">Channel Breakdown</h2>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="border-b border-gray-200 dark:border-gray-700">
+              <thead className="border-b border-border-light">
                 <tr>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Platform</th>
-                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">Posts</th>
-                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">Views</th>
-                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">Likes</th>
-                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">Comments</th>
-                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">Shares</th>
-                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">Eng. Rate</th>
+                  <th className="px-3 py-2 text-left text-[11px] font-medium text-text-muted">Platform</th>
+                  <th className="px-3 py-2 text-right text-[11px] font-medium text-text-muted">Posts</th>
+                  <th className="px-3 py-2 text-right text-[11px] font-medium text-text-muted">Views</th>
+                  <th className="px-3 py-2 text-right text-[11px] font-medium text-text-muted">Likes</th>
+                  <th className="px-3 py-2 text-right text-[11px] font-medium text-text-muted">Comments</th>
+                  <th className="px-3 py-2 text-right text-[11px] font-medium text-text-muted">Shares</th>
+                  <th className="px-3 py-2 text-right text-[11px] font-medium text-text-muted">Eng. Rate</th>
                 </tr>
               </thead>
               <tbody>
@@ -242,7 +238,7 @@ export default async function UGCPage({
                   return (
                     <tr
                       key={p.platform}
-                      className="border-b border-gray-100 dark:border-gray-800"
+                      className="border-b border-border-light"
                     >
                       <td className="px-3 py-2 font-medium">{p.platform}</td>
                       <td className="px-3 py-2 text-right font-mono">{p.posts.toLocaleString()}</td>
@@ -255,7 +251,7 @@ export default async function UGCPage({
                   );
                 })}
               </tbody>
-              <tfoot className="border-t-2 border-gray-300 dark:border-gray-600 font-semibold bg-gray-50 dark:bg-gray-900">
+              <tfoot className="border-t-2 border-border  font-semibold bg-surface-sunken">
                 {(() => {
                   const totViews = platformBreakdown.reduce((s, p) => s + p.views, 0);
                   const totLikes = platformBreakdown.reduce((s, p) => s + p.likes, 0);
@@ -284,29 +280,38 @@ export default async function UGCPage({
 
       {/* Chart */}
       <div className="mb-8">
-        <h2 className="text-sm font-semibold mb-3">Weekly Views & Likes</h2>
-        <UGCChart data={weeklyData} grouping="weekly" />
+        <h2 className="text-sm font-semibold text-text-primary mb-3">Weekly Views & Likes</h2>
+        <div className="bg-surface border border-border-light rounded-lg p-5">
+          <UGCChart data={weeklyData} grouping="weekly" />
+        </div>
       </div>
 
       {/* Daily Table */}
       <div className="mb-8">
         <h2 className="text-sm font-semibold mb-1">Daily Breakdown</h2>
-        <p className="text-xs text-gray-500 mb-3">Click a date to see TikTok / Instagram split</p>
+        <p className="text-xs text-text-secondary mb-3">Click a date to see TikTok / Instagram split</p>
         <UGCDailyTable
-          days={activeDays.map((d) => {
-            const platform = dailyPlatformCounts.get(d.date);
-            return {
-              date: d.date,
-              views: d.views,
-              likes: d.likes,
-              comments: d.comments,
-              shares: d.shares,
-              saves: d.saves,
-              postsCount: d.postsCount,
-              tiktokPosts: platform?.tiktok ?? 0,
-              instagramPosts: platform?.instagram ?? 0,
-            };
-          })}
+          days={activeDays.map((d) => ({
+            date: d.date,
+            views: d.views,
+            likes: d.likes,
+            comments: d.comments,
+            shares: d.shares,
+            saves: d.saves,
+            postsCount: d.postsCount,
+            tiktokPosts: d.tiktokPosts,
+            tiktokViews: d.tiktokViews,
+            tiktokLikes: d.tiktokLikes,
+            tiktokComments: d.tiktokComments,
+            tiktokShares: d.tiktokShares,
+            tiktokSaves: d.tiktokSaves,
+            instagramPosts: d.instagramPosts,
+            instagramViews: d.instagramViews,
+            instagramLikes: d.instagramLikes,
+            instagramComments: d.instagramComments,
+            instagramShares: d.instagramShares,
+            instagramSaves: d.instagramSaves,
+          }))}
         />
       </div>
     </div>

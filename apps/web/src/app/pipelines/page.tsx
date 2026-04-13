@@ -10,7 +10,7 @@ export default async function PipelinesPage() {
     <div>
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Pipelines</h1>
-        <p className="text-sm text-gray-500 mt-1">
+        <p className="text-sm text-text-secondary mt-1">
           Data collection pipelines running daily on Vercel. All times in UTC.
         </p>
       </div>

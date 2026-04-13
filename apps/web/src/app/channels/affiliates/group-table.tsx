@@ -3,7 +3,9 @@
 import { useMemo, useState } from "react";
 
 interface GroupRow {
+  groupId: string;
   groupName: string;
+  groupTag: string | null;
   partnerCount: number;
   clicks: number;
   leads: number;
@@ -14,16 +16,52 @@ interface GroupRow {
   leadToConvPct: number;
 }
 
+function TagDropdown({ groupId, currentTag }: { groupId: string; currentTag: string | null }) {
+  const [tag, setTag] = useState<string>(currentTag || "");
+  const [saving, setSaving] = useState(false);
+
+  async function handleChange(newTag: string) {
+    setTag(newTag);
+    setSaving(true);
+    try {
+      await fetch("/api/affiliates/group-tag", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ groupId, tag: newTag || null }),
+      });
+    } catch (e) {
+      console.error("Failed to save tag:", e);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <select
+      value={tag}
+      onChange={(e) => handleChange(e.target.value)}
+      className={`text-xs px-1.5 py-0.5 rounded border border-border-light bg-surface ${
+        saving ? "opacity-50" : ""
+      } ${tag === "affiliate" ? "text-accent-strong bg-accent-light/30" : "text-text-secondary"}`}
+    >
+      <option value="">—</option>
+      <option value="affiliate">affiliate</option>
+      <option value="influencer">influencer</option>
+      <option value="newsletter">newsletter</option>
+    </select>
+  );
+}
+
 type SortKey = "groupName" | "partnerCount" | "clicks" | "leads" | "conversions" | "commissions" | "cpl" | "clickToLeadPct" | "leadToConvPct";
 type SortDir = "asc" | "desc";
 
-function SortHeader({ label, sortKey: key, currentKey, currentDir, onSort, align = "right" }: {
+function SortHeader({ label, sortKey: key, currentKey, currentDir, onSort, align = "right", title }: {
   label: string; sortKey: SortKey; currentKey: SortKey; currentDir: SortDir;
-  onSort: (k: SortKey) => void; align?: "left" | "right";
+  onSort: (k: SortKey) => void; align?: "left" | "right"; title?: string;
 }) {
   const active = key === currentKey;
   return (
-    <th className={`px-3 py-2 text-xs font-medium text-gray-500 cursor-pointer hover:text-gray-900 dark:hover:text-gray-200 select-none whitespace-nowrap ${align === "left" ? "text-left" : "text-right"}`} onClick={() => onSort(key)}>
+    <th className={`px-3 py-2 text-xs font-medium text-text-secondary cursor-pointer hover:text-text-primary select-none whitespace-nowrap ${align === "left" ? "text-left" : "text-right"}`} onClick={() => onSort(key)} title={title}>
       {label}{active && <span className="ml-1">{currentDir === "desc" ? "↓" : "↑"}</span>}
     </th>
   );
@@ -65,23 +103,25 @@ export function GroupTable({ groups }: { groups: GroupRow[] }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
-        <thead className="border-b border-gray-200 dark:border-gray-700">
+        <thead className="border-b border-border-light">
           <tr>
             <SortHeader label="Group" sortKey="groupName" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} align="left" />
+            <th className="px-3 py-2 text-xs font-medium text-text-secondary text-left">Tag</th>
             <SortHeader label="Partners" sortKey="partnerCount" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
             <SortHeader label="Clicks" sortKey="clicks" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
-            <SortHeader label="Leads" sortKey="leads" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
+            <SortHeader label="NAU" sortKey="leads" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} title="New Activated Users — mapped from Dub 'lead' event" />
             <SortHeader label="Conversions" sortKey="conversions" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
             <SortHeader label="Commissions" sortKey="commissions" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
-            <SortHeader label="CPL" sortKey="cpl" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
-            <SortHeader label="Click→Lead" sortKey="clickToLeadPct" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
-            <SortHeader label="Lead→Conv" sortKey="leadToConvPct" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
+            <SortHeader label="CPA" sortKey="cpl" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} title="Cost per NAU — commissions ÷ NAU" />
+            <SortHeader label="Click→NAU" sortKey="clickToLeadPct" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} title="Click to NAU conversion rate" />
+            <SortHeader label="NAU→Conv" sortKey="leadToConvPct" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} title="NAU to paid conversion rate" />
           </tr>
         </thead>
         <tbody>
           {sorted.map((g) => (
-            <tr key={g.groupName} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900">
+            <tr key={g.groupName} className="border-b border-border-light hover:bg-surface-sunken">
               <td className="px-3 py-2 font-medium">{g.groupName}</td>
+              <td className="px-3 py-2"><TagDropdown groupId={g.groupId} currentTag={g.groupTag} /></td>
               <td className="px-3 py-2 text-right font-mono">{g.partnerCount}</td>
               <td className="px-3 py-2 text-right font-mono">{g.clicks.toLocaleString()}</td>
               <td className="px-3 py-2 text-right font-mono">{g.leads.toLocaleString()}</td>
@@ -93,9 +133,10 @@ export function GroupTable({ groups }: { groups: GroupRow[] }) {
             </tr>
           ))}
         </tbody>
-        <tfoot className="border-t-2 border-gray-300 dark:border-gray-600 font-semibold bg-gray-50 dark:bg-gray-900">
+        <tfoot className="border-t-2 border-border  font-semibold bg-surface-sunken">
           <tr>
             <td className="px-3 py-2">Total</td>
+            <td />
             <td className="px-3 py-2 text-right font-mono">{totals.partners}</td>
             <td className="px-3 py-2 text-right font-mono">{totals.clicks.toLocaleString()}</td>
             <td className="px-3 py-2 text-right font-mono">{totals.leads.toLocaleString()}</td>

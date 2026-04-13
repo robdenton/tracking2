@@ -12,15 +12,15 @@ interface EmployeeRow {
 export function EmployeeTable({ employees }: { employees: EmployeeRow[] }) {
   if (employees.length === 0) {
     return (
-      <p className="text-gray-400 text-sm">No connected employees yet.</p>
+      <p className="text-text-muted text-sm">No connected employees yet.</p>
     );
   }
 
   return (
-    <div className="overflow-x-auto border border-gray-200 dark:border-gray-800 rounded-lg">
+    <div className="overflow-x-auto border border-border-light rounded-lg">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900">
+          <tr className="border-b border-border-light bg-surface-sunken">
             <th className="text-left py-2 px-3 font-medium">Employee</th>
             <th className="text-right py-2 px-3 font-medium">Posts</th>
             <th className="text-right py-2 px-3 font-medium">Impressions</th>
@@ -37,7 +37,7 @@ export function EmployeeTable({ employees }: { employees: EmployeeRow[] }) {
             return (
               <tr
                 key={emp.email}
-                className="border-b border-gray-100 dark:border-gray-900"
+                className="border-b border-border-light900"
               >
                 <td className="py-2 px-3 flex items-center gap-2">
                   {emp.image && (

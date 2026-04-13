@@ -2,6 +2,13 @@
 
 import { useEffect, useRef } from "react";
 
+// On-brand earthy chart palette
+const COLORS = {
+  slate: "#5B7B8A",     // eNAU — cool contrast (dashed)
+  terracotta: "#B85C38", // Signups — warm clay
+  amber: "#C4960C",      // Activations — golden
+};
+
 interface ENAUDataPoint {
   period: string;
   eNAU: number;
@@ -54,8 +61,19 @@ export function ENAUChart({ data, grouping }: ENAUChartProps) {
     const yScale = (value: number) =>
       margin.top + chartHeight - (value / maxValue) * chartHeight;
 
+    // Draw grid lines
+    ctx.strokeStyle = "#EAEBE5";
+    ctx.lineWidth = 0.5;
+    for (let i = 0; i <= 4; i++) {
+      const y = margin.top + (i / 4) * chartHeight;
+      ctx.beginPath();
+      ctx.moveTo(margin.left, y);
+      ctx.lineTo(width - margin.right, y);
+      ctx.stroke();
+    }
+
     // Draw axes
-    ctx.strokeStyle = "#d1d5db";
+    ctx.strokeStyle = "#D5D5D2";
     ctx.lineWidth = 1;
 
     // Y-axis
@@ -70,61 +88,41 @@ export function ENAUChart({ data, grouping }: ENAUChartProps) {
     ctx.lineTo(width - margin.right, margin.top + chartHeight);
     ctx.stroke();
 
-    // Draw grid lines
-    ctx.strokeStyle = "#f3f4f6";
-    ctx.lineWidth = 0.5;
-    for (let i = 0; i <= 4; i++) {
-      const y = margin.top + (i / 4) * chartHeight;
-      ctx.beginPath();
-      ctx.moveTo(margin.left, y);
-      ctx.lineTo(width - margin.right, y);
-      ctx.stroke();
-    }
-
-    // Draw eNAU line (purple)
-    ctx.strokeStyle = "#8b5cf6";
+    // Draw eNAU line (dashed)
+    ctx.strokeStyle = COLORS.slate;
     ctx.lineWidth = 2.5;
     ctx.setLineDash([5, 5]);
     ctx.beginPath();
     data.forEach((d, i) => {
       const x = xScale(i);
       const y = yScale(d.eNAU);
-      if (i === 0) {
-        ctx.moveTo(x, y);
-      } else {
-        ctx.lineTo(x, y);
-      }
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
     });
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // Draw Signups line (green)
-    ctx.strokeStyle = "#10b981";
+    // Draw Signups line
+    ctx.strokeStyle = COLORS.terracotta;
     ctx.lineWidth = 2;
     ctx.beginPath();
     data.forEach((d, i) => {
       const x = xScale(i);
       const y = yScale(d.signups);
-      if (i === 0) {
-        ctx.moveTo(x, y);
-      } else {
-        ctx.lineTo(x, y);
-      }
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
     });
     ctx.stroke();
 
-    // Draw Activations line (orange)
-    ctx.strokeStyle = "#f59e0b";
+    // Draw Activations line
+    ctx.strokeStyle = COLORS.amber;
     ctx.lineWidth = 2;
     ctx.beginPath();
     data.forEach((d, i) => {
       const x = xScale(i);
       const y = yScale(d.activations);
-      if (i === 0) {
-        ctx.moveTo(x, y);
-      } else {
-        ctx.lineTo(x, y);
-      }
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
     });
     ctx.stroke();
 
@@ -133,8 +131,8 @@ export function ENAUChart({ data, grouping }: ENAUChartProps) {
       const x = xScale(i);
 
       // eNAU point (hollow circle)
-      ctx.strokeStyle = "#8b5cf6";
-      ctx.fillStyle = "#ffffff";
+      ctx.strokeStyle = COLORS.slate;
+      ctx.fillStyle = "#FFFFFF";
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.arc(x, yScale(d.eNAU), 5, 0, 2 * Math.PI);
@@ -142,21 +140,21 @@ export function ENAUChart({ data, grouping }: ENAUChartProps) {
       ctx.stroke();
 
       // Signups point
-      ctx.fillStyle = "#10b981";
+      ctx.fillStyle = COLORS.terracotta;
       ctx.beginPath();
       ctx.arc(x, yScale(d.signups), 4, 0, 2 * Math.PI);
       ctx.fill();
 
       // Activations point
-      ctx.fillStyle = "#f59e0b";
+      ctx.fillStyle = COLORS.amber;
       ctx.beginPath();
       ctx.arc(x, yScale(d.activations), 4, 0, 2 * Math.PI);
       ctx.fill();
     });
 
-    // Draw Y-axis labels
-    ctx.fillStyle = "#6b7280";
-    ctx.font = "11px monospace";
+    // Y-axis labels
+    ctx.fillStyle = "#9E9E9A";
+    ctx.font = "11px Inter, system-ui, sans-serif";
     ctx.textAlign = "right";
 
     for (let i = 0; i <= 4; i++) {
@@ -165,7 +163,7 @@ export function ENAUChart({ data, grouping }: ENAUChartProps) {
       ctx.fillText(value.toLocaleString(), margin.left - 10, y + 4);
     }
 
-    // Draw X-axis labels (show every nth label to avoid crowding)
+    // X-axis labels
     ctx.textAlign = "center";
     const labelFrequency = Math.ceil(data.length / 10);
     data.forEach((d, i) => {
@@ -175,11 +173,10 @@ export function ENAUChart({ data, grouping }: ENAUChartProps) {
       }
     });
 
-    // Draw axis title
-    ctx.font = "12px sans-serif";
-    ctx.fillStyle = "#374151";
+    // Axis title
+    ctx.font = "12px Inter, system-ui, sans-serif";
+    ctx.fillStyle = "#72726E";
 
-    // Left axis title
     ctx.save();
     ctx.translate(15, height / 2);
     ctx.rotate(-Math.PI / 2);
@@ -187,51 +184,53 @@ export function ENAUChart({ data, grouping }: ENAUChartProps) {
     ctx.fillText("Accounts / Activations", 0, 0);
     ctx.restore();
 
-    // Draw legend
+    // Legend
     const legendY = margin.top - 10;
     const legendItems = [
-      { label: "eNAU (Estimated)", color: "#8b5cf6", dashed: true },
-      { label: "Signups (Actual)", color: "#10b981", dashed: false },
-      { label: "Activations (Actual)", color: "#f59e0b", dashed: false },
+      { label: "eNAU (Estimated)", color: COLORS.slate, dashed: true },
+      { label: "Signups (Actual)", color: COLORS.terracotta, dashed: false },
+      { label: "Activations (Actual)", color: COLORS.amber, dashed: false },
     ];
 
     let legendX = margin.left;
     legendItems.forEach((item) => {
-      // Draw color box or line
       if (item.dashed) {
+        // Dashed line for legend
         ctx.strokeStyle = item.color;
         ctx.lineWidth = 2;
-        ctx.setLineDash([4, 4]);
+        ctx.setLineDash([4, 3]);
         ctx.beginPath();
         ctx.moveTo(legendX, legendY);
         ctx.lineTo(legendX + 12, legendY);
         ctx.stroke();
         ctx.setLineDash([]);
       } else {
+        // Solid dot for legend
         ctx.fillStyle = item.color;
-        ctx.fillRect(legendX, legendY - 6, 12, 12);
+        ctx.beginPath();
+        ctx.arc(legendX + 4, legendY, 4, 0, 2 * Math.PI);
+        ctx.fill();
       }
 
-      // Draw label
-      ctx.fillStyle = "#374151";
-      ctx.font = "11px sans-serif";
+      ctx.fillStyle = "#72726E";
+      ctx.font = "11px Inter, system-ui, sans-serif";
       ctx.textAlign = "left";
       ctx.fillText(item.label, legendX + 16, legendY + 4);
 
-      legendX += ctx.measureText(item.label).width + 50;
+      legendX += ctx.measureText(item.label).width + 44;
     });
   }, [data, grouping]);
 
   if (data.length === 0) {
     return (
-      <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-8 text-center text-gray-500">
+      <div className="rounded-lg p-8 text-center text-text-muted">
         No eNAU data available for the selected time period.
       </div>
     );
   }
 
   return (
-    <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-white dark:bg-gray-950">
+    <div>
       <canvas
         ref={canvasRef}
         style={{ width: "100%", height: "400px" }}

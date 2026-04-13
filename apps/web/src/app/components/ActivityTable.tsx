@@ -11,6 +11,7 @@ import {
   formatCPC,
   calculateCPA,
   formatCPA,
+  formatDisplayDate,
 } from "../format";
 
 type SortColumn =
@@ -61,9 +62,9 @@ function TagDropdown({ activityId, currentTag }: { activityId: string; currentTa
     <select
       value={tag}
       onChange={(e) => handleChange(e.target.value)}
-      className={`text-xs px-1.5 py-0.5 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 ${
+      className={`text-xs px-1.5 py-0.5 rounded border border-border-light bg-surface ${
         saving ? "opacity-50" : ""
-      } ${tag === "affiliate" ? "text-amber-700 bg-amber-50 dark:text-amber-300 dark:bg-amber-900/30" : "text-gray-500"}`}
+      } ${tag === "affiliate" ? "text-[#92400E] bg-[#FEF3C7]" : "text-text-secondary"}`}
     >
       <option value="">—</option>
       <option value="affiliate">affiliate</option>
@@ -155,7 +156,7 @@ export function ActivityTable({ reports, selectedChannel, clickConversionAvg, du
     align?: "left" | "right";
   }) => (
     <th
-      className={`py-2 pr-4 text-xs font-medium cursor-pointer hover:text-gray-900 dark:hover:text-gray-100 ${
+      className={`py-2 pr-4 text-xs font-medium cursor-pointer hover:text-text-primary ${
         align === "right" ? "text-right" : ""
       }`}
       onClick={() => handleSort(column)}
@@ -163,7 +164,7 @@ export function ActivityTable({ reports, selectedChannel, clickConversionAvg, du
       <div className={`flex items-center gap-1 ${align === "right" ? "justify-end" : ""}`}>
         {children}
         {sortColumn === column && (
-          <span className="text-gray-400">
+          <span className="text-text-muted">
             {sortDirection === "asc" ? "↑" : "↓"}
           </span>
         )}
@@ -177,7 +178,7 @@ export function ActivityTable({ reports, selectedChannel, clickConversionAvg, du
   return (
     <table className="w-full text-sm border-collapse">
       <thead>
-        <tr className="border-b border-gray-300 dark:border-gray-700 text-left text-gray-500">
+        <tr className="border-b border-border  text-left text-text-secondary">
           <SortableHeader column="date">Date</SortableHeader>
           <SortableHeader column="partner">Partner</SortableHeader>
           <th className="py-2 pr-4 text-xs font-medium">Channel</th>
@@ -234,26 +235,26 @@ export function ActivityTable({ reports, selectedChannel, clickConversionAvg, du
           return (
             <tr
               key={r.activity.id}
-              className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900"
+              className="border-b border-border-light hover:bg-surface-sunken"
             >
-              <td className="py-2 pr-4 font-mono text-xs whitespace-nowrap">{r.activity.date}</td>
+              <td className="py-2 pr-4 font-mono text-xs whitespace-nowrap">{formatDisplayDate(r.activity.date)}</td>
               <td className="py-2 pr-4">
                 <Link
                   href={`/partners/${encodeURIComponent(r.activity.partnerName)}`}
-                  className="text-blue-600 dark:text-blue-400 hover:underline"
+                  className="text-accent-strong hover:underline"
                 >
                   {r.activity.partnerName}
                 </Link>
               </td>
-              <td className="py-2 pr-4 text-gray-500">{r.activity.channel}</td>
+              <td className="py-2 pr-4 text-text-secondary">{r.activity.channel}</td>
               <td className="py-2 pr-4">
                 <span
                   className={`inline-block px-2 py-0.5 rounded text-xs ${
                     r.activity.status === "live"
-                      ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                      ? "bg-accent-light text-accent-strong"
                       : r.activity.status === "booked"
-                      ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
-                      : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+                      ? "bg-accent-light text-accent-strong"
+                      : "bg-surface-sunken text-text-secondary"
                   }`}
                 >
                   {r.activity.status}
@@ -265,7 +266,7 @@ export function ActivityTable({ reports, selectedChannel, clickConversionAvg, du
                 </td>
               )}
 
-              <td className="py-2 pr-4 text-right font-mono text-gray-500">
+              <td className="py-2 pr-4 text-right font-mono text-text-secondary">
                 {r.activity.costUsd
                   ? `$${r.activity.costUsd.toLocaleString()}`
                   : "—"}
@@ -273,32 +274,32 @@ export function ActivityTable({ reports, selectedChannel, clickConversionAvg, du
 
               {showNewsletterColumns ? (
                 <>
-                  <td className="py-2 pr-4 text-right font-mono text-gray-500">
+                  <td className="py-2 pr-4 text-right font-mono text-text-secondary">
                     {formatCPC(estimatedCPC)}
                   </td>
-                  <td className="py-2 pr-4 text-right font-mono text-gray-500">
+                  <td className="py-2 pr-4 text-right font-mono text-text-secondary">
                     {formatCPC(actualCPC)}
                   </td>
-                  <td className="py-2 pr-4 text-right font-mono text-gray-500">
+                  <td className="py-2 pr-4 text-right font-mono text-text-secondary">
                     {r.activity.actualClicks?.toLocaleString() ?? "—"}
                   </td>
                   {dubClicksMap && (
                     <td className="py-2 pr-4 text-right font-mono">
                       {(() => {
                         const dub = dubClicksMap[r.activity.id];
-                        if (!dub) return <span className="text-gray-300">—</span>;
+                        if (!dub) return <span className="text-text-muted">—</span>;
                         const actual = r.activity.actualClicks ?? 0;
                         const diff = actual > 0 ? ((dub.dubClicks - actual) / actual) * 100 : 0;
                         const showDiff = actual > 0 && dub.dubClicks > 0;
                         return (
                           <span>
-                            <span className="text-gray-500">{dub.dubClicks.toLocaleString()}</span>
+                            <span className="text-text-secondary">{dub.dubClicks.toLocaleString()}</span>
                             {showDiff && (
                               <span
                                 className={`ml-1 text-[10px] ${
                                   Math.abs(diff) > 30
                                     ? "text-amber-500"
-                                    : "text-gray-400"
+                                    : "text-text-muted"
                                 }`}
                                 title={`${diff > 0 ? "+" : ""}${diff.toFixed(0)}% vs actual`}
                               >
@@ -314,12 +315,12 @@ export function ActivityTable({ reports, selectedChannel, clickConversionAvg, du
                     {(() => {
                       const clicks = r.activity.actualClicks ?? 0;
                       if (clicks === 0 || r.incrementalActivations <= 0) {
-                        return <span className="text-gray-400">—</span>;
+                        return <span className="text-text-muted">—</span>;
                       }
                       const rate = r.incrementalActivations / clicks;
                       const aboveAvg = clickConversionAvg != null && rate >= clickConversionAvg;
                       return (
-                        <span className={aboveAvg ? "text-green-600 dark:text-green-400 font-semibold" : "text-gray-500"}>
+                        <span className={aboveAvg ? "text-accent-strong400 font-semibold" : "text-text-secondary"}>
                           {(rate * 100).toFixed(1)}%
                         </span>
                       );
@@ -328,7 +329,7 @@ export function ActivityTable({ reports, selectedChannel, clickConversionAvg, du
                 </>
               ) : (
                 <>
-                  <td className="py-2 pr-4 text-xs text-gray-500">
+                  <td className="py-2 pr-4 text-xs text-text-secondary">
                     {formatBetSummary(r.activity.channel, r.activity.metadata)}
                   </td>
                 </>
@@ -337,17 +338,17 @@ export function ActivityTable({ reports, selectedChannel, clickConversionAvg, du
               <td className="py-2 pr-4 text-right font-mono font-semibold">
                 {r.incrementalActivations > 0 ? `+${r.incrementalActivations.toFixed(0)}` : "0"}
               </td>
-              <td className="py-2 pr-4 text-right font-mono text-gray-500">
+              <td className="py-2 pr-4 text-right font-mono text-text-secondary">
                 {formatCPA(calculateCPA({ costUsd: r.activity.costUsd, incremental: r.incrementalActivations }))}
               </td>
               <td className="py-2 pr-4">
                 <span
                   className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
                     r.confidence === "HIGH"
-                      ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                      ? "bg-accent-light text-accent-strong"
                       : r.confidence === "MED"
-                      ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
-                      : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+                      ? "bg-[#FEF3C7] text-[#92400E]"
+                      : "bg-surface-sunken text-text-secondary"
                   }`}
                 >
                   {r.confidence}
@@ -356,7 +357,7 @@ export function ActivityTable({ reports, selectedChannel, clickConversionAvg, du
               <td className="py-2">
                 <Link
                   href={`/activity/${r.activity.id}`}
-                  className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                  className="text-sm text-accent-strong hover:underline"
                 >
                   Detail
                 </Link>

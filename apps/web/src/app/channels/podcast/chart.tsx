@@ -2,9 +2,16 @@
 
 import { useEffect, useRef } from "react";
 
+// On-brand earthy chart palette
+const COLORS = {
+  olive: "#788C16",      // Impressions — primary brand green
+  terracotta: "#B85C38", // Signups — warm clay
+  amber: "#C4960C",      // Activations — golden
+};
+
 interface TimeSeriesDataPoint {
   period: string;
-  estDownloads: number;
+  impressions: number;
   signups: number;
   activations: number;
   incrementalSignups: number;
@@ -45,7 +52,7 @@ export function PodcastChart({ data, grouping }: PodcastChartProps) {
     ctx.clearRect(0, 0, width, height);
 
     // Find max values for scaling
-    const maxDownloads = Math.max(...data.map((d) => d.estDownloads), 1);
+    const maxDownloads = Math.max(...data.map((d) => d.impressions), 1);
     const maxSignupsActivations = Math.max(
       ...data.map((d) => Math.max(d.signups, d.activations)),
       1
@@ -59,11 +66,22 @@ export function PodcastChart({ data, grouping }: PodcastChartProps) {
     const yScaleSignups = (value: number) =>
       margin.top + chartHeight - (value / maxSignupsActivations) * chartHeight;
 
+    // Draw grid lines
+    ctx.strokeStyle = "#EAEBE5";
+    ctx.lineWidth = 0.5;
+    for (let i = 0; i <= 4; i++) {
+      const y = margin.top + (i / 4) * chartHeight;
+      ctx.beginPath();
+      ctx.moveTo(margin.left, y);
+      ctx.lineTo(width - margin.right, y);
+      ctx.stroke();
+    }
+
     // Draw axes
-    ctx.strokeStyle = "#d1d5db";
+    ctx.strokeStyle = "#D5D5D2";
     ctx.lineWidth = 1;
 
-    // Y-axis left (Downloads)
+    // Y-axis left (Impressions)
     ctx.beginPath();
     ctx.moveTo(margin.left, margin.top);
     ctx.lineTo(margin.left, margin.top + chartHeight);
@@ -81,59 +99,39 @@ export function PodcastChart({ data, grouping }: PodcastChartProps) {
     ctx.lineTo(width - margin.right, margin.top + chartHeight);
     ctx.stroke();
 
-    // Draw grid lines
-    ctx.strokeStyle = "#f3f4f6";
-    ctx.lineWidth = 0.5;
-    for (let i = 0; i <= 4; i++) {
-      const y = margin.top + (i / 4) * chartHeight;
-      ctx.beginPath();
-      ctx.moveTo(margin.left, y);
-      ctx.lineTo(width - margin.right, y);
-      ctx.stroke();
-    }
-
-    // Draw Est. Downloads line (blue)
-    ctx.strokeStyle = "#3b82f6";
+    // Draw Impressions line
+    ctx.strokeStyle = COLORS.olive;
     ctx.lineWidth = 2;
     ctx.beginPath();
     data.forEach((d, i) => {
       const x = xScale(i);
-      const y = yScaleDownloads(d.estDownloads);
-      if (i === 0) {
-        ctx.moveTo(x, y);
-      } else {
-        ctx.lineTo(x, y);
-      }
+      const y = yScaleDownloads(d.impressions);
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
     });
     ctx.stroke();
 
-    // Draw Signups line (green)
-    ctx.strokeStyle = "#10b981";
+    // Draw Signups line
+    ctx.strokeStyle = COLORS.terracotta;
     ctx.lineWidth = 2;
     ctx.beginPath();
     data.forEach((d, i) => {
       const x = xScale(i);
       const y = yScaleSignups(d.signups);
-      if (i === 0) {
-        ctx.moveTo(x, y);
-      } else {
-        ctx.lineTo(x, y);
-      }
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
     });
     ctx.stroke();
 
-    // Draw Activations line (orange)
-    ctx.strokeStyle = "#f59e0b";
+    // Draw Activations line
+    ctx.strokeStyle = COLORS.amber;
     ctx.lineWidth = 2;
     ctx.beginPath();
     data.forEach((d, i) => {
       const x = xScale(i);
       const y = yScaleSignups(d.activations);
-      if (i === 0) {
-        ctx.moveTo(x, y);
-      } else {
-        ctx.lineTo(x, y);
-      }
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
     });
     ctx.stroke();
 
@@ -141,31 +139,28 @@ export function PodcastChart({ data, grouping }: PodcastChartProps) {
     data.forEach((d, i) => {
       const x = xScale(i);
 
-      // Downloads point
-      ctx.fillStyle = "#3b82f6";
+      ctx.fillStyle = COLORS.olive;
       ctx.beginPath();
-      ctx.arc(x, yScaleDownloads(d.estDownloads), 4, 0, 2 * Math.PI);
+      ctx.arc(x, yScaleDownloads(d.impressions), 4, 0, 2 * Math.PI);
       ctx.fill();
 
-      // Signups point
-      ctx.fillStyle = "#10b981";
+      ctx.fillStyle = COLORS.terracotta;
       ctx.beginPath();
       ctx.arc(x, yScaleSignups(d.signups), 4, 0, 2 * Math.PI);
       ctx.fill();
 
-      // Activations point
-      ctx.fillStyle = "#f59e0b";
+      ctx.fillStyle = COLORS.amber;
       ctx.beginPath();
       ctx.arc(x, yScaleSignups(d.activations), 4, 0, 2 * Math.PI);
       ctx.fill();
     });
 
-    // Draw Y-axis labels
-    ctx.fillStyle = "#6b7280";
-    ctx.font = "11px monospace";
+    // Y-axis labels
+    ctx.fillStyle = "#9E9E9A";
+    ctx.font = "11px Inter, system-ui, sans-serif";
     ctx.textAlign = "right";
 
-    // Left axis (Downloads)
+    // Left axis (Impressions)
     for (let i = 0; i <= 4; i++) {
       const value = Math.round((maxDownloads / 4) * (4 - i));
       const y = margin.top + (i / 4) * chartHeight;
@@ -180,7 +175,7 @@ export function PodcastChart({ data, grouping }: PodcastChartProps) {
       ctx.fillText(value.toLocaleString(), width - margin.right + 10, y + 4);
     }
 
-    // Draw X-axis labels (show every nth label to avoid crowding)
+    // X-axis labels
     ctx.textAlign = "center";
     const labelFrequency = Math.ceil(data.length / 10);
     data.forEach((d, i) => {
@@ -190,19 +185,17 @@ export function PodcastChart({ data, grouping }: PodcastChartProps) {
       }
     });
 
-    // Draw axis titles
-    ctx.font = "12px sans-serif";
-    ctx.fillStyle = "#374151";
+    // Axis titles
+    ctx.font = "12px Inter, system-ui, sans-serif";
+    ctx.fillStyle = "#72726E";
 
-    // Left axis title
     ctx.save();
     ctx.translate(15, height / 2);
     ctx.rotate(-Math.PI / 2);
     ctx.textAlign = "center";
-    ctx.fillText("Est. Downloads", 0, 0);
+    ctx.fillText("Impressions", 0, 0);
     ctx.restore();
 
-    // Right axis title
     ctx.save();
     ctx.translate(width - 15, height / 2);
     ctx.rotate(Math.PI / 2);
@@ -210,40 +203,42 @@ export function PodcastChart({ data, grouping }: PodcastChartProps) {
     ctx.fillText("Signups / Activations", 0, 0);
     ctx.restore();
 
-    // Draw legend
+    // Legend
     const legendY = margin.top - 10;
     const legendItems = [
-      { label: "Est. Downloads", color: "#3b82f6" },
-      { label: "Signups", color: "#10b981" },
-      { label: "Activations", color: "#f59e0b" },
+      { label: "Impressions", color: COLORS.olive },
+      { label: "Signups", color: COLORS.terracotta },
+      { label: "Activations", color: COLORS.amber },
     ];
 
     let legendX = margin.left;
     legendItems.forEach((item) => {
-      // Draw color box
+      // Color dot
       ctx.fillStyle = item.color;
-      ctx.fillRect(legendX, legendY - 6, 12, 12);
+      ctx.beginPath();
+      ctx.arc(legendX + 4, legendY, 4, 0, 2 * Math.PI);
+      ctx.fill();
 
-      // Draw label
-      ctx.fillStyle = "#374151";
-      ctx.font = "11px sans-serif";
+      // Label
+      ctx.fillStyle = "#72726E";
+      ctx.font = "11px Inter, system-ui, sans-serif";
       ctx.textAlign = "left";
-      ctx.fillText(item.label, legendX + 16, legendY + 4);
+      ctx.fillText(item.label, legendX + 14, legendY + 4);
 
-      legendX += ctx.measureText(item.label).width + 40;
+      legendX += ctx.measureText(item.label).width + 36;
     });
   }, [data, grouping]);
 
   if (data.length === 0) {
     return (
-      <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-8 text-center text-gray-500">
+      <div className="rounded-lg p-8 text-center text-text-muted">
         No data available for the selected time period.
       </div>
     );
   }
 
   return (
-    <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-white dark:bg-gray-950">
+    <div>
       <canvas
         ref={canvasRef}
         style={{ width: "100%", height: "400px" }}

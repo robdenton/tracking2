@@ -277,7 +277,7 @@ export function DubLinksManager({ newsletterPartners, initialMappings }: Props) 
 
   if (loading) {
     return (
-      <div className="text-gray-500 text-sm py-8">
+      <div className="text-text-secondary text-sm py-8">
         Loading Dub partner links...
       </div>
     );
@@ -285,7 +285,7 @@ export function DubLinksManager({ newsletterPartners, initialMappings }: Props) 
 
   if (error) {
     return (
-      <div className="bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 p-4 rounded-lg text-sm">
+      <div className="bg-[#FDE8E8] text-[#B85C38] p-4 rounded-lg text-sm">
         {error}
         <button
           onClick={() => setError(null)}
@@ -300,7 +300,7 @@ export function DubLinksManager({ newsletterPartners, initialMappings }: Props) 
   return (
     <div className="space-y-8">
       {/* Data source summary */}
-      <div className="text-xs text-gray-500 flex gap-4">
+      <div className="text-xs text-text-secondary flex gap-4">
         <span>{dubPartners.length} Dub partners loaded</span>
         <span>{links.length} partner links</span>
         <span>
@@ -310,12 +310,12 @@ export function DubLinksManager({ newsletterPartners, initialMappings }: Props) 
 
       {/* Auto-match status */}
       {autoMatchStatus && (
-        <div className="bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 p-4 rounded-lg text-sm flex items-start justify-between">
+        <div className="bg-accent-light/20 text-accent-strong p-4 rounded-lg text-sm flex items-start justify-between">
           <div>
             <div className="font-medium mb-1">Auto-match results</div>
             <div>{autoMatchStatus}</div>
             {autoMatched.length > 0 && (
-              <div className="mt-2 text-xs text-blue-600 dark:text-blue-400">
+              <div className="mt-2 text-xs text-accent-strong">
                 Auto-matched: {autoMatched.join(", ")}
               </div>
             )}
@@ -338,26 +338,26 @@ export function DubLinksManager({ newsletterPartners, initialMappings }: Props) 
           <h2 className="text-lg font-semibold mb-3">
             Active Mappings ({mappings.length})
           </h2>
-          <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+          <div className="border border-border-light rounded-lg overflow-hidden">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 dark:bg-gray-800">
+              <thead className="bg-surface-sunken">
                 <tr>
-                  <th className="text-left px-4 py-2 font-medium text-gray-600 dark:text-gray-400">
+                  <th className="text-left px-4 py-2 font-medium text-text-secondary">
                     Newsletter Partner
                   </th>
-                  <th className="text-left px-4 py-2 font-medium text-gray-600 dark:text-gray-400">
+                  <th className="text-left px-4 py-2 font-medium text-text-secondary">
                     Dub Link
                   </th>
-                  <th className="text-right px-4 py-2 font-medium text-gray-600 dark:text-gray-400">
+                  <th className="text-right px-4 py-2 font-medium text-text-secondary">
                     Total Clicks
                   </th>
-                  <th className="text-right px-4 py-2 font-medium text-gray-600 dark:text-gray-400">
+                  <th className="text-right px-4 py-2 font-medium text-text-secondary">
                     Leads
                   </th>
                   <th className="px-4 py-2"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+              <tbody className="divide-y divide-border-light">
                 {mappings.map((m) => {
                   const link = links.find((l) => l.shortLink === m.shortLink);
                   return (
@@ -365,12 +365,12 @@ export function DubLinksManager({ newsletterPartners, initialMappings }: Props) 
                       <td className="px-4 py-2 font-medium">
                         {m.partnerName}
                         {autoMatched.includes(m.partnerName) && (
-                          <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
+                          <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-accent-light text-accent-strong">
                             auto
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-2 text-gray-600 dark:text-gray-400 font-mono text-xs">
+                      <td className="px-4 py-2 text-text-secondary font-mono text-xs">
                         <a
                           href={m.shortLink}
                           target="_blank"
@@ -390,7 +390,7 @@ export function DubLinksManager({ newsletterPartners, initialMappings }: Props) 
                         <button
                           onClick={() => removeMapping(m.shortLink)}
                           disabled={saving === m.shortLink}
-                          className="text-red-500 hover:text-red-700 text-xs disabled:opacity-50"
+                          className="text-[#B85C38] hover:text-[#943A1E] text-xs disabled:opacity-50"
                         >
                           {saving === m.shortLink ? "..." : "Remove"}
                         </button>
@@ -410,11 +410,11 @@ export function DubLinksManager({ newsletterPartners, initialMappings }: Props) 
           <h2 className="text-lg font-semibold mb-3">
             Review Suggestions ({suggestions.length})
           </h2>
-          <p className="text-sm text-gray-500 mb-3">
+          <p className="text-sm text-text-secondary mb-3">
             These matches need manual review — the AI wasn&apos;t confident
             enough to auto-match them.
           </p>
-          <div className="border border-gray-200 dark:border-gray-700 rounded-lg divide-y divide-gray-100 dark:divide-gray-800">
+          <div className="border border-border-light rounded-lg divide-y divide-border-light">
             {suggestions.map((s) => (
               <div
                 key={`${s.shortLink}-${s.partnerName}`}
@@ -425,25 +425,25 @@ export function DubLinksManager({ newsletterPartners, initialMappings }: Props) 
                     <span className="font-medium text-sm">
                       {s.partnerName}
                     </span>
-                    <span className="text-gray-400">&rarr;</span>
-                    <span className="font-mono text-xs text-blue-600 dark:text-blue-400">
+                    <span className="text-text-muted">&rarr;</span>
+                    <span className="font-mono text-xs text-accent-strong">
                       {s.shortLink.replace("https://", "")}
                     </span>
                     <span
                       className={`text-[10px] px-1.5 py-0.5 rounded ${
                         s.confidence === "medium"
-                          ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300"
-                          : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+                          ? "bg-[#FEF3C7] text-[#92400E]"
+                          : "bg-surface-sunken text-text-secondary"
                       }`}
                     >
                       {s.confidence}
                     </span>
                   </div>
-                  <div className="text-xs text-gray-500 mt-0.5">
+                  <div className="text-xs text-text-secondary mt-0.5">
                     {s.reasoning}
                   </div>
                   {s.dubPartnerName && (
-                    <div className="text-xs text-purple-600 dark:text-purple-400 mt-0.5">
+                    <div className="text-xs text-[#8B6B8A] mt-0.5">
                       Dub partner: {s.dubPartnerName}
                     </div>
                   )}
@@ -468,7 +468,7 @@ export function DubLinksManager({ newsletterPartners, initialMappings }: Props) 
                         )
                       )
                     }
-                    className="px-3 py-1 text-xs text-gray-500 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-800"
+                    className="px-3 py-1 text-xs text-text-secondary border border-border  rounded hover:bg-surface-sunken"
                   >
                     Dismiss
                   </button>
@@ -484,7 +484,7 @@ export function DubLinksManager({ newsletterPartners, initialMappings }: Props) 
         <div className="flex items-center justify-between mb-3">
           <div>
             <h2 className="text-lg font-semibold">Match Links to Partners</h2>
-            <p className="text-sm text-gray-500 mt-1">
+            <p className="text-sm text-text-secondary mt-1">
               {unmappedPartners.length} unmapped newsletter partner
               {unmappedPartners.length !== 1 ? "s" : ""}. Auto-match saves
               high-confidence matches automatically.
@@ -496,7 +496,7 @@ export function DubLinksManager({ newsletterPartners, initialMappings }: Props) 
               disabled={
                 suggesting || (links.length === 0 && dubPartners.length === 0)
               }
-              className="px-4 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 text-sm bg-[#8B6B8A] text-white rounded-lg hover:bg-[#6B4B6A] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {suggesting ? "Analyzing..." : "Auto-match partners"}
             </button>
@@ -510,19 +510,19 @@ export function DubLinksManager({ newsletterPartners, initialMappings }: Props) 
             placeholder="Filter partner links by URL, partner name, or tag..."
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
-            className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 focus:ring-2 focus:ring-blue-500 outline-none"
+            className="w-full px-3 py-2 text-sm border border-border  rounded-lg bg-surface focus:ring-2 focus:ring-accent outline-none"
           />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Left: Newsletter Partners */}
           <div>
-            <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
+            <h3 className="text-sm font-medium text-text-secondary mb-2">
               Unmapped Newsletter Partners
             </h3>
-            <div className="border border-gray-200 dark:border-gray-700 rounded-lg divide-y divide-gray-100 dark:divide-gray-800 max-h-[600px] overflow-y-auto">
+            <div className="border border-border-light rounded-lg divide-y divide-border-light max-h-[600px] overflow-y-auto">
               {unmappedPartners.length === 0 ? (
-                <div className="p-4 text-sm text-gray-400">
+                <div className="p-4 text-sm text-text-muted">
                   All partners have been mapped.
                 </div>
               ) : (
@@ -543,7 +543,7 @@ export function DubLinksManager({ newsletterPartners, initialMappings }: Props) 
 
           {/* Right: Dub Links */}
           <div>
-            <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
+            <h3 className="text-sm font-medium text-text-secondary mb-2">
               Partner Links (
               {
                 filteredLinks.filter((l) => !mappedLinks.has(l.shortLink))
@@ -551,30 +551,30 @@ export function DubLinksManager({ newsletterPartners, initialMappings }: Props) 
               }{" "}
               unmapped)
             </h3>
-            <div className="border border-gray-200 dark:border-gray-700 rounded-lg divide-y divide-gray-100 dark:divide-gray-800 max-h-[600px] overflow-y-auto">
+            <div className="border border-border-light rounded-lg divide-y divide-border-light max-h-[600px] overflow-y-auto">
               {filteredLinks
                 .filter((l) => !mappedLinks.has(l.shortLink))
                 .sort((a, b) => b.clicks - a.clicks)
                 .map((link) => (
                   <div
                     key={link.shortLink}
-                    className="px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                    className="px-4 py-3 hover:bg-surface-sunken/50"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <div className="font-mono text-xs text-blue-600 dark:text-blue-400 truncate">
+                        <div className="font-mono text-xs text-accent-strong truncate">
                           {link.shortLink.replace("https://", "")}
                         </div>
-                        <div className="text-xs text-gray-500 truncate mt-0.5">
+                        <div className="text-xs text-text-secondary truncate mt-0.5">
                           {link.url || "(no destination)"}
                         </div>
                         {link.title && (
-                          <div className="text-xs text-gray-400 truncate mt-0.5">
+                          <div className="text-xs text-text-muted truncate mt-0.5">
                             {link.title}
                           </div>
                         )}
                         {link.comments && (
-                          <div className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
+                          <div className="text-xs text-[#C4960C] mt-0.5">
                             Note: {link.comments}
                           </div>
                         )}
@@ -583,7 +583,7 @@ export function DubLinksManager({ newsletterPartners, initialMappings }: Props) 
                             {link.tags.map((t) => (
                               <span
                                 key={t}
-                                className="text-[10px] px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-gray-600 dark:text-gray-400"
+                                className="text-[10px] px-1.5 py-0.5 bg-surface-sunken rounded text-text-secondary"
                               >
                                 {t}
                               </span>
@@ -595,7 +595,7 @@ export function DubLinksManager({ newsletterPartners, initialMappings }: Props) 
                         <div className="text-xs font-mono">
                           {link.clicks.toLocaleString()}
                         </div>
-                        <div className="text-[10px] text-gray-400">clicks</div>
+                        <div className="text-[10px] text-text-muted">clicks</div>
                       </div>
                     </div>
                   </div>
@@ -629,7 +629,7 @@ function PartnerRow({
         <select
           value={selected}
           onChange={(e) => setSelected(e.target.value)}
-          className="flex-1 text-xs px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900"
+          className="flex-1 text-xs px-2 py-1.5 border border-border  rounded bg-surface"
         >
           <option value="">Select a partner link...</option>
           {links
@@ -647,7 +647,7 @@ function PartnerRow({
             if (selected) onSave(selected, partner);
           }}
           disabled={!selected || saving !== null}
-          className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-3 py-1.5 text-xs bg-accent-light text-accent-strong rounded hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {saving ? "..." : "Link"}
         </button>

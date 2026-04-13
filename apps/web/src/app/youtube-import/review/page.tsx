@@ -23,15 +23,15 @@ export default async function ReviewPage() {
   return (
     <div>
       <h1 className="text-2xl font-bold mb-4">Review Search Results</h1>
-      <p className="text-sm text-gray-500 mb-6">{results.length} pending videos</p>
+      <p className="text-sm text-text-secondary mb-6">{results.length} pending videos</p>
 
       {results.length === 0 && (
-        <p className="text-gray-400">No pending results to review</p>
+        <p className="text-text-muted">No pending results to review</p>
       )}
 
       <div className="space-y-4">
         {results.map(result => (
-          <div key={result.id} className="border border-gray-200 dark:border-gray-800 rounded-lg p-4 flex gap-4">
+          <div key={result.id} className="border border-border-light rounded-lg p-4 flex gap-4">
             {result.thumbnailUrl && (
               <img src={result.thumbnailUrl} alt="" className="w-32 h-24 object-cover rounded" />
             )}
@@ -41,11 +41,11 @@ export default async function ReviewPage() {
                   {result.title}
                 </a>
               </h3>
-              <p className="text-sm text-gray-500 mb-2">
+              <p className="text-sm text-text-secondary mb-2">
                 {result.channelTitle} • Published {result.publishedAt}
               </p>
               {result.description && (
-                <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mb-3">
+                <p className="text-sm text-text-secondary line-clamp-2 mb-3">
                   {result.description}
                 </p>
               )}

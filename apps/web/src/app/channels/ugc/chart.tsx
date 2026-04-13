@@ -50,7 +50,7 @@ export function UGCChart({
     const barW = Math.max(2, pw / data.length - 4);
 
     // Grid lines
-    ctx.strokeStyle = "#e5e7eb";
+    ctx.strokeStyle = "#EAEBE5";
     ctx.lineWidth = 0.5;
     for (let i = 0; i <= 5; i++) {
       const y = mt + ph - (i / 5) * ph;
@@ -60,16 +60,35 @@ export function UGCChart({
       ctx.stroke();
     }
 
-    // Bars (views) - teal
+    // Axis borders
+    ctx.strokeStyle = "#D5D5D2";
+    ctx.lineWidth = 1;
+    // Left axis
+    ctx.beginPath();
+    ctx.moveTo(ml, mt);
+    ctx.lineTo(ml, mt + ph);
+    ctx.stroke();
+    // Bottom axis
+    ctx.beginPath();
+    ctx.moveTo(ml, mt + ph);
+    ctx.lineTo(ml + pw, mt + ph);
+    ctx.stroke();
+    // Right axis
+    ctx.beginPath();
+    ctx.moveTo(ml + pw, mt);
+    ctx.lineTo(ml + pw, mt + ph);
+    ctx.stroke();
+
+    // Bars (views) - olive
     data.forEach((d, i) => {
       const x = ml + (i / data.length) * pw + barW * 0.25;
       const h = (d.views / maxViews) * ph;
-      ctx.fillStyle = "rgba(20, 184, 166, 0.6)";
+      ctx.fillStyle = "rgba(120, 140, 22, 0.5)";
       ctx.fillRect(x, mt + ph - h, barW * 0.5, h);
     });
 
-    // Line (likes) - purple
-    ctx.strokeStyle = "#8b5cf6";
+    // Line (likes) - terracotta
+    ctx.strokeStyle = "#B85C38";
     ctx.lineWidth = 2;
     ctx.beginPath();
     data.forEach((d, i) => {
@@ -84,15 +103,15 @@ export function UGCChart({
     data.forEach((d, i) => {
       const x = ml + (i / data.length) * pw + barW * 0.5;
       const y = mt + ph - (d.likes / maxLikes) * ph;
-      ctx.fillStyle = "#8b5cf6";
+      ctx.fillStyle = "#B85C38";
       ctx.beginPath();
       ctx.arc(x, y, 3, 0, Math.PI * 2);
       ctx.fill();
     });
 
     // Left axis labels (views)
-    ctx.fillStyle = "#6b7280";
-    ctx.font = "11px monospace";
+    ctx.fillStyle = "#9E9E9A";
+    ctx.font = "11px Inter, system-ui, sans-serif";
     ctx.textAlign = "right";
     for (let i = 0; i <= 5; i++) {
       const val = Math.round((maxViews * i) / 5);
@@ -119,46 +138,54 @@ export function UGCChart({
 
     // Axis titles
     ctx.save();
-    ctx.fillStyle = "rgba(20, 184, 166, 0.8)";
+    ctx.fillStyle = "#72726E";
+    ctx.font = "12px Inter, system-ui, sans-serif";
     ctx.translate(14, mt + ph / 2);
     ctx.rotate(-Math.PI / 2);
     ctx.textAlign = "center";
-    ctx.font = "11px sans-serif";
     ctx.fillText("Views", 0, 0);
     ctx.restore();
 
     ctx.save();
-    ctx.fillStyle = "#8b5cf6";
+    ctx.fillStyle = "#72726E";
+    ctx.font = "12px Inter, system-ui, sans-serif";
     ctx.translate(W - 14, mt + ph / 2);
     ctx.rotate(Math.PI / 2);
     ctx.textAlign = "center";
-    ctx.font = "11px sans-serif";
     ctx.fillText("Likes", 0, 0);
     ctx.restore();
 
-    // Legend
-    ctx.font = "11px sans-serif";
+    // Legend with dots (circles) instead of squares
+    ctx.font = "11px Inter, system-ui, sans-serif";
     ctx.textAlign = "left";
-    ctx.fillStyle = "rgba(20, 184, 166, 0.6)";
-    ctx.fillRect(ml + 10, mt + 5, 12, 12);
-    ctx.fillStyle = "#6b7280";
+
+    // Views legend dot
+    ctx.fillStyle = "rgba(120, 140, 22, 0.5)";
+    ctx.beginPath();
+    ctx.arc(ml + 16, mt + 11, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#72726E";
     ctx.fillText("Views", ml + 26, mt + 15);
 
-    ctx.fillStyle = "#8b5cf6";
-    ctx.fillRect(ml + 80, mt + 5, 12, 12);
-    ctx.fillStyle = "#6b7280";
+    // Likes legend dot
+    ctx.fillStyle = "#B85C38";
+    ctx.beginPath();
+    ctx.arc(ml + 86, mt + 11, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#72726E";
     ctx.fillText("Likes", ml + 96, mt + 15);
   }, [data, grouping]);
 
   if (data.length === 0) {
-    return <p className="text-sm text-gray-500 py-8 text-center">No data available yet.</p>;
+    return <p className="text-sm text-text-secondary py-8 text-center">No data available yet.</p>;
   }
 
   return (
-    <canvas
-      ref={canvasRef}
-      className="w-full"
-      style={{ height: 320 }}
-    />
+    <div style={{ width: "100%", height: 320 }}>
+      <canvas
+        ref={canvasRef}
+        className="w-full h-full"
+      />
+    </div>
   );
 }

@@ -30,7 +30,7 @@ export default async function DubLinksPage() {
     <div>
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Dub Link Matching</h1>
-        <p className="text-sm text-gray-500 mt-1">
+        <p className="text-sm text-text-secondary mt-1">
           Match Dub short links to newsletter partners. Once matched, Dub click
           data appears alongside publisher-reported clicks on the newsletter
           page.
@@ -38,7 +38,7 @@ export default async function DubLinksPage() {
       </div>
       <Suspense
         fallback={
-          <div className="text-gray-500 text-sm">Loading Dub links...</div>
+          <div className="text-text-secondary text-sm">Loading Dub links...</div>
         }
       >
         <DubLinksManager

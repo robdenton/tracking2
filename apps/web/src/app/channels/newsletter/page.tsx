@@ -6,6 +6,7 @@ import { ENAUChart } from "./enau-chart";
 import { DateRangePicker } from "./date-range-picker";
 import { NewsletterTableToggle } from "./newsletter-table-toggle";
 import { AffiliateToggle } from "./affiliate-toggle";
+import { StatusToggle } from "./status-toggle";
 
 /** Stat card with an info tooltip and optional sub-label */
 function StatCard({
@@ -22,26 +23,26 @@ function StatCard({
   learnMoreHref: string;
 }) {
   return (
-    <div className="relative border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+    <div className="stat-card relative bg-surface border border-border-light rounded-lg p-4">
       {/* Tooltip — group scoped to the icon only, not the whole card */}
-      <div className="group absolute top-2 right-2 z-10">
-        <span className="text-gray-300 dark:text-gray-600 group-hover:text-gray-500 dark:group-hover:text-gray-400 cursor-help text-xs select-none">
+      <div className="group absolute top-2.5 right-2.5 z-10">
+        <span className="text-text-muted/40 group-hover:text-text-muted cursor-help text-xs select-none">
           ⓘ
         </span>
         {/* Tooltip bubble — opens upward to avoid grid clipping */}
-        <div className="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-150 absolute right-0 bottom-6 z-50 w-60 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-xl p-3 text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
+        <div className="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-150 absolute right-0 bottom-6 z-50 w-60 rounded-lg border border-border bg-surface shadow-lg p-3 text-xs text-text-secondary leading-relaxed">
           {tooltip}
           <a
             href={learnMoreHref}
-            className="pointer-events-auto block mt-2 text-blue-600 dark:text-blue-400 hover:underline font-medium"
+            className="pointer-events-auto block mt-2 text-accent-strong hover:underline font-medium"
           >
             Learn more →
           </a>
         </div>
       </div>
-      <div className="text-xs text-gray-500 mb-1 pr-4">{label}</div>
-      <div className={`font-mono font-semibold whitespace-nowrap ${value.includes("–") ? "text-lg" : "text-2xl"}`}>{value}</div>
-      {sub && <div className="text-xs text-gray-400 mt-1">{sub}</div>}
+      <div className="text-[11px] font-medium text-text-muted uppercase tracking-wider mb-1.5 pr-4">{label}</div>
+      <div className={`font-display font-semibold text-text-primary whitespace-nowrap tracking-tight ${value.includes("–") ? "text-lg" : "text-2xl"}`}>{value}</div>
+      {sub && <div className="text-[11px] text-text-muted mt-1">{sub}</div>}
     </div>
   );
 }
@@ -254,10 +255,11 @@ function formatCurrency(value: number | null): string {
 export default async function NewsletterChannelPage({
   searchParams,
 }: {
-  searchParams: Promise<{ grouping?: string; startDate?: string; endDate?: string; excludeAffiliates?: string }>;
+  searchParams: Promise<{ grouping?: string; startDate?: string; endDate?: string; excludeAffiliates?: string; liveOnly?: string }>;
 }) {
-  const { grouping = "monthly", startDate = "", endDate = "", excludeAffiliates = "" } = await searchParams;
+  const { grouping = "monthly", startDate = "", endDate = "", excludeAffiliates = "", liveOnly = "1" } = await searchParams;
   const shouldExcludeAffiliates = excludeAffiliates === "1";
+  const showLiveOnly = liveOnly === "1";
   const timeGrouping = (grouping === "weekly" ? "weekly" : "monthly") as TimeSeriesGrouping;
 
   const [channelData, dubClicksMap] = await Promise.all([
@@ -280,10 +282,12 @@ export default async function NewsletterChannelPage({
     return true;
   });
 
-  // For metrics computation, optionally exclude affiliates
-  const activities = shouldExcludeAffiliates
-    ? activitiesInRange.filter((a) => a.tag !== "affiliate")
-    : activitiesInRange;
+  // For metrics computation, apply status and affiliate filters
+  const activities = activitiesInRange.filter((a) => {
+    if (showLiveOnly && a.status !== "live") return false;
+    if (shouldExcludeAffiliates && a.tag === "affiliate") return false;
+    return true;
+  });
 
   const dailyMetrics = allDailyMetrics.filter((m) => {
     if (startDate && m.date < startDate) return false;
@@ -368,22 +372,18 @@ export default async function NewsletterChannelPage({
 
   return (
     <div className="max-w-6xl">
-      <Link
-        href="/"
-        className="text-sm text-blue-600 dark:text-blue-400 hover:underline mb-4 inline-block"
-      >
-        &larr; Back to summary
-      </Link>
-
-      <h1 className="text-2xl font-bold mb-1">Newsletter Tracking</h1>
-      <p className="text-sm text-gray-500 mb-4">
+      <h1 className="text-xl font-semibold text-text-primary tracking-tight mb-0.5">Newsletter Tracking</h1>
+      <p className="text-[13px] text-text-muted mb-5">
         Aggregated performance across all newsletter activities
       </p>
 
-      {/* Date Range Picker + Affiliate Toggle */}
-      <div className="flex items-center gap-3 flex-wrap mb-4">
+      {/* Date Range Picker + Toggles */}
+      <div className="flex items-center gap-2.5 flex-wrap mb-5">
         <Suspense>
           <DateRangePicker startDate={startDate} endDate={endDate} />
+        </Suspense>
+        <Suspense>
+          <StatusToggle liveOnly={showLiveOnly} />
         </Suspense>
         <Suspense>
           <AffiliateToggle excluded={shouldExcludeAffiliates} />
@@ -391,7 +391,7 @@ export default async function NewsletterChannelPage({
       </div>
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-4 overflow-visible">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-4 overflow-visible">
         <StatCard
           label="Total Activities"
           value={activities.length.toString()}
@@ -446,7 +446,7 @@ export default async function NewsletterChannelPage({
       </div>
 
       {/* CPA Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6 overflow-visible">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-6 overflow-visible">
         <StatCard
           label="Total Spend"
           value={formatCurrency(totalCost)}
@@ -485,23 +485,23 @@ export default async function NewsletterChannelPage({
       </div>
 
       {/* Time Grouping Toggle */}
-      <div className="flex gap-2 mb-4">
+      <div className="flex rounded-full border border-border text-[12px] overflow-hidden w-fit mb-5">
         <Link
           href={`?grouping=weekly${startDate ? `&startDate=${startDate}` : ""}${endDate ? `&endDate=${endDate}` : ""}`}
-          className={`px-3 py-1 rounded text-sm ${
+          className={`px-3.5 py-1.5 font-medium transition-colors ${
             timeGrouping === "weekly"
-              ? "bg-blue-600 text-white"
-              : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+              ? "bg-accent-light text-accent-strong"
+              : "text-text-muted hover:bg-surface-sunken hover:text-text-secondary"
           }`}
         >
           Weekly
         </Link>
         <Link
           href={`?grouping=monthly${startDate ? `&startDate=${startDate}` : ""}${endDate ? `&endDate=${endDate}` : ""}`}
-          className={`px-3 py-1 rounded text-sm ${
+          className={`px-3.5 py-1.5 font-medium transition-colors ${
             timeGrouping === "monthly"
-              ? "bg-blue-600 text-white"
-              : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+              ? "bg-accent-light text-accent-strong"
+              : "text-text-muted hover:bg-surface-sunken hover:text-text-secondary"
           }`}
         >
           Monthly
@@ -509,14 +509,14 @@ export default async function NewsletterChannelPage({
       </div>
 
       {/* Clicks vs Account created/NAU Chart */}
-      <div className="mb-8">
-        <h2 className="text-sm font-semibold mb-3">Actual Clicks vs Performance</h2>
+      <div className="mb-8 bg-surface border border-border-light rounded-lg p-5">
+        <h2 className="text-[13px] font-semibold text-text-primary mb-4">Actual Clicks vs Performance</h2>
         <NewsletterChart data={timeSeries} grouping={timeGrouping} />
       </div>
 
       {/* eNAU vs Actual Account created/NAU Chart */}
-      <div className="mb-8">
-        <h2 className="text-sm font-semibold mb-3">eNAU (Estimated Activated Users) vs Actual</h2>
+      <div className="mb-8 bg-surface border border-border-light rounded-lg p-5">
+        <h2 className="text-[13px] font-semibold text-text-primary mb-4">eNAU (Estimated Activated Users) vs Actual</h2>
         <ENAUChart data={enauTimeSeries} grouping={timeGrouping} />
       </div>
 

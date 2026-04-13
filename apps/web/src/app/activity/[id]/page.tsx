@@ -1,14 +1,14 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { getReportById, getAllReports, getContentViews, getLinkedInEngagements } from "@/lib/data";
 import type { Confidence } from "@mai/core";
-import { getBetLabels, formatBetValue, formatCompact, calculateCPA, formatCPA } from "../../format";
+import { getBetLabels, formatBetValue, formatCompact, calculateCPA, formatCPA, formatDisplayDate } from "../../format";
 
 function ConfidenceBadge({ level }: { level: Confidence }) {
   const colors = {
-    HIGH: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-    MED: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
-    LOW: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",
+    HIGH: "bg-accent-light text-accent-strong",
+    MED: "bg-[#FEF3C7] text-[#92400E]",
+    LOW: "bg-surface-sunken text-text-secondary",
   };
   return (
     <span
@@ -29,10 +29,10 @@ function StatCard({
   sub?: string;
 }) {
   return (
-    <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-      <div className="text-xs text-gray-500 mb-1">{label}</div>
-      <div className="text-xl font-mono font-semibold">{value}</div>
-      {sub && <div className="text-xs text-gray-400 mt-1">{sub}</div>}
+    <div className="stat-card bg-surface border border-border-light rounded-lg p-4">
+      <div className="text-[11px] font-medium text-text-muted uppercase tracking-wider mb-1.5">{label}</div>
+      <div className={`font-display font-semibold text-text-primary whitespace-nowrap tracking-tight ${value.includes("–") ? "text-lg" : "text-2xl"}`}>{value}</div>
+      {sub && <div className="text-[11px] text-text-muted mt-1">{sub}</div>}
     </div>
   );
 }
@@ -126,7 +126,7 @@ export default async function ActivityDetailPage({
     <div className="max-w-4xl">
       <Link
         href="/"
-        className="text-sm text-blue-600 dark:text-blue-400 hover:underline mb-4 inline-block"
+        className="text-sm text-accent-strong hover:underline mb-4 inline-block"
       >
         &larr; Back to summary
       </Link>
@@ -134,8 +134,8 @@ export default async function ActivityDetailPage({
       <h1 className="text-2xl font-bold mb-1">
         {activity.partnerName} &mdash; {activity.activityType}
       </h1>
-      <p className="text-sm text-gray-500 mb-2">
-        {activity.channel} | {activity.date}
+      <p className="text-sm text-text-secondary mb-2">
+        {activity.channel} | {formatDisplayDate(activity.date)}
         {activity.notes && ` | ${activity.notes}`}
       </p>
 
@@ -147,7 +147,7 @@ export default async function ActivityDetailPage({
               href={activity.contentUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+              className="text-sm text-accent-strong hover:underline"
             >
               → Content URL
             </a>
@@ -157,7 +157,7 @@ export default async function ActivityDetailPage({
               href={activity.channelUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+              className="text-sm text-accent-strong hover:underline"
             >
               → Channel URL
             </a>
@@ -193,12 +193,12 @@ export default async function ActivityDetailPage({
 
           {/* View count time series */}
           <div className="overflow-x-auto">
-            <h3 className="text-xs font-semibold mb-2 text-gray-600 dark:text-gray-400">
+            <h3 className="text-xs font-semibold mb-2 text-text-secondary">
               View Count History
             </h3>
             <table className="w-full text-xs border-collapse font-mono">
               <thead>
-                <tr className="border-b border-gray-300 dark:border-gray-700 text-left">
+                <tr className="border-b border-border  text-left">
                   <th className="py-1 pr-3 font-medium">Date</th>
                   <th className="py-1 pr-3 font-medium text-right">Views</th>
                   <th className="py-1 font-medium text-right">Daily Change</th>
@@ -211,13 +211,13 @@ export default async function ActivityDetailPage({
                   return (
                     <tr
                       key={view.date}
-                      className="border-b border-gray-100 dark:border-gray-800"
+                      className="border-b border-border-light"
                     >
                       <td className="py-1 pr-3">{view.date}</td>
                       <td className="py-1 pr-3 text-right">
                         {view.viewCount.toLocaleString()}
                       </td>
-                      <td className="py-1 text-right text-gray-500">
+                      <td className="py-1 text-right text-text-secondary">
                         {dailyChange != null
                           ? `+${dailyChange.toLocaleString()}`
                           : "—"}
@@ -266,12 +266,12 @@ export default async function ActivityDetailPage({
 
           {/* Engagement History Table */}
           <div className="overflow-x-auto">
-            <h3 className="text-xs font-semibold mb-2 text-gray-600 dark:text-gray-400">
+            <h3 className="text-xs font-semibold mb-2 text-text-secondary">
               Engagement History
             </h3>
             <table className="w-full text-xs border-collapse font-mono">
               <thead>
-                <tr className="border-b border-gray-300 dark:border-gray-700 text-left">
+                <tr className="border-b border-border  text-left">
                   <th className="py-1 pr-3 font-medium">Date</th>
                   <th className="py-1 pr-3 font-medium text-right">Likes</th>
                   <th className="py-1 pr-3 font-medium text-right">Comments</th>
@@ -283,7 +283,7 @@ export default async function ActivityDetailPage({
                 {linkedInEngagements.map((eng) => (
                   <tr
                     key={eng.date}
-                    className="border-b border-gray-100 dark:border-gray-800"
+                    className="border-b border-border-light"
                   >
                     <td className="py-1 pr-3">{eng.date}</td>
                     <td className="py-1 pr-3 text-right">
@@ -397,7 +397,7 @@ export default async function ActivityDetailPage({
       {activity.channel === "newsletter" && report.postWindowAttribution && (
         <div className="mb-8">
           <h2 className="text-sm font-semibold mb-3">Attribution Details</h2>
-          <div className="text-xs text-gray-500 mb-3 space-y-1">
+          <div className="text-xs text-text-secondary mb-3 space-y-1">
             <div>
               Account created: {report.postWindowAttribution.rawIncrementalSignups?.toFixed(1) ?? "—"} raw
               → {report.postWindowAttribution.attributedIncrementalSignups?.toFixed(1) ?? "—"} attributed
@@ -417,7 +417,7 @@ export default async function ActivityDetailPage({
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="border-b border-gray-300 dark:border-gray-700">
+                  <tr className="border-b border-border ">
                     <th className="py-1 pr-3 text-left font-medium">Date</th>
                     <th className="py-1 pr-3 text-right font-medium">Pooled</th>
                     <th className="py-1 pr-3 text-right font-medium">My Share</th>
@@ -427,12 +427,12 @@ export default async function ActivityDetailPage({
                 </thead>
                 <tbody>
                   {report.postWindowAttribution.dailyShares.map(share => (
-                    <tr key={share.date} className="border-b border-gray-100 dark:border-gray-800">
+                    <tr key={share.date} className="border-b border-border-light">
                       <td className="py-1 pr-3 font-mono">{share.date}</td>
                       <td className="py-1 pr-3 text-right">{share.pooledIncremental.toFixed(1)}</td>
                       <td className="py-1 pr-3 text-right">{(share.share * 100).toFixed(1)}%</td>
                       <td className="py-1 pr-3 text-right font-semibold">{share.attributed.toFixed(2)}</td>
-                      <td className="py-1 text-right text-gray-500">
+                      <td className="py-1 text-right text-text-secondary">
                         {share.overlappingActivities.length - 1} others
                       </td>
                     </tr>
@@ -532,11 +532,11 @@ export default async function ActivityDetailPage({
         <h2 className="text-sm font-semibold mb-2">Confidence</h2>
         <div className="flex items-center gap-3">
           <ConfidenceBadge level={report.confidence} />
-          <span className="text-sm text-gray-500">
+          <span className="text-sm text-text-secondary">
             {report.confidenceExplanation}
           </span>
         </div>
-        <p className="text-xs text-gray-400 mt-1">
+        <p className="text-xs text-text-muted mt-1">
           Baseline &sigma; = {report.baselineStdDev.toFixed(2)}
         </p>
         </div>
@@ -547,25 +547,25 @@ export default async function ActivityDetailPage({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <div>
           <h2 className="text-sm font-semibold mb-2">Baseline Window</h2>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-text-secondary">
             {report.baselineWindowStart} to {report.baselineWindowEnd}
           </p>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-text-secondary">
             Average: {report.baselineAvg.toFixed(1)} signups/day | StdDev:{" "}
             {report.baselineStdDev.toFixed(2)}
           </p>
         </div>
         <div>
           <h2 className="text-sm font-semibold mb-2">Post Window</h2>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-text-secondary">
             {report.postWindowStart} to {report.postWindowEnd}
           </p>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-text-secondary">
             Signups - Observed: {report.observedTotal} | Expected:{" "}
             {report.expectedTotal.toFixed(0)} | Incremental:{" "}
             {report.incremental.toFixed(0)}
           </p>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-text-secondary">
             Activations - Observed: {report.observedActivations} | Expected:{" "}
             {report.expectedActivations.toFixed(0)} | Incremental:{" "}
             {report.incrementalActivations.toFixed(0)}
@@ -583,7 +583,7 @@ export default async function ActivityDetailPage({
         <div className="overflow-x-auto">
           <table className="w-full text-xs border-collapse font-mono">
             <thead>
-              <tr className="border-b border-gray-300 dark:border-gray-700 text-left">
+              <tr className="border-b border-border  text-left">
                 <th className="py-1 pr-3 font-medium">Date</th>
                 <th className="py-1 pr-3 font-medium text-right">Account Created</th>
                 <th className="py-1 pr-3 font-medium text-right">NAU</th>
@@ -594,16 +594,16 @@ export default async function ActivityDetailPage({
               {report.dailyData.map((d) => (
                 <tr
                   key={d.date}
-                  className={`border-b border-gray-100 dark:border-gray-800 ${
+                  className={`border-b border-border-light ${
                     d.isPostWindow
-                      ? "bg-blue-50 dark:bg-blue-950"
+                      ? "bg-accent-light"
                       : ""
                   }`}
                 >
-                  <td className="py-1 pr-3">{d.date}</td>
+                  <td className="py-1 pr-3">{formatDisplayDate(d.date)}</td>
                   <td className="py-1 pr-3 text-right">{d.signups}</td>
                   <td className="py-1 pr-3 text-right">{d.activations}</td>
-                  <td className="py-1 text-gray-400">
+                  <td className="py-1 text-text-muted">
                     {d.isBaseline ? "baseline" : ""}
                     {d.isPostWindow ? "post" : ""}
                   </td>
@@ -613,12 +613,12 @@ export default async function ActivityDetailPage({
               {additionalDays.map((d) => (
                 <tr
                   key={d.date}
-                  className="border-b border-gray-100 dark:border-gray-800"
+                  className="border-b border-border-light"
                 >
-                  <td className="py-1 pr-3">{d.date}</td>
+                  <td className="py-1 pr-3">{formatDisplayDate(d.date)}</td>
                   <td className="py-1 pr-3 text-right">{d.signups}</td>
                   <td className="py-1 pr-3 text-right">{d.activations}</td>
-                  <td className="py-1 text-gray-400"></td>
+                  <td className="py-1 text-text-muted"></td>
                 </tr>
               ))}
             </tbody>

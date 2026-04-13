@@ -1,7 +1,10 @@
 import { NextRequest } from "next/server";
 import { verifyCronSecret, unauthorizedResponse } from "@/lib/cron-auth";
 import { syncDubAnalytics } from "@/lib/tasks/sync-dub";
+import { syncPartnerCache } from "@/lib/affiliates";
 import { prisma } from "@/lib/prisma";
+
+export const maxDuration = 800;
 
 export async function GET(request: NextRequest) {
   if (!verifyCronSecret(request)) {
@@ -16,7 +19,19 @@ export async function GET(request: NextRequest) {
   });
 
   try {
-    const result = await syncDubAnalytics();
+    const startDateParam = request.nextUrl.searchParams.get("startDate") ?? undefined;
+    const batchIndexParam = request.nextUrl.searchParams.get("batch") ? parseInt(request.nextUrl.searchParams.get("batch")!) : undefined;
+    const batchSizeParam = request.nextUrl.searchParams.get("batchSize") ? parseInt(request.nextUrl.searchParams.get("batchSize")!) : undefined;
+    const result = await syncDubAnalytics(startDateParam, batchIndexParam, batchSizeParam);
+
+    // Also sync the partner cache (so the affiliate page loads from DB, not live API)
+    let partnerCacheResult = { synced: 0 };
+    try {
+      partnerCacheResult = await syncPartnerCache();
+      console.log(`[Cron] Partner cache synced: ${partnerCacheResult.synced} partners`);
+    } catch (e) {
+      console.error(`[Cron] Partner cache sync failed:`, e);
+    }
 
     const completedAt = new Date();
     await prisma.cronExecution.update({

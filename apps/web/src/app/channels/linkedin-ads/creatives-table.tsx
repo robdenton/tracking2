@@ -68,7 +68,7 @@ function SortHeader({
   const active = key === currentKey;
   return (
     <th
-      className={`px-3 py-2 text-xs font-medium text-gray-500 cursor-pointer hover:text-gray-900 select-none ${
+      className={`px-3 py-2 text-xs font-medium text-text-secondary cursor-pointer hover:text-text-primary select-none ${
         align === "left" ? "text-left" : "text-right"
       }`}
       onClick={() => onSort(key)}
@@ -84,14 +84,14 @@ function SortHeader({
 function StatusBadge({ status }: { status: string | null }) {
   if (!status) return null;
   const colors: Record<string, string> = {
-    ACTIVE: "bg-green-100 text-green-800",
-    PAUSED: "bg-yellow-100 text-yellow-800",
-    DRAFT: "bg-gray-100 text-gray-600",
-    ARCHIVED: "bg-gray-100 text-gray-500",
+    ACTIVE: "bg-accent-light text-accent-strong",
+    PAUSED: "bg-[#FEF3C7] text-[#92400E]",
+    DRAFT: "bg-surface-sunken text-text-secondary",
+    ARCHIVED: "bg-surface-sunken text-text-secondary",
   };
   return (
     <span
-      className={`text-[10px] px-1.5 py-0.5 rounded ${colors[status] || "bg-gray-100 text-gray-600"}`}
+      className={`text-[10px] px-1.5 py-0.5 rounded ${colors[status] || "bg-surface-sunken text-text-secondary"}`}
     >
       {status}
     </span>
@@ -145,7 +145,7 @@ export function CreativesTable({
 
   if (creatives.length === 0) {
     return (
-      <p className="text-sm text-gray-500">
+      <p className="text-sm text-text-secondary">
         No creative data yet. Run a sync to fetch creative analytics.
       </p>
     );
@@ -163,7 +163,7 @@ export function CreativesTable({
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
-        <thead className="border-b border-gray-200">
+        <thead className="border-b border-border-light">
           <tr>
             <th className="w-6 px-1" />
             <SortHeader
@@ -247,7 +247,7 @@ export function CreativesTable({
             return (
               <Fragment key={cr.contentRef}>
                 <tr
-                  className={`border-b border-gray-100 hover:bg-gray-50 ${
+                  className={`border-b border-border-light hover:bg-surface-sunken ${
                     isMultiCampaign ? "cursor-pointer" : ""
                   }`}
                   onClick={
@@ -256,7 +256,7 @@ export function CreativesTable({
                       : undefined
                   }
                 >
-                  <td className="px-1 text-center text-gray-400">
+                  <td className="px-1 text-center text-text-muted">
                     {isMultiCampaign && (
                       <span className="text-xs">
                         {isExpanded ? "▼" : "▶"}
@@ -266,7 +266,7 @@ export function CreativesTable({
                   <td className="px-3 py-2 text-left max-w-[300px]">
                     <div className="flex items-center gap-1.5">
                       <span
-                        className={`font-medium truncate ${!cr.name ? "text-gray-500" : ""}`}
+                        className={`font-medium truncate ${!cr.name ? "text-text-secondary" : ""}`}
                         title={cr.displayName}
                       >
                         {cr.displayName}
@@ -276,7 +276,7 @@ export function CreativesTable({
                           href={cr.linkedInPostUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex-shrink-0 text-blue-500 hover:text-blue-700"
+                          className="flex-shrink-0 text-accent-strong hover:text-accent-strong"
                           title="View ad on LinkedIn"
                           onClick={(e) => e.stopPropagation()}
                         >
@@ -300,7 +300,7 @@ export function CreativesTable({
                   <td className="px-3 py-2 text-right font-mono">
                     {cr.campaignCount}
                     {isMultiCampaign && (
-                      <span className="ml-1 text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">
+                      <span className="ml-1 text-[10px] bg-accent-light text-accent-strong px-1.5 py-0.5 rounded">
                         multi
                       </span>
                     )}
@@ -336,36 +336,36 @@ export function CreativesTable({
                   cr.campaigns.map((camp) => (
                     <tr
                       key={camp.creativeUrn}
-                      className="bg-gray-50/50 border-b border-gray-50"
+                      className="bg-surface-sunken/50 border-b border-border-light"
                     >
                       <td />
-                      <td className="px-3 py-1.5 text-left pl-8 text-xs text-gray-600">
+                      <td className="px-3 py-1.5 text-left pl-8 text-xs text-text-secondary">
                         {camp.campaignName}
                         <StatusBadge status={camp.campaignStatus} />
                       </td>
                       <td />
-                      <td className="px-3 py-1.5 text-right font-mono text-xs text-gray-600">
+                      <td className="px-3 py-1.5 text-right font-mono text-xs text-text-secondary">
                         {fmtNum(camp.impressions)}
                       </td>
-                      <td className="px-3 py-1.5 text-right font-mono text-xs text-gray-600">
+                      <td className="px-3 py-1.5 text-right font-mono text-xs text-text-secondary">
                         {fmtNum(camp.clicks)}
                       </td>
-                      <td className="px-3 py-1.5 text-right font-mono text-xs text-gray-600">
+                      <td className="px-3 py-1.5 text-right font-mono text-xs text-text-secondary">
                         {fmtPct(camp.ctr)}
                       </td>
-                      <td className="px-3 py-1.5 text-right font-mono text-xs text-gray-600">
+                      <td className="px-3 py-1.5 text-right font-mono text-xs text-text-secondary">
                         {fmtCurrency(camp.spend)}
                       </td>
-                      <td className="px-3 py-1.5 text-right font-mono text-xs text-gray-600">
+                      <td className="px-3 py-1.5 text-right font-mono text-xs text-text-secondary">
                         {fmtCurrency(camp.cpc)}
                       </td>
-                      <td className="px-3 py-1.5 text-right font-mono text-xs text-gray-600">
+                      <td className="px-3 py-1.5 text-right font-mono text-xs text-text-secondary">
                         {fmtCurrency(camp.cpm)}
                       </td>
-                      <td className="px-3 py-1.5 text-right font-mono text-xs text-gray-600">
+                      <td className="px-3 py-1.5 text-right font-mono text-xs text-text-secondary">
                         {fmtNum(camp.landingPageClicks)}
                       </td>
-                      <td className="px-3 py-1.5 text-right font-mono text-xs text-gray-600">
+                      <td className="px-3 py-1.5 text-right font-mono text-xs text-text-secondary">
                         {fmtNum(camp.conversions)}
                       </td>
                     </tr>

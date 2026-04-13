@@ -14,10 +14,10 @@ function StatCard({
   sub?: string;
 }) {
   return (
-    <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-      <div className="text-xs text-gray-500 mb-1">{label}</div>
-      <div className="text-2xl font-mono font-semibold">{value}</div>
-      {sub && <div className="text-xs text-gray-400 mt-1">{sub}</div>}
+    <div className="stat-card bg-surface border border-border-light rounded-lg p-4">
+      <div className="text-[11px] font-medium text-text-muted uppercase tracking-wider mb-1.5">{label}</div>
+      <div className={`font-display font-semibold text-text-primary whitespace-nowrap tracking-tight ${value.includes("–") ? "text-lg" : "text-2xl"}`}>{value}</div>
+      {sub && <div className="text-[11px] text-text-muted mt-1">{sub}</div>}
     </div>
   );
 }
@@ -33,15 +33,8 @@ export default async function LinkedInOverviewPage() {
 
   return (
     <div className="max-w-6xl">
-      <Link
-        href="/"
-        className="text-sm text-blue-600 dark:text-blue-400 hover:underline mb-4 inline-block"
-      >
-        &larr; Back to summary
-      </Link>
-
       <h1 className="text-2xl font-bold mb-1">LinkedIn Overview</h1>
-      <p className="text-sm text-gray-500 mb-4">
+      <p className="text-sm text-text-secondary mb-4">
         Combined view of ads, employee build-in-public, and influencer activity
       </p>
 
@@ -72,7 +65,7 @@ export default async function LinkedInOverviewPage() {
       {/* Main Chart */}
       <div className="mb-8">
         <h2 className="text-lg font-semibold mb-1">Weekly LinkedIn NAU vs Activity</h2>
-        <p className="text-xs text-gray-500 mb-3">
+        <p className="text-xs text-text-secondary mb-3">
           Blue line = observed NAU · Dashed line = baseline expected · Bars = employee &amp; influencer impressions (decayed 50/30/20)
         </p>
         <OverviewChart data={dailyData} baseline={baseline} />
@@ -84,7 +77,7 @@ export default async function LinkedInOverviewPage() {
           <h2 className="text-lg font-semibold">Ads Performance</h2>
           <Link
             href="/channels/linkedin-ads"
-            className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+            className="text-sm text-accent-strong hover:underline"
           >
             View detailed ads →
           </Link>
@@ -119,29 +112,29 @@ export default async function LinkedInOverviewPage() {
           <h2 className="text-lg font-semibold">Employee Build-in-Public</h2>
           <Link
             href="/build-in-public"
-            className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+            className="text-sm text-accent-strong hover:underline"
           >
             View details →
           </Link>
         </div>
-        <p className="text-xs text-gray-500 mb-3">
+        <p className="text-xs text-text-secondary mb-3">
           Contextual signal — not attributed. Impressions decayed over 3 days (50/30/20).
         </p>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="border-b border-gray-200 dark:border-gray-700">
+            <thead className="border-b border-border-light">
               <tr>
-                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Team Member</th>
-                <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">Posts</th>
-                <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">Impressions</th>
-                <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">Reactions</th>
-                <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">Comments</th>
-                <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">Reposts</th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-text-secondary">Team Member</th>
+                <th className="px-3 py-2 text-right text-xs font-medium text-text-secondary">Posts</th>
+                <th className="px-3 py-2 text-right text-xs font-medium text-text-secondary">Impressions</th>
+                <th className="px-3 py-2 text-right text-xs font-medium text-text-secondary">Reactions</th>
+                <th className="px-3 py-2 text-right text-xs font-medium text-text-secondary">Comments</th>
+                <th className="px-3 py-2 text-right text-xs font-medium text-text-secondary">Reposts</th>
               </tr>
             </thead>
             <tbody>
               {employeeSummary.map((emp) => (
-                <tr key={emp.name} className="border-b border-gray-100 dark:border-gray-800">
+                <tr key={emp.name} className="border-b border-border-light">
                   <td className="px-3 py-2 font-medium">{emp.name}</td>
                   <td className="px-3 py-2 text-right font-mono">{emp.postCount}</td>
                   <td className="px-3 py-2 text-right font-mono">{emp.totalImpressions.toLocaleString()}</td>
@@ -159,30 +152,30 @@ export default async function LinkedInOverviewPage() {
       {influencerActivities.length > 0 && (
         <div className="mb-8">
           <h2 className="text-lg font-semibold mb-1">Influencer Collaborations</h2>
-          <p className="text-xs text-gray-500 mb-3">
+          <p className="text-xs text-text-secondary mb-3">
             Contextual signal — not attributed. Impressions decayed over 3 days (50/30/20).
           </p>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="border-b border-gray-200 dark:border-gray-700">
+              <thead className="border-b border-border-light">
                 <tr>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Partner</th>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Date</th>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Type</th>
-                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">Clicks</th>
-                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">Cost</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-text-secondary">Partner</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-text-secondary">Date</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-text-secondary">Type</th>
+                  <th className="px-3 py-2 text-right text-xs font-medium text-text-secondary">Clicks</th>
+                  <th className="px-3 py-2 text-right text-xs font-medium text-text-secondary">Cost</th>
                 </tr>
               </thead>
               <tbody>
                 {influencerActivities.map((act, i) => (
-                  <tr key={i} className="border-b border-gray-100 dark:border-gray-800">
+                  <tr key={i} className="border-b border-border-light">
                     <td className="px-3 py-2 font-medium">
                       {act.contentUrl ? (
                         <a
                           href={act.contentUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-blue-600 dark:text-blue-400 hover:underline"
+                          className="text-accent-strong hover:underline"
                         >
                           {act.partnerName}
                         </a>
@@ -190,8 +183,8 @@ export default async function LinkedInOverviewPage() {
                         act.partnerName
                       )}
                     </td>
-                    <td className="px-3 py-2 text-gray-600">{act.date}</td>
-                    <td className="px-3 py-2 text-gray-600">{act.activityType}</td>
+                    <td className="px-3 py-2 text-text-secondary">{act.date}</td>
+                    <td className="px-3 py-2 text-text-secondary">{act.activityType}</td>
                     <td className="px-3 py-2 text-right font-mono">{act.actualClicks.toLocaleString()}</td>
                     <td className="px-3 py-2 text-right font-mono">{formatCurrency(act.costUsd)}</td>
                   </tr>

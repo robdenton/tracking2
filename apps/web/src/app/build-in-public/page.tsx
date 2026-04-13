@@ -66,7 +66,7 @@ export default async function BuildInPublicPage({
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold">Build in Public</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-sm text-text-secondary mt-1">
             Aggregate LinkedIn reach and engagement across connected employees
           </p>
         </div>
@@ -94,26 +94,26 @@ export default async function BuildInPublicPage({
       />
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-4">
-          <div className="text-xs text-gray-500 mb-1">Connected Accounts</div>
-          <div className="text-2xl font-mono font-semibold">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        <div className="stat-card bg-surface border border-border-light rounded-lg p-4">
+          <div className="text-[11px] font-medium text-text-muted uppercase tracking-wider mb-1.5">Connected Accounts</div>
+          <div className="text-2xl font-display font-semibold text-text-primary tracking-tight">
             {connectedAccounts.length}
           </div>
         </div>
-        <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-4">
-          <div className="text-xs text-gray-500 mb-1">Total Posts</div>
-          <div className="text-2xl font-mono font-semibold">{totalPosts}</div>
+        <div className="stat-card bg-surface border border-border-light rounded-lg p-4">
+          <div className="text-[11px] font-medium text-text-muted uppercase tracking-wider mb-1.5">Total Posts</div>
+          <div className="text-2xl font-display font-semibold text-text-primary tracking-tight">{totalPosts}</div>
         </div>
-        <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-4">
-          <div className="text-xs text-gray-500 mb-1">Total Impressions</div>
-          <div className="text-2xl font-mono font-semibold">
+        <div className="stat-card bg-surface border border-border-light rounded-lg p-4">
+          <div className="text-[11px] font-medium text-text-muted uppercase tracking-wider mb-1.5">Total Impressions</div>
+          <div className="text-2xl font-display font-semibold text-text-primary tracking-tight">
             {totalImpressions.toLocaleString()}
           </div>
         </div>
-        <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-4">
-          <div className="text-xs text-gray-500 mb-1">Total Engagement</div>
-          <div className="text-2xl font-mono font-semibold">
+        <div className="stat-card bg-surface border border-border-light rounded-lg p-4">
+          <div className="text-[11px] font-medium text-text-muted uppercase tracking-wider mb-1.5">Total Engagement</div>
+          <div className="text-2xl font-display font-semibold text-text-primary tracking-tight">
             {totalEngagement.toLocaleString()}
           </div>
         </div>

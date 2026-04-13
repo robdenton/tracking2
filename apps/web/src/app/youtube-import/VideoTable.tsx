@@ -23,22 +23,22 @@ const DEPTH_BADGE: Record<
   dedicated: {
     label: "Dedicated",
     className:
-      "bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300",
+      "bg-[#F3E8F3] text-[#8B6B8A]",
   },
   featured: {
     label: "Featured",
     className:
-      "bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300",
+      "bg-accent-light text-accent-strong",
   },
   listed: {
     label: "Listed",
     className:
-      "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300",
+      "bg-[#FEF3C7] text-[#92400E]",
   },
   incidental: {
     label: "Incidental",
     className:
-      "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400",
+      "bg-surface-sunken text-text-secondary",
   },
 };
 
@@ -58,19 +58,19 @@ const SOURCE_OPTIONS: {
     value: "paid_sponsorship",
     label: "Paid Sponsorship",
     badgeLabel: "Paid",
-    className: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
+    className: "bg-accent-light text-accent-strong",
   },
   {
     value: "affiliate",
     label: "Affiliate",
     badgeLabel: "Affiliate",
-    className: "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300",
+    className: "bg-[#F3E8F3] text-[#8B6B8A]",
   },
   {
     value: "podcast",
     label: "Podcast",
     badgeLabel: "Podcast",
-    className: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300",
+    className: "bg-accent-light text-accent-strong",
   },
 ];
 
@@ -131,19 +131,19 @@ function SourceBadge({
         } ${
           current.badgeLabel
             ? current.className
-            : "bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700"
+            : "bg-surface-sunken text-text-muted hover:bg-surface-sunken"
         }`}
         title="Click to change source tag"
       >
         {current.badgeLabel ?? "Tag"}
       </button>
       {open && (
-        <div className="absolute z-50 top-full left-0 mt-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl py-1 min-w-[140px]">
+        <div className="absolute z-50 top-full left-0 mt-1 bg-surface border border-border-light rounded-lg shadow-xl py-1 min-w-[140px]">
           {SOURCE_OPTIONS.map((opt) => (
             <button
               key={opt.value}
               onClick={() => handleSelect(opt.value)}
-              className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2 ${
+              className={`w-full text-left px-3 py-1.5 text-xs hover:bg-surface-sunken flex items-center gap-2 ${
                 opt.value === source ? "font-semibold" : ""
               }`}
             >
@@ -154,11 +154,11 @@ function SourceBadge({
                   {opt.badgeLabel}
                 </span>
               ) : (
-                <span className="text-gray-400 text-[9px]">None</span>
+                <span className="text-text-muted text-[9px]">None</span>
               )}
               <span>{opt.label}</span>
               {opt.value === source && (
-                <span className="ml-auto text-blue-500 text-[10px]">✓</span>
+                <span className="ml-auto text-accent-strong text-[10px]">✓</span>
               )}
             </button>
           ))}
@@ -217,13 +217,13 @@ export function VideoTable({
     children: React.ReactNode;
   }) => (
     <th
-      className="py-1.5 px-1 text-right text-[11px] font-medium cursor-pointer hover:text-gray-900 dark:hover:text-gray-100 whitespace-nowrap"
+      className="py-1.5 px-1 text-right text-[11px] font-medium cursor-pointer hover:text-text-primary whitespace-nowrap"
       onClick={() => handleSort(colKey)}
     >
       <div className="flex items-center justify-end gap-0.5">
         {children}
         {sortKey === colKey && (
-          <span className="text-gray-400">
+          <span className="text-text-muted">
             {sortDir === "asc" ? "↑" : "↓"}
           </span>
         )}
@@ -240,7 +240,7 @@ export function VideoTable({
   return (
     <div>
       <table className="w-full text-xs">
-        <thead className="border-b border-gray-200 dark:border-gray-800">
+        <thead className="border-b border-border-light">
           <tr>
             <th className="text-left py-1.5 px-2 text-[11px] font-medium">Title</th>
             <th className="text-left py-1.5 px-1 text-[11px] font-medium">Channel</th>
@@ -259,7 +259,7 @@ export function VideoTable({
           {sorted.map((video) => (
             <tr
               key={video.id}
-              className="border-b border-gray-100 dark:border-gray-900 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
+              className="border-b border-border-light transition-colors hover:bg-surface-sunken"
             >
               <td className="py-1.5 px-2 max-w-[200px]">
                 <div className="flex items-center gap-1.5 min-w-0">
@@ -272,7 +272,7 @@ export function VideoTable({
                   </Link>
                 </div>
               </td>
-              <td className="py-1.5 px-1 text-gray-500 max-w-[100px] truncate">
+              <td className="py-1.5 px-1 text-text-secondary max-w-[100px] truncate">
                 <Link
                   href={`/youtube-import/channel/${encodeURIComponent(video.channelTitle)}`}
                   className="hover:underline"
@@ -293,13 +293,13 @@ export function VideoTable({
                     {DEPTH_BADGE[video.depthTier].label}
                   </span>
                 ) : (
-                  <span className="text-gray-300 dark:text-gray-700 text-[9px]">—</span>
+                  <span className="text-text-muted text-[9px]">—</span>
                 )}
               </td>
               {dates.map((date) => (
                 <td
                   key={date}
-                  className="py-1.5 px-1 text-right font-mono text-[11px] text-gray-500 tabular-nums"
+                  className="py-1.5 px-1 text-right font-mono text-[11px] text-text-secondary tabular-nums"
                 >
                   {video.dailyViews[date] != null
                     ? video.dailyViews[date]! > 0
@@ -317,7 +317,7 @@ export function VideoTable({
                 <a
                   href={video.url}
                   target="_blank"
-                  className="text-blue-600 dark:text-blue-400 hover:underline"
+                  className="text-accent-strong hover:underline"
                   title="Open on YouTube"
                 >
                   ↗

@@ -246,6 +246,35 @@ model DubLinkDaily {
   @@map("dub_link_daily")
 }
 
+// Dub partner group metadata (tags, labels)
+model DubGroupMeta {
+  groupId   String   @id @map("group_id") // Dub group ID
+  tag       String?  // affiliate, influencer, etc.
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("dub_group_meta")
+}
+
+// Cached partner data from Dub API — refreshed daily by sync-dub cron
+model DubPartnerCache {
+  dubPartnerId     String   @id @map("dub_partner_id")
+  name             String
+  groupId          String?  @map("group_id")
+  groupName        String?  @map("group_name")
+  totalClicks      Int      @default(0) @map("total_clicks")
+  totalLeads       Int      @default(0) @map("total_leads")
+  totalConversions Int      @default(0) @map("total_conversions")
+  totalCommissions Float    @default(0) @map("total_commissions")
+  totalSaleAmount  Float    @default(0) @map("total_sale_amount")
+  clickToLeadRate  Float    @default(0) @map("click_to_lead_rate")
+  leadToConvRate   Float    @default(0) @map("lead_to_conv_rate")
+  shortLinks       String[] @map("short_links") // Array of shortLink URLs
+  syncedAt         DateTime @default(now()) @map("synced_at")
+
+  @@map("dub_partner_cache")
+}
+
 // Maps a Dub short link to a newsletter partner name
 // One Dub link per partner (used across all their placements)
 model DubNewsletterMapping {
@@ -292,7 +321,8 @@ model User {
 // Employee LinkedIn account connected via Unipile
 model UnipileLinkedInAccount {
   id               String    @id @default(uuid())
-  userId           String    @map("user_id")
+  userId           String?   @map("user_id")
+  teamMemberName   String?   @map("team_member_name") // For public connect flow (no app user)
   unipileAccountId String    @unique @map("unipile_account_id")
   linkedinId       String?   @map("linkedin_id")       // LinkedIn internal ID (e.g. ACoAAASi_3sB...)
   linkedinName     String?   @map("linkedin_name")
@@ -303,7 +333,7 @@ model UnipileLinkedInAccount {
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime  @updatedAt @map("updated_at")
 
-  user  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user  User?                  @relation(fields: [userId], references: [id], onDelete: Cascade)
   posts EmployeeLinkedInPost[]
 
   @@map("unipile_linkedin_accounts")
@@ -552,17 +582,55 @@ model PodscribeCampaignDaily {
 
 // Daily snapshot from Growi API (aggregated across all creators)
 model GrowiDailySnapshot {
-  id          String   @id @default(uuid())
-  date        String   @unique // YYYY-MM-DD
-  views       Int      @default(0)
-  likes       Int      @default(0)
-  comments    Int      @default(0)
-  shares      Int      @default(0)
-  saves       Int      @default(0)
-  postsCount  Int      @default(0) @map("posts_count")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id              String   @id @default(uuid())
+  date            String   @unique // YYYY-MM-DD
+  views           Int      @default(0)
+  likes           Int      @default(0)
+  comments        Int      @default(0)
+  shares          Int      @default(0)
+  saves           Int      @default(0)
+  postsCount      Int      @default(0) @map("posts_count")
+  tiktokViews     Int      @default(0) @map("tiktok_views")
+  tiktokLikes     Int      @default(0) @map("tiktok_likes")
+  tiktokComments  Int      @default(0) @map("tiktok_comments")
+  tiktokShares    Int      @default(0) @map("tiktok_shares")
+  tiktokSaves     Int      @default(0) @map("tiktok_saves")
+  tiktokPosts     Int      @default(0) @map("tiktok_posts")
+  instagramViews  Int      @default(0) @map("instagram_views")
+  instagramLikes  Int      @default(0) @map("instagram_likes")
+  instagramComments Int    @default(0) @map("instagram_comments")
+  instagramShares Int      @default(0) @map("instagram_shares")
+  instagramSaves  Int      @default(0) @map("instagram_saves")
+  instagramPosts  Int      @default(0) @map("instagram_posts")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
   @@index([date])
   @@map("growi_daily_snapshots")
+}
+
+// ---------------------------------------------------------------------------
+// Dub Customer Attribution
+// ---------------------------------------------------------------------------
+
+// Maps Dub customers (with externalId = Granola user UUID) to partner links
+model DubCustomer {
+  id              String   @id @default(uuid())
+  dubCustomerId   String   @unique @map("dub_customer_id") // e.g. cus_1KMQ60F5T3Q69JEBSFGC9WDXC
+  externalId      String   @map("external_id") // Granola user UUID
+  country         String?
+  linkKey         String?  @map("link_key") // e.g. "francesco-d-alessio"
+  linkDomain      String?  @map("link_domain") // e.g. "go.granola.ai"
+  shortLink       String?  @map("short_link") // e.g. "https://go.granola.ai/francesco-d-alessio"
+  partnerId       String?  @map("partner_id") // Dub partner ID
+  partnerName     String?  @map("partner_name") // Resolved partner name
+  groupId         String?  @map("group_id") // Dub group ID
+  groupName       String?  @map("group_name") // Resolved group name
+  dubCreatedAt    DateTime? @map("dub_created_at") // When the customer was created in Dub
+  syncedAt        DateTime @default(now()) @map("synced_at")
+
+  @@index([externalId])
+  @@index([partnerId])
+  @@index([groupId])
+  @@map("dub_customers")
 }

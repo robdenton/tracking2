@@ -40,17 +40,17 @@ export function ConnectLinkedInAdsButton({
     return (
       <div className="flex items-center gap-3">
         <div className="text-right text-xs">
-          <div className="text-gray-500">
+          <div className="text-text-secondary">
             {connection.adAccountName ?? "LinkedIn Ads"} &middot;{" "}
             {connection.connectedBy}
           </div>
           <div
             className={
               isExpired
-                ? "text-red-500 font-medium"
+                ? "text-[#B85C38] font-medium"
                 : daysUntilExpiry < 14
                   ? "text-amber-500"
-                  : "text-green-600"
+                  : "text-accent-strong"
             }
           >
             {isExpired
@@ -61,7 +61,7 @@ export function ConnectLinkedInAdsButton({
         <button
           onClick={handleConnect}
           disabled={loading}
-          className="px-3 py-1.5 rounded-md text-xs font-medium bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+          className="px-3 py-1.5 rounded-md text-xs font-medium bg-accent-light text-accent-strong hover:bg-accent disabled:opacity-50"
         >
           {loading ? "Connecting..." : isExpired ? "Reconnect" : "Refresh"}
         </button>
@@ -73,7 +73,7 @@ export function ConnectLinkedInAdsButton({
     <button
       onClick={handleConnect}
       disabled={loading}
-      className="px-4 py-2 rounded-md text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+      className="px-4 py-2 rounded-md text-sm font-medium bg-accent-light text-accent-strong hover:bg-accent disabled:opacity-50"
     >
       {loading ? "Connecting..." : "Connect LinkedIn Ads"}
     </button>
