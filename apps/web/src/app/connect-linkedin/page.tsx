@@ -128,13 +128,31 @@ export default function ConnectLinkedInPage() {
           )}
 
           {step === "done" && (
-            <div className="text-center py-4 space-y-2">
-              <p className="text-sm font-medium text-[#6B9E78]">
-                LinkedIn connected successfully!
-              </p>
-              <p className="text-sm text-[#6B6B65]">
-                Your posts will appear on the team dashboard shortly.
-              </p>
+            <div className="text-center py-4 space-y-4">
+              <div className="w-12 h-12 mx-auto bg-[#6B9E78]/10 rounded-full flex items-center justify-center">
+                <svg className="w-6 h-6 text-[#6B9E78]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <div className="space-y-1">
+                <p className="text-base font-semibold text-[#1A1A18]">
+                  Thanks for connecting!
+                </p>
+                <p className="text-sm text-[#6B6B65]">
+                  Your LinkedIn posts will start appearing on the team dashboard shortly.
+                </p>
+              </div>
+              <div className="pt-3 border-t border-[#E8E5E0]">
+                <p className="text-sm text-[#6B6B65] mb-3">
+                  Want to track the team&apos;s building-in-public progress? Sign up for a dashboard account with your Granola email.
+                </p>
+                <a
+                  href="/auth/signin"
+                  className="inline-block w-full py-2.5 bg-[#1A1A18] text-white rounded-lg text-sm font-medium hover:bg-[#3D3D38] transition-colors text-center"
+                >
+                  Sign up for the dashboard
+                </a>
+              </div>
             </div>
           )}
         </div>
