@@ -376,21 +376,23 @@ export async function getImportedVideoViews(videoId: string) {
 export async function getImportedVideosWithDailyViews(days = 10) {
   const videos = await getImportedVideos();
 
-  // Build last N+1 dates — the extra prior day is needed to compute
-  // the first displayed day's increment.
-  const allDates: string[] = [];
-  for (let i = days; i >= 0; i--) {
+  // Build display dates (the N days we actually show) plus a wider lookup
+  // window (extra 30 days back) so we can walk backwards through cron-gap
+  // days to find the most recent known viewCount.
+  const lookupSpan = days + 30;
+  const lookupDates: string[] = [];
+  for (let i = lookupSpan; i >= 0; i--) {
     const d = new Date();
     d.setUTCDate(d.getUTCDate() - i);
-    allDates.push(d.toISOString().slice(0, 10));
+    lookupDates.push(d.toISOString().slice(0, 10));
   }
-  const displayDates = allDates.slice(1); // the 10 dates we actually show
+  const displayDates = lookupDates.slice(lookupDates.length - days);
 
-  // Fetch views for all videos across the full range (including prior day)
+  // Fetch views for all videos across the full lookup range
   const allViews = await prisma.importedVideoView.findMany({
     where: {
       videoId: { in: videos.map((v) => v.id) },
-      date: { in: allDates },
+      date: { in: lookupDates },
     },
   });
 
@@ -406,19 +408,46 @@ export async function getImportedVideosWithDailyViews(days = 10) {
     const dailyViews: Record<string, number | null> = {};
     let totalViews: number | null = null;
 
-    for (let i = 0; i < displayDates.length; i++) {
-      const date = displayDates[i];
-      const prevDate = allDates[i]; // one day before displayDates[i]
-      const curr = videoViews?.get(date) ?? null;
-      const prev = videoViews?.get(prevDate) ?? null;
+    // For totalViews: latest known cumulative view count
+    for (let i = lookupDates.length - 1; i >= 0; i--) {
+      const v = videoViews?.get(lookupDates[i]);
+      if (v !== undefined) { totalViews = v; break; }
+    }
 
-      if (curr !== null && prev !== null) {
-        dailyViews[date] = curr - prev;
-      } else {
-        dailyViews[date] = null;
+    for (const date of displayDates) {
+      // Find bracketing snapshots (most recent prior, earliest next)
+      // and spread the delta evenly across the gap. This handles
+      // missed cron days — e.g. if May 4 has no snapshot, the May 3 → May 5
+      // delta is divided by 2 and applied to both May 4 and May 5.
+      const idx = lookupDates.indexOf(date);
+      let prev: number | null = null;
+      let prevIdx = -1;
+      const exact = videoViews?.get(date) ?? null;
+
+      // If today has a snapshot, use it as the "next" anchor; otherwise
+      // walk forward to find the next known viewCount.
+      let next: number | null = exact;
+      let nextIdx = idx;
+      if (next === null) {
+        for (let k = idx + 1; k < lookupDates.length; k++) {
+          const candidate = videoViews?.get(lookupDates[k]) ?? null;
+          if (candidate !== null) { next = candidate; nextIdx = k; break; }
+        }
       }
 
-      if (curr !== null) totalViews = curr;
+      // Walk backwards to find the most recent prior known viewCount
+      for (let k = idx - 1; k >= 0; k--) {
+        const candidate = videoViews?.get(lookupDates[k]) ?? null;
+        if (candidate !== null) { prev = candidate; prevIdx = k; break; }
+      }
+
+      if (next === null || prev === null) {
+        // Missing one or both bookends — can't interpolate
+        dailyViews[date] = null;
+      } else {
+        const gap = nextIdx - prevIdx;
+        dailyViews[date] = Math.round((next - prev) / gap);
+      }
     }
 
     return { ...video, dailyViews, totalViews, dates: displayDates };
@@ -440,14 +469,16 @@ export async function getImportedVideoById(id: string) {
  * Get imported videos with daily views for a specific channel (by channelTitle).
  */
 export async function getChannelVideosWithDailyViews(channelTitle: string, days = 10) {
-  // Build last N+1 dates (extra day for increment computation)
-  const allDates: string[] = [];
-  for (let i = days; i >= 0; i--) {
+  // Build display dates plus a wider lookup window (extra 30 days back)
+  // so we can walk backwards through cron-gap days to find prior viewCounts.
+  const lookupSpan = days + 30;
+  const lookupDates: string[] = [];
+  for (let i = lookupSpan; i >= 0; i--) {
     const d = new Date();
     d.setUTCDate(d.getUTCDate() - i);
-    allDates.push(d.toISOString().slice(0, 10));
+    lookupDates.push(d.toISOString().slice(0, 10));
   }
-  const displayDates = allDates.slice(1);
+  const displayDates = lookupDates.slice(lookupDates.length - days);
 
   const videos = await prisma.importedYouTubeVideo.findMany({
     where: { status: "active", channelTitle },
@@ -457,7 +488,7 @@ export async function getChannelVideosWithDailyViews(channelTitle: string, days 
   const allViews = await prisma.importedVideoView.findMany({
     where: {
       videoId: { in: videos.map((v) => v.id) },
-      date: { in: allDates },
+      date: { in: lookupDates },
     },
   });
 
@@ -472,19 +503,40 @@ export async function getChannelVideosWithDailyViews(channelTitle: string, days 
     const dailyViews: Record<string, number | null> = {};
     let totalViews: number | null = null;
 
-    for (let i = 0; i < displayDates.length; i++) {
-      const date = displayDates[i];
-      const prevDate = allDates[i];
-      const curr = videoViews?.get(date) ?? null;
-      const prev = videoViews?.get(prevDate) ?? null;
+    // Latest known cumulative view count
+    for (let i = lookupDates.length - 1; i >= 0; i--) {
+      const v = videoViews?.get(lookupDates[i]);
+      if (v !== undefined) { totalViews = v; break; }
+    }
 
-      if (curr !== null && prev !== null) {
-        dailyViews[date] = curr - prev;
-      } else {
-        dailyViews[date] = null;
+    // For each display day, find bracketing snapshots and spread the
+    // delta evenly across the gap (handles missed cron days).
+    for (const date of displayDates) {
+      const idx = lookupDates.indexOf(date);
+      let prev: number | null = null;
+      let prevIdx = -1;
+      const exact = videoViews?.get(date) ?? null;
+
+      let next: number | null = exact;
+      let nextIdx = idx;
+      if (next === null) {
+        for (let k = idx + 1; k < lookupDates.length; k++) {
+          const candidate = videoViews?.get(lookupDates[k]) ?? null;
+          if (candidate !== null) { next = candidate; nextIdx = k; break; }
+        }
       }
 
-      if (curr !== null) totalViews = curr;
+      for (let k = idx - 1; k >= 0; k--) {
+        const candidate = videoViews?.get(lookupDates[k]) ?? null;
+        if (candidate !== null) { prev = candidate; prevIdx = k; break; }
+      }
+
+      if (next === null || prev === null) {
+        dailyViews[date] = null;
+      } else {
+        const gap = nextIdx - prevIdx;
+        dailyViews[date] = Math.round((next - prev) / gap);
+      }
     }
 
     return { ...video, dailyViews, totalViews, dates: displayDates };
