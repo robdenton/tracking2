@@ -1,9 +1,13 @@
 /**
  * Podscan Sync Task
  *
- * Searches Podscan for podcast episodes mentioning Granola and upserts
- * results into `podscan_mentions`. Both organic and paid mentions are
- * stored — the page filters them on display.
+ * Searches Podscan with a curated set of queries and upserts every matching
+ * episode into `podscan_mentions`. Episodes carry a `confidenceTier`:
+ *
+ *   high   — matched a high-precision query (almost certainly Granola)
+ *   medium — matched only broader queries (possible noise, manual review)
+ *
+ * Both organic and paid mentions are stored. The page filters them on display.
  */
 
 import { prisma } from "../prisma";
@@ -14,17 +18,36 @@ function log(msg: string) {
   console.log(`[${ts}] [Podscan Sync] ${msg}`);
 }
 
-// Queries to run. Each catches a different mention pattern:
-//   "granola.ai"  → product domain (tracking URLs, show notes, ad reads)
-//   "granola ai"  → product name spoken aloud, transcript
-//   "granola.so"  → alternative domain (older marketing)
-// Podscan caps results at 10,000 per query. For narrow brand queries like
-// these we expect a few hundred each — well under the cap, so coverage is
-// effectively exhaustive.
-const SEARCH_QUERIES = ['"granola.ai"', '"granola ai"', '"granola.so"'];
+// High-precision queries: every match is almost certainly about Granola
+// (very specific phrases or co-occurrence with the founder's name)
+const HIGH_PRECISION_QUERIES = [
+  '"granola.ai"',
+  '"granola.so"',
+  '"granola ai"',
+  '"chris pedregal"',
+  '"granola" AND "pedregal"',
+  '"granola" AND "notetaker"',
+  '"granola" AND "notetaking"',
+  '"granola" AND "AI notes"',
+];
+
+// Medium-precision queries: broader; most matches are about Granola
+// but some food/recipe noise expected
+const MEDIUM_PRECISION_QUERIES = [
+  '"granola" AND "meeting notes"',
+  '"granola" AND "transcription"',
+  '"using granola"',
+  '"i use granola"',
+  '"tools like granola"',
+  '"granola for"',
+];
+
+const ALL_QUERIES = [...HIGH_PRECISION_QUERIES, ...MEDIUM_PRECISION_QUERIES];
+const HIGH_SET = new Set(HIGH_PRECISION_QUERIES);
 
 export interface QueryResult {
   query: string;
+  tier: "high" | "medium";
   fetched: number;
   apiTotal: number | null;
   truncated: boolean;
@@ -34,16 +57,23 @@ export async function syncPodscan(): Promise<{
   totalFound: number;
   upserted: number;
   errors: number;
+  highConfidence: number;
+  mediumConfidence: number;
   queryResults: QueryResult[];
 }> {
-  log("Starting Podscan sync...");
+  log(`Starting Podscan sync with ${ALL_QUERIES.length} queries...`);
 
-  const dedupe = new Map<string, { ep: PodscanEpisode; query: string }>();
+  // episode_id -> { ep_data, set_of_matching_queries }
+  const matches = new Map<
+    string,
+    { ep: PodscanEpisode; queries: Set<string> }
+  >();
   const queryResults: QueryResult[] = [];
 
-  for (const query of SEARCH_QUERIES) {
+  for (const query of ALL_QUERIES) {
+    const tier = HIGH_SET.has(query) ? "high" : "medium";
     try {
-      log(`Searching: ${query}`);
+      log(`Searching [${tier}]: ${query}`);
       const { episodes, pagination, truncated } = await searchAllEpisodes({
         query,
         perPage: 50,
@@ -51,34 +81,52 @@ export async function syncPodscan(): Promise<{
       });
       queryResults.push({
         query,
+        tier,
         fetched: episodes.length,
         apiTotal: pagination?.total ?? null,
         truncated,
       });
       log(
-        `  → fetched ${episodes.length} of ${pagination?.total ?? "?"} reported by API` +
-          (truncated ? " [TRUNCATED — increase maxPages]" : "")
+        `  → fetched ${episodes.length} of ${pagination?.total ?? "?"}` +
+          (truncated ? " [TRUNCATED]" : "")
       );
+
       for (const ep of episodes) {
         if (!ep.episode_id) continue;
-        if (!dedupe.has(ep.episode_id)) {
-          dedupe.set(ep.episode_id, { ep, query });
+        if (!matches.has(ep.episode_id)) {
+          matches.set(ep.episode_id, { ep, queries: new Set([query]) });
+        } else {
+          matches.get(ep.episode_id)!.queries.add(query);
         }
       }
     } catch (err) {
       log(`  ! Search failed for ${query}: ${(err as Error).message}`);
-      queryResults.push({ query, fetched: 0, apiTotal: null, truncated: false });
+      queryResults.push({
+        query,
+        tier,
+        fetched: 0,
+        apiTotal: null,
+        truncated: false,
+      });
     }
   }
 
-  log(`Total unique episodes: ${dedupe.size}`);
+  log(`Total unique episodes: ${matches.size}`);
 
   let upserted = 0;
   let errors = 0;
+  let highConfidence = 0;
+  let mediumConfidence = 0;
   const now = new Date();
 
-  for (const { ep, query } of dedupe.values()) {
+  for (const [episodeId, { ep, queries }] of matches.entries()) {
     try {
+      // Confidence tier: high if matched by any high-precision query
+      const hasHighMatch = [...queries].some((q) => HIGH_SET.has(q));
+      const confidenceTier = hasHighMatch ? "high" : "medium";
+      if (hasHighMatch) highConfidence++;
+      else mediumConfidence++;
+
       const podcastId = ep.podcast?.podcast_id ?? ep.podcast_id ?? "unknown";
       const data = {
         podcastId,
@@ -96,27 +144,33 @@ export async function syncPodscan(): Promise<{
         summaryLong: ep.metadata?.summary_long ?? null,
         sentimentLabel: ep.metadata?.sentiment?.label ?? null,
         sentimentScore: ep.metadata?.sentiment?.score ?? null,
-        matchedQuery: query,
+        matchedQuery: [...queries][0] ?? null, // first match (legacy field)
+        matchedQueries: [...queries].join(", "),
+        confidenceTier,
         lastSeenAt: now,
       };
       await prisma.podscanMention.upsert({
-        where: { episodeId: ep.episode_id },
-        create: { episodeId: ep.episode_id, ...data },
+        where: { episodeId },
+        create: { episodeId, ...data },
         update: data,
       });
       upserted++;
     } catch (err) {
-      log(`  ! Upsert failed for ${ep.episode_id}: ${(err as Error).message}`);
+      log(`  ! Upsert failed for ${episodeId}: ${(err as Error).message}`);
       errors++;
     }
   }
 
-  log(`Sync complete: ${upserted} upserted, ${errors} errors`);
+  log(
+    `Sync complete: ${upserted} upserted (${highConfidence} high, ${mediumConfidence} medium), ${errors} errors`
+  );
 
   return {
-    totalFound: dedupe.size,
+    totalFound: matches.size,
     upserted,
     errors,
+    highConfidence,
+    mediumConfidence,
     queryResults,
   };
 }

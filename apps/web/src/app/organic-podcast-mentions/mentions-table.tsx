@@ -17,6 +17,8 @@ interface Mention {
   summaryShort: string | null;
   sentimentLabel: string | null;
   sentimentScore: number | null;
+  confidenceTier: string | null;
+  matchedQueries: string | null;
 }
 
 function formatDate(s: string | null): string {
@@ -94,6 +96,9 @@ export function MentionsTable({
             <th className="text-left py-2.5 px-4 font-medium text-text-secondary text-xs uppercase tracking-wider">
               Sentiment
             </th>
+            <th className="text-left py-2.5 px-4 font-medium text-text-secondary text-xs uppercase tracking-wider">
+              Confidence
+            </th>
             {view !== "organic" && (
               <th className="text-left py-2.5 px-4 font-medium text-text-secondary text-xs uppercase tracking-wider">
                 Type
@@ -129,6 +134,17 @@ export function MentionsTable({
                 <td className={"py-2.5 px-4 " + sentimentColor(m.sentimentScore)}>
                   {m.sentimentLabel ?? "—"}
                 </td>
+                <td className="py-2.5 px-4">
+                  {m.confidenceTier === "high" ? (
+                    <span className="text-xs px-2 py-0.5 rounded bg-accent-light text-accent-strong">
+                      High
+                    </span>
+                  ) : (
+                    <span className="text-xs px-2 py-0.5 rounded bg-[#F4EFE6] text-[#8B7350]">
+                      Medium
+                    </span>
+                  )}
+                </td>
                 {view !== "organic" && (
                   <td className="py-2.5 px-4">
                     {m.isSponsored ? (
@@ -150,7 +166,7 @@ export function MentionsTable({
               </tr>
               {expandedId === m.episodeId && (
                 <tr className="border-b border-border-light bg-surface-sunken/30">
-                  <td colSpan={view !== "organic" ? 7 : 6} className="py-4 px-4">
+                  <td colSpan={view !== "organic" ? 8 : 7} className="py-4 px-4">
                     <div className="space-y-3 text-xs">
                       {m.summaryShort && (
                         <div>
@@ -172,6 +188,16 @@ export function MentionsTable({
                           </div>
                           <div className="text-text-primary leading-relaxed">
                             {m.sponsoredReason}
+                          </div>
+                        </div>
+                      )}
+                      {m.matchedQueries && (
+                        <div>
+                          <div className="font-medium text-text-secondary uppercase tracking-wider mb-1">
+                            Matched queries
+                          </div>
+                          <div className="text-text-primary leading-relaxed font-mono text-[11px]">
+                            {m.matchedQueries}
                           </div>
                         </div>
                       )}
