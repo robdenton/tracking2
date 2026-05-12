@@ -61,9 +61,11 @@ export async function classifyPodscanMentions(opts: ClassifierOpts = {}): Promis
 
   const client = new Anthropic({ apiKey });
 
+  // Classify any mention that has at least one signal (snippets or summary).
+  // Snippets give the strongest signal but aren't always available.
   const mentions = await prisma.podscanMention.findMany({
     where: {
-      snippets: { not: null },
+      OR: [{ snippets: { not: null } }, { summaryShort: { not: null } }],
       ...(opts.reclassify ? {} : { llmClassification: null }),
     },
     select: {
@@ -71,6 +73,7 @@ export async function classifyPodscanMentions(opts: ClassifierOpts = {}): Promis
       podcastName: true,
       episodeTitle: true,
       summaryShort: true,
+      summaryLong: true,
       snippets: true,
     },
     take: limit,
@@ -83,16 +86,19 @@ export async function classifyPodscanMentions(opts: ClassifierOpts = {}): Promis
   const counts = { product: 0, food: 0, ambiguous: 0 };
 
   for (const m of mentions) {
-    const userPrompt = [
+    const promptParts = [
       `Podcast: ${m.podcastName ?? "(unknown)"}`,
       `Episode: ${m.episodeTitle ?? "(unknown)"}`,
-      m.summaryShort ? `Episode summary: ${m.summaryShort}` : "",
-      "",
-      "Transcript snippets containing 'granola':",
-      m.snippets ?? "",
-    ]
-      .filter(Boolean)
-      .join("\n");
+    ];
+    if (m.summaryShort) promptParts.push(`Episode summary: ${m.summaryShort}`);
+    if (m.snippets) {
+      promptParts.push("", "Transcript snippets containing 'granola':", m.snippets);
+    } else if (m.summaryLong) {
+      // Fall back to long summary if no snippets available (e.g. when transcript
+      // hasn't been re-fetched yet)
+      promptParts.push("", "Longer summary:", m.summaryLong.slice(0, 2000));
+    }
+    const userPrompt = promptParts.join("\n");
 
     try {
       const resp = await client.messages.create({
