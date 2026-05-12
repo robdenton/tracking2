@@ -14,43 +14,60 @@ function log(msg: string) {
   console.log(`[${ts}] [Podscan Sync] ${msg}`);
 }
 
-// Queries to run. "granola.ai" is the most specific (matches the product
-// domain in show notes / tracking URLs). "granola ai" catches transcript
-// mentions of the product name spelled out.
-const SEARCH_QUERIES = ['"granola.ai"', '"granola ai"'];
+// Queries to run. Each catches a different mention pattern:
+//   "granola.ai"  → product domain (tracking URLs, show notes, ad reads)
+//   "granola ai"  → product name spoken aloud, transcript
+//   "granola.so"  → alternative domain (older marketing)
+// Podscan caps results at 10,000 per query. For narrow brand queries like
+// these we expect a few hundred each — well under the cap, so coverage is
+// effectively exhaustive.
+const SEARCH_QUERIES = ['"granola.ai"', '"granola ai"', '"granola.so"'];
+
+export interface QueryResult {
+  query: string;
+  fetched: number;
+  apiTotal: number | null;
+  truncated: boolean;
+}
 
 export async function syncPodscan(): Promise<{
   totalFound: number;
   upserted: number;
   errors: number;
-  byQuery: Record<string, number>;
+  queryResults: QueryResult[];
 }> {
   log("Starting Podscan sync...");
 
   const dedupe = new Map<string, { ep: PodscanEpisode; query: string }>();
-  const byQuery: Record<string, number> = {};
+  const queryResults: QueryResult[] = [];
 
   for (const query of SEARCH_QUERIES) {
     try {
       log(`Searching: ${query}`);
-      const episodes = await searchAllEpisodes({
+      const { episodes, pagination, truncated } = await searchAllEpisodes({
         query,
-        maxPages: 15,
-        perPage: 20,
+        perPage: 50,
         delayMs: 2500,
       });
-      byQuery[query] = episodes.length;
-      log(`  → ${episodes.length} episodes`);
+      queryResults.push({
+        query,
+        fetched: episodes.length,
+        apiTotal: pagination?.total ?? null,
+        truncated,
+      });
+      log(
+        `  → fetched ${episodes.length} of ${pagination?.total ?? "?"} reported by API` +
+          (truncated ? " [TRUNCATED — increase maxPages]" : "")
+      );
       for (const ep of episodes) {
         if (!ep.episode_id) continue;
-        // Keep first hit's query; later matches are duplicates we'd dedupe anyway
         if (!dedupe.has(ep.episode_id)) {
           dedupe.set(ep.episode_id, { ep, query });
         }
       }
     } catch (err) {
       log(`  ! Search failed for ${query}: ${(err as Error).message}`);
-      byQuery[query] = -1;
+      queryResults.push({ query, fetched: 0, apiTotal: null, truncated: false });
     }
   }
 
@@ -100,6 +117,6 @@ export async function syncPodscan(): Promise<{
     totalFound: dedupe.size,
     upserted,
     errors,
-    byQuery,
+    queryResults,
   };
 }

@@ -59,20 +59,26 @@ export interface PodscanEpisode {
   };
 }
 
+export interface PodscanPagination {
+  total?: number;
+  per_page?: number;
+  current_page?: number;
+  last_page?: number;
+}
+
 interface SearchResponse {
   episodes?: PodscanEpisode[];
-  pagination?: {
-    total?: number;
-    per_page?: number;
-    current_page?: number;
-    last_page?: number;
-  };
+  pagination?: PodscanPagination;
 }
 
 /**
  * Search episodes by query — matches against transcripts, descriptions, and
- * metadata. Returns up to `perPage` results per page. Caller paginates by
- * incrementing `page`.
+ * metadata. Returns up to `perPage` results per page (max 50 enforced by
+ * Podscan). Caller paginates by incrementing `page`.
+ *
+ * NOTE: Podscan does NOT support date filtering or sort order on this
+ * endpoint. The only way to get exhaustive coverage over a time period is
+ * to paginate through every result for each query.
  */
 export async function searchEpisodes(params: {
   query: string;
@@ -82,7 +88,8 @@ export async function searchEpisodes(params: {
   const url = new URL(`${BASE}/api/v1/episodes/search`);
   url.searchParams.set("query", params.query);
   url.searchParams.set("page", String(params.page ?? 1));
-  url.searchParams.set("per_page", String(params.perPage ?? 20));
+  // Podscan caps per_page at 50; asking for more is silently downgraded.
+  url.searchParams.set("per_page", String(Math.min(params.perPage ?? 50, 50)));
 
   const r = await fetchWithRetry(url.toString());
   if (!r.ok) {
@@ -95,28 +102,47 @@ export async function searchEpisodes(params: {
 }
 
 /**
- * Fetch every episode matching a query across all pages. Caps at `maxPages`
- * to avoid runaway queries. Polite delay between page fetches.
+ * Fetch every episode matching a query, walking the API's reported
+ * `last_page`. Returns the full list plus the final pagination metadata
+ * so the caller can report total coverage.
+ *
+ * Podscan hard-caps results at 10,000 per query. For narrow queries
+ * (e.g. "granola.ai" with ~305 total) this returns everything.
  */
 export async function searchAllEpisodes(params: {
   query: string;
   maxPages?: number;
   perPage?: number;
   delayMs?: number;
-}): Promise<PodscanEpisode[]> {
-  const perPage = params.perPage ?? 20;
-  const maxPages = params.maxPages ?? 20;
+}): Promise<{
+  episodes: PodscanEpisode[];
+  pagination: PodscanPagination | null;
+  truncated: boolean;
+}> {
+  const perPage = Math.min(params.perPage ?? 50, 50);
+  const hardMaxPages = params.maxPages ?? 50; // safety cap (50 * 50 = 2500 episodes)
   const delayMs = params.delayMs ?? 2500;
 
   const all: PodscanEpisode[] = [];
-  for (let page = 1; page <= maxPages; page++) {
+  let pagination: PodscanPagination | null = null;
+  let truncated = false;
+
+  for (let page = 1; page <= hardMaxPages; page++) {
     const result = await searchEpisodes({ query: params.query, page, perPage });
+    pagination = result.pagination ?? null;
     const episodes = result.episodes ?? [];
     all.push(...episodes);
-    if (episodes.length < perPage) break;
-    if (page < maxPages) {
-      await new Promise((s) => setTimeout(s, delayMs));
+
+    const lastPage = pagination?.last_page ?? page;
+    if (page >= lastPage) break;
+    if (page >= hardMaxPages) {
+      truncated = true;
+      break;
     }
+    if (episodes.length < perPage) break;
+
+    await new Promise((s) => setTimeout(s, delayMs));
   }
-  return all;
+
+  return { episodes: all, pagination, truncated };
 }
