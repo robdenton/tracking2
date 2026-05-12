@@ -138,36 +138,42 @@ async function fetchPodcastAudience(podcastId) {
 }
 
 (async () => {
-  // ==================================================================
-  // Phase 1: Backfill audience_size for podcasts already in our DB
-  // ==================================================================
-  console.log("=== PHASE 1: Backfill audience_size for existing podcasts ===");
-  const uniquePodcasts = await p.$queryRawUnsafe(
-    `SELECT podcast_id, MAX(podcast_name) as name
-     FROM podscan_mentions
-     WHERE podcast_id != 'unknown' AND excluded=false
-     GROUP BY podcast_id`,
-  );
-  console.log(`  ${uniquePodcasts.length} unique podcasts to enrich`);
-
   const audienceMap = new Map();
-  let done = 0;
-  for (const pod of uniquePodcasts) {
-    const size = await fetchPodcastAudience(pod.podcast_id);
-    audienceMap.set(pod.podcast_id, size);
-    if (size !== null) {
-      await p.podscanMention.updateMany({
-        where: { podcastId: pod.podcast_id },
-        data: { podcastAudienceSize: size },
-      });
+  if (process.env.SKIP_PHASE_1 === "1") {
+    console.log("Skipping Phase 1 (SKIP_PHASE_1=1)");
+  } else {
+    // ==================================================================
+    // Phase 1: Backfill audience_size for podcasts already in our DB
+    // ==================================================================
+    console.log("=== PHASE 1: Backfill audience_size for existing podcasts ===");
+    const uniquePodcasts = await p.$queryRawUnsafe(
+      `SELECT podcast_id, MAX(podcast_name) as name
+       FROM podscan_mentions
+       WHERE podcast_id != 'unknown' AND excluded=false
+       GROUP BY podcast_id`,
+    );
+    console.log(`  ${uniquePodcasts.length} unique podcasts to enrich`);
+
+    let done = 0;
+    for (const pod of uniquePodcasts) {
+      const size = await fetchPodcastAudience(pod.podcast_id);
+      audienceMap.set(pod.podcast_id, size);
+      if (size !== null) {
+        await p.podscanMention.updateMany({
+          where: { podcastId: pod.podcast_id },
+          data: { podcastAudienceSize: size },
+        });
+      }
+      done++;
+      if (done % 50 === 0)
+        console.log(
+          `  ${done}/${uniquePodcasts.length} — last: ${pod.name} (audience=${size})`,
+        );
+      await new Promise((s) => setTimeout(s, DELAY_MS));
     }
-    done++;
-    if (done % 50 === 0)
-      console.log(`  ${done}/${uniquePodcasts.length} — last: ${pod.name} (audience=${size})`);
-    await new Promise((s) => setTimeout(s, DELAY_MS));
+    const enriched = [...audienceMap.values()].filter((v) => v !== null).length;
+    console.log(`  Done: ${enriched}/${uniquePodcasts.length} podcasts got audience_size`);
   }
-  const enriched = [...audienceMap.values()].filter((v) => v !== null).length;
-  console.log(`  Done: ${enriched}/${uniquePodcasts.length} podcasts got audience_size`);
 
   // ==================================================================
   // Phase 2: Re-run search queries — capture transcripts + snippets
@@ -191,18 +197,23 @@ async function fetchPodcastAudience(podcastId) {
   console.log();
   console.log("Unique episodes found:", matches.size);
 
-  // Identify NEW podcasts not yet in audienceMap; fetch their audience too
+  // Load existing audience data from DB (Phase 1 result, in case we lost state)
+  const existingAudience = await p.$queryRawUnsafe(
+    `SELECT DISTINCT podcast_id, podcast_audience_size FROM podscan_mentions WHERE podcast_audience_size IS NOT NULL`,
+  );
+  for (const row of existingAudience) {
+    if (!audienceMap.has(row.podcast_id))
+      audienceMap.set(row.podcast_id, row.podcast_audience_size);
+  }
   const newPodcastIds = new Set();
   for (const { ep } of matches.values()) {
     const pid = ep.podcast?.podcast_id;
     if (pid && !audienceMap.has(pid)) newPodcastIds.add(pid);
   }
-  console.log(`Fetching audience for ${newPodcastIds.size} newly-seen podcasts...`);
-  for (const pid of newPodcastIds) {
-    const size = await fetchPodcastAudience(pid);
-    audienceMap.set(pid, size);
-    await new Promise((s) => setTimeout(s, DELAY_MS));
-  }
+  console.log(
+    `Skipping per-podcast audience fetch for ${newPodcastIds.size} new podcasts ` +
+      `to stay under daily quota. Will lazy-fetch for product-classified ones later.`,
+  );
 
   // Upsert all matches
   let up = 0,

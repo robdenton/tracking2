@@ -15,7 +15,6 @@ import {
   searchAllEpisodes,
   PodscanEpisode,
   extractSnippets,
-  getPodcastAudienceSize,
 } from "../podscan";
 
 function log(msg: string) {
@@ -135,23 +134,21 @@ export async function syncPodscan(opts: {
 
   log(`Total unique episodes: ${matches.size}`);
 
-  // Fetch audience_size for each unique podcast (cached per run)
-  const uniquePodcastIds = new Set<string>();
-  for (const { ep } of matches.values()) {
-    const pid = ep.podcast?.podcast_id ?? ep.podcast_id;
-    if (pid && pid !== "unknown") uniquePodcastIds.add(pid);
-  }
-  log(`Fetching audience_size for ${uniquePodcastIds.size} unique podcasts...`);
+  // Load existing audience cache from DB (skip per-podcast fetches in this
+  // cron — the dedicated audience-backfill cron handles that incrementally
+  // within daily quota).
+  const audienceRows = await prisma.$queryRawUnsafe<
+    Array<{ podcast_id: string; podcast_audience_size: number }>
+  >(
+    `SELECT DISTINCT podcast_id, podcast_audience_size
+     FROM podscan_mentions
+     WHERE podcast_audience_size IS NOT NULL`
+  );
   const audienceMap = new Map<string, number | null>();
-  for (const pid of uniquePodcastIds) {
-    try {
-      const size = await getPodcastAudienceSize(pid);
-      audienceMap.set(pid, size);
-    } catch {
-      audienceMap.set(pid, null);
-    }
-    await new Promise((s) => setTimeout(s, 600));
+  for (const row of audienceRows) {
+    audienceMap.set(row.podcast_id, row.podcast_audience_size);
   }
+  log(`Loaded ${audienceMap.size} cached audience sizes from DB`);
 
   let upserted = 0;
   let errors = 0;
