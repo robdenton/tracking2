@@ -22,23 +22,34 @@ const MODEL = "claude-haiku-4-5"; // cheap + fast; binary classification is well
 
 const SYSTEM_PROMPT = `You classify whether podcast mentions of "granola" refer to Granola the AI meeting notetaker product, or to granola the breakfast food.
 
-Granola the product is:
-- An AI-powered meeting notetaker / notepad app (https://granola.ai)
+GRANOLA THE PRODUCT:
+- An AI-powered meeting notetaker/notepad app (https://granola.ai, also known as granola.so)
 - Founded by Christopher (Chris) Pedregal
 - Used during work meetings to transcribe, summarize, and take AI-assisted notes
-- Commonly compared to: Otter, Fathom, Fireflies, Supernormal, Notion AI, MacWhisper
+- Commonly compared to: Otter, Fathom, Fireflies, Supernormal, Notion AI
 
-Granola the food is:
-- A breakfast cereal / snack typically made from oats, nuts, honey
-- Granola bars, granola yogurt, homemade granola recipes
-- "Crunchy granola" style/lifestyle slang
+GRANOLA THE FOOD:
+- Breakfast cereal/snack made from oats, nuts, honey
+- Granola bars, granola yogurt, recipes
+- "Crunchy granola" lifestyle slang
 
-Read the transcript snippets and classify the mention into exactly one of:
-- "product": clearly about Granola the AI product (mentions AI/meetings/notes/transcription/Pedregal/competitor tools/SaaS pricing)
-- "food": clearly about granola the food (mentions oats/recipes/breakfast/cereal/bars/eating)
-- "ambiguous": cannot tell from the snippets — mention is too brief or context is unclear
+KEY HEURISTICS:
 
-Respond with valid JSON ONLY in this exact shape (no markdown, no preamble):
+1. Look at which SEARCH QUERY matched this episode. If it matched on:
+   - "granola.ai", "granola.so" — the literal product domain → PRODUCT (granola-the-food doesn't use these URLs)
+   - "chris pedregal", "granola" AND "pedregal" — co-occurrence with the founder's name → PRODUCT
+   - "granola" AND "notetaker" / "notetaking" / "notepad" / "AI notes" — product-specific terminology → PRODUCT
+   These matches alone are strong evidence of product. Default to "product" unless there's clear food context.
+
+2. If the summary mentions "sponsor read", "sponsored by Granola", or lists Granola alongside other brand sponsors (e.g. "Lowe's, Hers, and Granola"), that's PRODUCT. Granola-the-food doesn't sponsor podcasts under brand "Granola" — that's the AI company.
+
+3. If the summary describes a tech/AI/productivity/business/meetings/notetaking podcast and mentions Granola → PRODUCT.
+
+4. Only classify as FOOD if there's CLEAR food context (oats, recipes, breakfast, eating, bars, yogurt, granola bowls, etc.).
+
+5. Only use AMBIGUOUS when even the matched query is broad (e.g. "granola for", "using granola") AND the summary gives no context either way.
+
+Respond with valid JSON ONLY, no markdown, no preamble, in this exact shape:
 {"classification":"product"|"food"|"ambiguous","reasoning":"one-sentence justification"}`;
 
 export interface ClassifierOpts {
@@ -75,6 +86,7 @@ export async function classifyPodscanMentions(opts: ClassifierOpts = {}): Promis
       summaryShort: true,
       summaryLong: true,
       snippets: true,
+      matchedQueries: true,
     },
     take: limit,
   });
@@ -87,6 +99,7 @@ export async function classifyPodscanMentions(opts: ClassifierOpts = {}): Promis
 
   for (const m of mentions) {
     const promptParts = [
+      `Matched search queries: ${(m as { matchedQueries?: string | null }).matchedQueries ?? "(unknown)"}`,
       `Podcast: ${m.podcastName ?? "(unknown)"}`,
       `Episode: ${m.episodeTitle ?? "(unknown)"}`,
     ];
@@ -94,8 +107,6 @@ export async function classifyPodscanMentions(opts: ClassifierOpts = {}): Promis
     if (m.snippets) {
       promptParts.push("", "Transcript snippets containing 'granola':", m.snippets);
     } else if (m.summaryLong) {
-      // Fall back to long summary if no snippets available (e.g. when transcript
-      // hasn't been re-fetched yet)
       promptParts.push("", "Longer summary:", m.summaryLong.slice(0, 2000));
     }
     const userPrompt = promptParts.join("\n");
@@ -113,10 +124,38 @@ export async function classifyPodscanMentions(opts: ClassifierOpts = {}): Promis
         .map((b) => b.text)
         .join("");
 
-      // Parse JSON — tolerate stray whitespace or markdown fencing
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error(`No JSON in response: ${text.slice(0, 200)}`);
-      const parsed = JSON.parse(jsonMatch[0]) as {
+      // Find the first balanced JSON object (tolerates trailing text)
+      const firstBrace = text.indexOf("{");
+      if (firstBrace === -1)
+        throw new Error(`No JSON in response: ${text.slice(0, 200)}`);
+      let depth = 0;
+      let end = -1;
+      let inStr = false;
+      let esc = false;
+      for (let i = firstBrace; i < text.length; i++) {
+        const c = text[i];
+        if (esc) {
+          esc = false;
+          continue;
+        }
+        if (c === "\\") {
+          esc = true;
+          continue;
+        }
+        if (c === '"') inStr = !inStr;
+        if (inStr) continue;
+        if (c === "{") depth++;
+        else if (c === "}") {
+          depth--;
+          if (depth === 0) {
+            end = i;
+            break;
+          }
+        }
+      }
+      if (end === -1)
+        throw new Error(`Unbalanced JSON: ${text.slice(0, 200)}`);
+      const parsed = JSON.parse(text.slice(firstBrace, end + 1)) as {
         classification: "product" | "food" | "ambiguous";
         reasoning: string;
       };
