@@ -16,11 +16,12 @@ export async function GET(request: NextRequest) {
   });
 
   try {
-    // Premium tier 2000/day. sync-podscan uses ~230, classify uses 0, so this
-    // cron can use up to ~1700/day. Use 1500 for headroom + 120/min rate cap.
-    // At 600ms/call = 100/min, 1500 calls = 15 min runtime (fits in maxDuration=300).
-    // Actually 1500 * 0.6s = 900s — too long. Cap at 450 per run.
-    const result = await backfillPodscanAudience({ limit: 450, delayMs: 600 });
+    // Premium tier 2000/day. sync-podscan uses ~230, classify uses 0,
+    // leaving ~1770/day for audience backfill. But Vercel maxDuration=300s
+    // is the real bottleneck: at 600ms per call we can do ~400 podcasts
+    // per run (= 240s runtime + DB overhead). Over multiple days this
+    // chips through the ~5k podcasts queue.
+    const result = await backfillPodscanAudience({ limit: 400, delayMs: 600 });
 
     await prisma.cronExecution.update({
       where: { id: execution.id },
