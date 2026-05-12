@@ -29,8 +29,10 @@ export async function backfillPodscanAudience(opts: {
 
   log(`Backfilling audience_size (limit=${limit}, delay=${delayMs}ms)...`);
 
-  // Prioritized list: product > ambiguous > others.
-  // We pick distinct podcast_ids that have at least one row missing audience_size.
+  // Priority order:
+  //   1. Podcasts with Dec 2025 episodes (current analysis focus)
+  //   2. Then by classification: product > ambiguous > others
+  //   3. Random tiebreak so we make progress across the corpus
   const todo = await prisma.$queryRawUnsafe<
     Array<{ podcast_id: string; priority: number; name: string }>
   >(
@@ -38,6 +40,7 @@ export async function backfillPodscanAudience(opts: {
        SELECT
          podcast_id,
          MAX(podcast_name) as name,
+         CASE WHEN bool_or(posted_at >= '2025-12-01' AND posted_at < '2026-01-01') THEN 0 ELSE 1 END as is_dec,
          CASE
            WHEN bool_or(llm_classification='product') THEN 1
            WHEN bool_or(llm_classification='ambiguous') THEN 2
@@ -51,7 +54,7 @@ export async function backfillPodscanAudience(opts: {
      )
      SELECT podcast_id, priority, name
      FROM ranked
-     ORDER BY priority ASC, RANDOM()
+     ORDER BY is_dec ASC, priority ASC, RANDOM()
      LIMIT ${limit}`,
   );
 

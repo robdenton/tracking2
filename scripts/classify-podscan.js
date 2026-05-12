@@ -79,7 +79,23 @@ async function classify(m) {
       summaryShort: true,
       summaryLong: true,
       snippets: true,
+      matchedQueries: true,
+      postedAt: true,
     },
+  });
+
+  // Prioritize Dec 2025 (analysis focus), then newest
+  mentions.sort((a, b) => {
+    const aDec =
+      a.postedAt && a.postedAt >= "2025-12-01" && a.postedAt < "2026-01-01"
+        ? 0
+        : 1;
+    const bDec =
+      b.postedAt && b.postedAt >= "2025-12-01" && b.postedAt < "2026-01-01"
+        ? 0
+        : 1;
+    if (aDec !== bDec) return aDec - bDec;
+    return (b.postedAt ?? "").localeCompare(a.postedAt ?? "");
   });
 
   console.log(`Classifying ${mentions.length} mentions...`);

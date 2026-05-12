@@ -42,12 +42,16 @@ async function fetchAudience(podcastId) {
 }
 
 (async () => {
-  // Prioritized: product first, then ambiguous, then others
+  // Priority order:
+  //   1. Podcasts with Dec 2025 episodes (user's focus period)
+  //   2. Then by classification: product > ambiguous > others
+  //   3. Then by episode count (more prolific podcasts first)
   const todo = await p.$queryRawUnsafe(
     `WITH ranked AS (
        SELECT
          podcast_id,
          MAX(podcast_name) as name,
+         CASE WHEN bool_or(posted_at >= '2025-12-01' AND posted_at < '2026-01-01') THEN 0 ELSE 1 END as is_dec,
          CASE
            WHEN bool_or(llm_classification='product') THEN 1
            WHEN bool_or(llm_classification='ambiguous') THEN 2
@@ -60,9 +64,9 @@ async function fetchAudience(podcastId) {
          AND excluded = false
        GROUP BY podcast_id
      )
-     SELECT podcast_id, name, priority, episode_count
+     SELECT podcast_id, name, is_dec, priority, episode_count
      FROM ranked
-     ORDER BY priority ASC, episode_count DESC
+     ORDER BY is_dec ASC, priority ASC, episode_count DESC
      LIMIT ${LIMIT}`,
   );
 
