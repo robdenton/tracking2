@@ -19,7 +19,8 @@ function log(msg: string) {
 }
 
 // High-precision queries: every match is almost certainly about Granola
-// (very specific phrases or co-occurrence with the founder's name)
+// (very specific phrases or co-occurrence with the founder's name or
+// product-specific terminology like "notepad")
 const HIGH_PRECISION_QUERIES = [
   '"granola.ai"',
   '"granola.so"',
@@ -28,13 +29,17 @@ const HIGH_PRECISION_QUERIES = [
   '"granola" AND "pedregal"',
   '"granola" AND "notetaker"',
   '"granola" AND "notetaking"',
+  '"granola" AND "notepad"',
   '"granola" AND "AI notes"',
 ];
 
 // Medium-precision queries: broader; most matches are about Granola
-// but some food/recipe noise expected
+// but some food/recipe noise expected. The page filters them to a
+// separate "Include broader matches" view.
 const MEDIUM_PRECISION_QUERIES = [
   '"granola" AND "meeting notes"',
+  '"granola" AND "meeting"',
+  '"granola" AND "productivity"',
   '"granola" AND "transcription"',
   '"using granola"',
   '"i use granola"',
@@ -53,7 +58,10 @@ export interface QueryResult {
   truncated: boolean;
 }
 
-export async function syncPodscan(): Promise<{
+export async function syncPodscan(opts: {
+  maxPagesPerQuery?: number;
+  delayMs?: number;
+} = {}): Promise<{
   totalFound: number;
   upserted: number;
   errors: number;
@@ -61,7 +69,15 @@ export async function syncPodscan(): Promise<{
   mediumConfidence: number;
   queryResults: QueryResult[];
 }> {
-  log(`Starting Podscan sync with ${ALL_QUERIES.length} queries...`);
+  // Cap pages-per-query to fit within the cron's 300s timeout.
+  // Daily cron uses tight cap; one-off backfills should pass higher.
+  const maxPagesPerQuery = opts.maxPagesPerQuery ?? 50;
+  const delayMs = opts.delayMs ?? 2000;
+
+  log(
+    `Starting Podscan sync with ${ALL_QUERIES.length} queries ` +
+      `(maxPages=${maxPagesPerQuery}, delay=${delayMs}ms)...`
+  );
 
   // episode_id -> { ep_data, set_of_matching_queries }
   const matches = new Map<
@@ -77,7 +93,8 @@ export async function syncPodscan(): Promise<{
       const { episodes, pagination, truncated } = await searchAllEpisodes({
         query,
         perPage: 50,
-        delayMs: 2500,
+        delayMs,
+        maxPages: maxPagesPerQuery,
       });
       queryResults.push({
         query,
