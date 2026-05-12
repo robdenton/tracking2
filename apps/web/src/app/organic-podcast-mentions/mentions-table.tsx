@@ -19,6 +19,9 @@ interface Mention {
   sentimentScore: number | null;
   confidenceTier: string | null;
   matchedQueries: string | null;
+  snippets: string | null;
+  llmClassification: string | null;
+  llmReasoning: string | null;
 }
 
 function formatDate(s: string | null): string {
@@ -168,10 +171,30 @@ export function MentionsTable({
                 <tr className="border-b border-border-light bg-surface-sunken/30">
                   <td colSpan={view !== "organic" ? 8 : 7} className="py-4 px-4">
                     <div className="space-y-3 text-xs">
+                      {m.snippets && (
+                        <div>
+                          <div className="font-medium text-text-secondary uppercase tracking-wider mb-1">
+                            Transcript context
+                          </div>
+                          <div className="text-text-primary leading-relaxed italic">
+                            &ldquo;{m.snippets}&rdquo;
+                          </div>
+                        </div>
+                      )}
+                      {m.llmClassification && m.llmReasoning && (
+                        <div>
+                          <div className="font-medium text-text-secondary uppercase tracking-wider mb-1">
+                            AI classification: {m.llmClassification}
+                          </div>
+                          <div className="text-text-primary leading-relaxed">
+                            {m.llmReasoning}
+                          </div>
+                        </div>
+                      )}
                       {m.summaryShort && (
                         <div>
                           <div className="font-medium text-text-secondary uppercase tracking-wider mb-1">
-                            Summary
+                            Episode summary
                           </div>
                           <div className="text-text-primary leading-relaxed">
                             {m.summaryShort}

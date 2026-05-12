@@ -11,7 +11,7 @@
  */
 
 import { prisma } from "../prisma";
-import { searchAllEpisodes, PodscanEpisode } from "../podscan";
+import { searchAllEpisodes, PodscanEpisode, extractSnippets } from "../podscan";
 
 function log(msg: string) {
   const ts = new Date().toISOString().replace("T", " ").slice(0, 19);
@@ -164,6 +164,7 @@ export async function syncPodscan(opts: {
         matchedQuery: [...queries][0] ?? null, // first match (legacy field)
         matchedQueries: [...queries].join(", "),
         confidenceTier,
+        snippets: extractSnippets(ep.episode_transcript, "granola"),
         lastSeenAt: now,
       };
       await prisma.podscanMention.upsert({

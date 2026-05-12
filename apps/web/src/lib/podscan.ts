@@ -39,6 +39,7 @@ export interface PodscanEpisode {
   episode_url?: string;
   episode_audio_url?: string;
   episode_duration?: number;
+  episode_transcript?: string;
   posted_at?: string;
   podcast?: {
     podcast_id: string;
@@ -57,6 +58,70 @@ export interface PodscanEpisode {
       score?: number;
     };
   };
+}
+
+/**
+ * Extract transcript snippets around each occurrence of `keyword` (default
+ * "granola"). The transcript is split into [timestamp]-prefixed segments;
+ * we include the matching segment plus one segment before and after for
+ * context. Consecutive matches are merged. Returns up to `maxChars`.
+ */
+export function extractSnippets(
+  transcript: string | null | undefined,
+  keyword = "granola",
+  maxChars = 1200
+): string | null {
+  if (!transcript) return null;
+
+  // Split on the [HH:MM:SS.XXX --> HH:MM:SS.XXX] markers, keeping content
+  const segments = transcript
+    .split(/(?=\[\d+:\d+:\d+\.\d+)/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  if (segments.length === 0) return null;
+
+  const re = new RegExp(keyword, "i");
+  const matchIndices: number[] = [];
+  for (let i = 0; i < segments.length; i++) {
+    if (re.test(segments[i])) matchIndices.push(i);
+  }
+  if (matchIndices.length === 0) return null;
+
+  // Include 1 segment before and after each match
+  const include = new Set<number>();
+  for (const idx of matchIndices) {
+    if (idx - 1 >= 0) include.add(idx - 1);
+    include.add(idx);
+    if (idx + 1 < segments.length) include.add(idx + 1);
+  }
+  const sorted = [...include].sort((a, b) => a - b);
+
+  // Group consecutive indices into runs
+  const groups: number[][] = [];
+  let current: number[] = [];
+  for (const i of sorted) {
+    if (current.length === 0 || i === current[current.length - 1] + 1) {
+      current.push(i);
+    } else {
+      groups.push(current);
+      current = [i];
+    }
+  }
+  if (current.length) groups.push(current);
+
+  // Build each group's text (strip timestamps), join groups with " ... "
+  const groupText = groups.map((g) =>
+    g
+      .map((i) =>
+        segments[i].replace(/^\[\d+:\d+:\d+\.\d+\s*-->\s*\d+:\d+:\d+\.\d+\]\s*/, "").trim()
+      )
+      .join(" ")
+  );
+
+  let result = groupText.join(" ... ");
+  if (result.length > maxChars) result = result.slice(0, maxChars) + "...";
+  return result;
 }
 
 export interface PodscanPagination {
