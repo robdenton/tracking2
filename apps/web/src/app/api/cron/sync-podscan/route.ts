@@ -22,11 +22,11 @@ export async function GET(request: NextRequest) {
   });
 
   try {
-    // Podscan Trial tier = 100 requests/day. We run 17 queries × 5 pages max
-    // = 85 requests/day budget, leaving headroom for retries. Catches all new
-    // episodes for narrow queries; only misses long-tail of broad queries
-    // (granola+meeting has ~158 pages total).
-    const result = await syncPodscan({ maxPagesPerQuery: 5, delayMs: 2000 });
+    // Podscan Premium = 2,000 requests/day, 120/min. Budget breakdown:
+    //   ~230 search pages across 17 queries (full pagination of broad queries)
+    //   ~500 podcast-detail calls for audience_size
+    //   = ~730 requests/day. Well within budget.
+    const result = await syncPodscan({ maxPagesPerQuery: 50, delayMs: 600 });
 
     const completedAt = new Date();
     await prisma.cronExecution.update({

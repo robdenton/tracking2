@@ -11,7 +11,12 @@
  */
 
 import { prisma } from "../prisma";
-import { searchAllEpisodes, PodscanEpisode, extractSnippets } from "../podscan";
+import {
+  searchAllEpisodes,
+  PodscanEpisode,
+  extractSnippets,
+  getPodcastAudienceSize,
+} from "../podscan";
 
 function log(msg: string) {
   const ts = new Date().toISOString().replace("T", " ").slice(0, 19);
@@ -130,6 +135,24 @@ export async function syncPodscan(opts: {
 
   log(`Total unique episodes: ${matches.size}`);
 
+  // Fetch audience_size for each unique podcast (cached per run)
+  const uniquePodcastIds = new Set<string>();
+  for (const { ep } of matches.values()) {
+    const pid = ep.podcast?.podcast_id ?? ep.podcast_id;
+    if (pid && pid !== "unknown") uniquePodcastIds.add(pid);
+  }
+  log(`Fetching audience_size for ${uniquePodcastIds.size} unique podcasts...`);
+  const audienceMap = new Map<string, number | null>();
+  for (const pid of uniquePodcastIds) {
+    try {
+      const size = await getPodcastAudienceSize(pid);
+      audienceMap.set(pid, size);
+    } catch {
+      audienceMap.set(pid, null);
+    }
+    await new Promise((s) => setTimeout(s, 600));
+  }
+
   let upserted = 0;
   let errors = 0;
   let highConfidence = 0;
@@ -149,6 +172,7 @@ export async function syncPodscan(opts: {
         podcastId,
         podcastName: ep.podcast?.podcast_name ?? null,
         podcastReach: ep.podcast?.podcast_reach_score ?? null,
+        podcastAudienceSize: audienceMap.get(podcastId) ?? null,
         episodeTitle: ep.episode_title ?? null,
         episodeUrl: ep.episode_url ?? null,
         episodeAudioUrl: ep.episode_audio_url ?? null,

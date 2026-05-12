@@ -46,7 +46,10 @@ export default async function OrganicPodcastMentionsPage({
           }
         : {}),
     },
-    orderBy: [{ postedAt: "desc" }],
+    orderBy: [
+      { podcastAudienceSize: { sort: "desc", nulls: "last" } },
+      { postedAt: "desc" },
+    ],
   });
 
   // Summary counts (ignore date filter for the totals at top)

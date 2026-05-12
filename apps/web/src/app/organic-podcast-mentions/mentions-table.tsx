@@ -7,6 +7,7 @@ interface Mention {
   episodeId: string;
   podcastName: string | null;
   podcastReach: number | null;
+  podcastAudienceSize: number | null;
   episodeTitle: string | null;
   episodeUrl: string | null;
   postedAt: string | null;
@@ -22,6 +23,13 @@ interface Mention {
   snippets: string | null;
   llmClassification: string | null;
   llmReasoning: string | null;
+}
+
+function formatAudience(n: number | null): string {
+  if (n === null || n === undefined) return "—";
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M";
+  if (n >= 1_000) return (n / 1_000).toFixed(1).replace(/\.0$/, "") + "k";
+  return n.toString();
 }
 
 function formatDate(s: string | null): string {
@@ -94,7 +102,7 @@ export function MentionsTable({
               Episode
             </th>
             <th className="text-right py-2.5 px-4 font-medium text-text-secondary text-xs uppercase tracking-wider">
-              Reach
+              Est. Audience
             </th>
             <th className="text-left py-2.5 px-4 font-medium text-text-secondary text-xs uppercase tracking-wider">
               Sentiment
@@ -131,8 +139,15 @@ export function MentionsTable({
                     {formatDuration(m.durationSec)}
                   </span>
                 </td>
-                <td className="py-2.5 px-4 text-right text-text-secondary tabular-nums">
-                  {m.podcastReach ?? "—"}
+                <td
+                  className="py-2.5 px-4 text-right text-text-secondary tabular-nums"
+                  title={
+                    m.podcastReach !== null
+                      ? `Podscan reach score: ${m.podcastReach}/100`
+                      : undefined
+                  }
+                >
+                  {formatAudience(m.podcastAudienceSize)}
                 </td>
                 <td className={"py-2.5 px-4 " + sentimentColor(m.sentimentScore)}>
                   {m.sentimentLabel ?? "—"}

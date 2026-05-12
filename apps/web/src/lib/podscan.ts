@@ -16,7 +16,7 @@ function headers(): Record<string, string> {
   return { Authorization: `Bearer ${key}` };
 }
 
-/** Fetch with exponential-backoff retry on 429s. */
+/** Fetch with exponential-backoff retry on 429s. Honors Retry-After header. */
 async function fetchWithRetry(
   url: string,
   maxAttempts = 6
@@ -27,10 +27,22 @@ async function fetchWithRetry(
     const r = await fetch(url, { headers: headers() });
     lastResponse = r;
     if (r.status !== 429) return r;
-    await new Promise((s) => setTimeout(s, waitMs));
-    waitMs = Math.min(waitMs * 2, 30000);
+    const retryAfter = parseInt(r.headers.get("retry-after") || "0", 10);
+    const sleepFor = retryAfter * 1000 || waitMs;
+    await new Promise((s) => setTimeout(s, sleepFor));
+    waitMs = Math.min(waitMs * 2, 60000);
   }
   return lastResponse as Response;
+}
+
+/** Fetch a single podcast's audience size from the detail endpoint. */
+export async function getPodcastAudienceSize(podcastId: string): Promise<number | null> {
+  const r = await fetchWithRetry(`${BASE}/api/v1/podcasts/${encodeURIComponent(podcastId)}`);
+  if (!r.ok) return null;
+  const j = (await r.json()) as {
+    podcast?: { reach?: { audience_size?: number } };
+  };
+  return j.podcast?.reach?.audience_size ?? null;
 }
 
 export interface PodscanEpisode {
