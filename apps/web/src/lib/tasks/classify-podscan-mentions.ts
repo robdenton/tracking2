@@ -73,12 +73,32 @@ export async function classifyPodscanMentions(opts: ClassifierOpts = {}): Promis
   const client = new Anthropic({ apiKey });
 
   // Classify any mention that has at least one signal (snippets or summary).
-  // Snippets give the strongest signal but aren't always available.
+  // Re-classify ambiguous rows that now have snippets — when the next sync
+  // populates a transcript, the additional context usually resolves the
+  // earlier "I can't tell" verdict. Costs an extra classify call per row but
+  // only as long as the row stays ambiguous.
+  const where = opts.reclassify
+    ? {
+        OR: [{ snippets: { not: null } }, { summaryShort: { not: null } }],
+      }
+    : {
+        OR: [
+          {
+            llmClassification: null,
+            OR: [
+              { snippets: { not: null } },
+              { summaryShort: { not: null } },
+            ],
+          },
+          {
+            llmClassification: "ambiguous",
+            snippets: { not: null },
+          },
+        ],
+      };
+
   const mentions = await prisma.podscanMention.findMany({
-    where: {
-      OR: [{ snippets: { not: null } }, { summaryShort: { not: null } }],
-      ...(opts.reclassify ? {} : { llmClassification: null }),
-    },
+    where,
     select: {
       episodeId: true,
       podcastName: true,
