@@ -4,6 +4,10 @@ import { DateRangePicker } from "@/app/channels/newsletter/date-range-picker";
 import { MentionsTable } from "./mentions-table";
 import { ViewToggle } from "./view-toggle";
 import { ClassificationToggle } from "./classification-toggle";
+import { GroupToggle } from "./group-toggle";
+import { ExportButton } from "./export-button";
+import { TrendsChart } from "./trends-chart";
+import { PodcastsTable } from "./podcasts-table";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +16,15 @@ interface SearchParams {
   endDate?: string;
   view?: "organic" | "paid" | "all";
   classification?: "product" | "all" | "unclassified";
+  group?: "episodes" | "podcasts";
 }
+
+const MONTH_LABEL = (m: string) => {
+  // m is "YYYY-MM"
+  const [y, mo] = m.split("-");
+  const names = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  return `${names[parseInt(mo, 10) - 1]} ${y}`;
+};
 
 export default async function OrganicPodcastMentionsPage({
   searchParams,
@@ -22,35 +34,107 @@ export default async function OrganicPodcastMentionsPage({
   const sp = await searchParams;
   const view = sp.view ?? "organic";
   const classification = sp.classification ?? "product";
+  const group = sp.group ?? "episodes";
   const startDate = sp.startDate ?? "";
   const endDate = sp.endDate ?? "";
 
-  // Server-side filter: classification gates the default view to LLM-verified
-  // product mentions only. Toggle to "all" to also see food/ambiguous matches.
-  const mentions = await prisma.podscanMention.findMany({
-    where: {
-      excluded: false,
-      ...(view === "organic" ? { isSponsored: false } : {}),
-      ...(view === "paid" ? { isSponsored: true } : {}),
-      ...(classification === "product"
-        ? { llmClassification: "product" }
-        : classification === "unclassified"
-          ? { llmClassification: null }
-          : {}),
-      ...(startDate || endDate
-        ? {
-            postedAt: {
-              ...(startDate ? { gte: startDate } : {}),
-              ...(endDate ? { lte: endDate + "T23:59:59Z" } : {}),
-            },
-          }
+  const filterWhere = {
+    excluded: false,
+    ...(view === "organic" ? { isSponsored: false } : {}),
+    ...(view === "paid" ? { isSponsored: true } : {}),
+    ...(classification === "product"
+      ? { llmClassification: "product" }
+      : classification === "unclassified"
+        ? { llmClassification: null }
         : {}),
-    },
+    ...(startDate || endDate
+      ? {
+          postedAt: {
+            ...(startDate ? { gte: startDate } : {}),
+            ...(endDate ? { lte: endDate + "T23:59:59Z" } : {}),
+          },
+        }
+      : {}),
+  };
+
+  // Mentions for the episodes table (current view)
+  const mentions = await prisma.podscanMention.findMany({
+    where: filterWhere,
     orderBy: [
       { podcastAudienceSize: { sort: "desc", nulls: "last" } },
       { postedAt: "desc" },
     ],
   });
+
+  // Build per-podcast aggregation from the SAME filtered set
+  const podcastAgg = new Map<
+    string,
+    {
+      podcastId: string;
+      podcastName: string | null;
+      podcastAudienceSize: number | null;
+      totalMentions: number;
+      organicMentions: number;
+      paidMentions: number;
+      firstMention: string | null;
+      lastMention: string | null;
+    }
+  >();
+  for (const m of mentions) {
+    let agg = podcastAgg.get(m.podcastId);
+    if (!agg) {
+      agg = {
+        podcastId: m.podcastId,
+        podcastName: m.podcastName,
+        podcastAudienceSize: m.podcastAudienceSize,
+        totalMentions: 0,
+        organicMentions: 0,
+        paidMentions: 0,
+        firstMention: null,
+        lastMention: null,
+      };
+      podcastAgg.set(m.podcastId, agg);
+    }
+    agg.totalMentions++;
+    if (m.isSponsored) agg.paidMentions++;
+    else agg.organicMentions++;
+    if (m.postedAt) {
+      if (!agg.firstMention || m.postedAt < agg.firstMention)
+        agg.firstMention = m.postedAt;
+      if (!agg.lastMention || m.postedAt > agg.lastMention)
+        agg.lastMention = m.postedAt;
+    }
+  }
+  const podcasts = [...podcastAgg.values()];
+
+  // Build monthly trends from the filtered set (always show, regardless of group)
+  const monthMap = new Map<
+    string,
+    { organic: number; paid: number; totalAudience: number }
+  >();
+  for (const m of mentions) {
+    if (!m.postedAt) continue;
+    const month = m.postedAt.slice(0, 7); // "YYYY-MM"
+    let row = monthMap.get(month);
+    if (!row) {
+      row = { organic: 0, paid: 0, totalAudience: 0 };
+      monthMap.set(month, row);
+    }
+    if (m.isSponsored) row.paid++;
+    else {
+      row.organic++;
+      if (m.podcastAudienceSize) row.totalAudience += m.podcastAudienceSize;
+    }
+  }
+  const trendData = [...monthMap.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([month, v]) => ({
+      month,
+      monthLabel: MONTH_LABEL(month),
+      organic: v.organic,
+      paid: v.paid,
+      totalAudience: v.totalAudience,
+    }));
 
   // Summary counts (ignore date filter for the totals at top)
   const [
@@ -165,18 +249,31 @@ export default async function OrganicPodcastMentionsPage({
         </div>
       </div>
 
-      {/* Filters */}
+      {/* Monthly trends */}
+      {trendData.length > 0 && (
+        <div className="mb-6">
+          <TrendsChart data={trendData} />
+        </div>
+      )}
+
+      {/* Filters + export */}
       <div className="flex items-center justify-between gap-4 mb-5 flex-wrap">
         <div className="flex items-center gap-3 flex-wrap">
           <ViewToggle current={view} />
           <ClassificationToggle current={classification} />
+          <GroupToggle current={group} />
         </div>
-        <Suspense>
-          <DateRangePicker startDate={startDate} endDate={endDate} />
-        </Suspense>
+        <div className="flex items-center gap-3 flex-wrap">
+          <Suspense>
+            <ExportButton />
+          </Suspense>
+          <Suspense>
+            <DateRangePicker startDate={startDate} endDate={endDate} />
+          </Suspense>
+        </div>
       </div>
 
-      {/* Table */}
+      {/* Episodes table OR podcasts table */}
       {mentions.length === 0 ? (
         <div className="bg-surface border border-border-light rounded-lg p-8 text-center">
           <p className="text-text-muted">
@@ -186,6 +283,8 @@ export default async function OrganicPodcastMentionsPage({
             New mentions are discovered daily.
           </p>
         </div>
+      ) : group === "podcasts" ? (
+        <PodcastsTable podcasts={podcasts} />
       ) : (
         <MentionsTable mentions={mentions} view={view} />
       )}
