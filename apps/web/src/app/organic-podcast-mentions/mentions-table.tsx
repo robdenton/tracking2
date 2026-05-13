@@ -76,6 +76,37 @@ function formatMatchedQueries(s: string | null): string[] {
   return s.split(",").map((q) => q.trim()).filter(Boolean);
 }
 
+// Maps a Podscan query string to a short human-friendly source label.
+// Listed in priority order — first match wins so the most-specific signal
+// dominates the badge.
+const QUERY_LABELS: { test: RegExp; label: string }[] = [
+  { test: /"granola\.ai"/, label: "granola.ai" },
+  { test: /"granola\.so"/, label: "granola.so" },
+  { test: /"chris pedregal"/, label: "Pedregal" },
+  { test: /"granola" AND "pedregal"/, label: "Pedregal" },
+  { test: /"granola" AND "notetaker"/, label: "notetaker" },
+  { test: /"granola" AND "notetaking"/, label: "notetaker" },
+  { test: /"granola" AND "notepad"/, label: "notepad" },
+  { test: /"granola" AND "AI notes"/i, label: "AI notes" },
+  { test: /"granola ai"/, label: "granola ai" },
+  { test: /"granola" AND "meeting notes"/, label: "meeting notes" },
+  { test: /"granola" AND "transcription"/, label: "transcription" },
+  { test: /"granola" AND "meeting"/, label: "meeting" },
+  { test: /"granola" AND "productivity"/, label: "productivity" },
+  { test: /"i use granola"/, label: "i use granola" },
+  { test: /"using granola"/, label: "using granola" },
+  { test: /"tools like granola"/, label: "tools like…" },
+  { test: /"granola for"/, label: "granola for" },
+];
+
+function bestQueryLabel(matchedQueries: string | null): string {
+  if (!matchedQueries) return "?";
+  for (const { test, label } of QUERY_LABELS) {
+    if (test.test(matchedQueries)) return label;
+  }
+  return "match";
+}
+
 function SortHeader({
   label,
   sortKey,
@@ -220,16 +251,16 @@ export function MentionsTable({
                 >
                   <span
                     className={
-                      "text-xs px-2 py-0.5 rounded cursor-help " +
+                      "text-xs px-2 py-0.5 rounded cursor-help whitespace-nowrap " +
                       (m.confidenceTier === "high"
                         ? "bg-accent-light text-accent-strong"
                         : "bg-[#F4EFE6] text-[#8B7350]")
                     }
                   >
-                    {m.confidenceTier === "high" ? "High" : "Medium"}
+                    {bestQueryLabel(m.matchedQueries)}
                   </span>
-                  {/* Hover popover */}
-                  <div className="invisible group-hover:visible absolute z-50 left-0 top-full mt-1 w-80 p-3 rounded-lg border border-border bg-surface shadow-lg text-xs space-y-2 normal-case font-normal">
+                  {/* Hover popover — anchored to right edge so it extends leftward (won't clip past table's right edge) */}
+                  <div className="invisible group-hover:visible absolute z-50 right-0 top-full mt-1 w-80 p-3 rounded-lg border border-border bg-surface shadow-lg text-xs space-y-2 normal-case font-normal">
                     {m.llmReasoning && (
                       <div>
                         <div className="font-semibold text-text-primary mb-1">
