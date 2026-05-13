@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 interface Mention {
@@ -51,12 +51,62 @@ function formatDuration(sec: number | null): string {
   return `${m}m`;
 }
 
-function sentimentColor(score: number | null): string {
-  if (score === null || score === undefined) return "text-text-muted";
-  if (score >= 0.5) return "text-accent-strong";
-  if (score >= 0.2) return "text-[#7ba382]";
-  if (score <= -0.2) return "text-[#B85C38]";
-  return "text-text-muted";
+type SortKey = "date" | "podcast" | "episode" | "audience" | "confidence" | "type";
+type SortDir = "asc" | "desc";
+
+function getSortValue(m: Mention, key: SortKey): string | number {
+  switch (key) {
+    case "date":
+      return m.postedAt ?? "";
+    case "podcast":
+      return (m.podcastName ?? "").toLowerCase();
+    case "episode":
+      return (m.episodeTitle ?? "").toLowerCase();
+    case "audience":
+      return m.podcastAudienceSize ?? -1;
+    case "confidence":
+      return m.confidenceTier === "high" ? 1 : 0;
+    case "type":
+      return m.isSponsored ? 1 : 0;
+  }
+}
+
+function SortHeader({
+  label,
+  sortKey,
+  current,
+  dir,
+  onSort,
+  align = "left",
+}: {
+  label: string;
+  sortKey: SortKey;
+  current: SortKey;
+  dir: SortDir;
+  onSort: (k: SortKey) => void;
+  align?: "left" | "right";
+}) {
+  const active = current === sortKey;
+  return (
+    <th
+      onClick={() => onSort(sortKey)}
+      className={
+        "py-2.5 px-4 font-medium text-text-secondary text-xs uppercase tracking-wider cursor-pointer select-none hover:text-text-primary " +
+        (align === "right" ? "text-right" : "text-left")
+      }
+    >
+      <span className="inline-flex items-center gap-1">
+        {label}
+        <span
+          className={
+            "text-[9px] " + (active ? "text-text-primary" : "text-text-muted/40")
+          }
+        >
+          {active ? (dir === "asc" ? "▲" : "▼") : "▼"}
+        </span>
+      </span>
+    </th>
+  );
 }
 
 export function MentionsTable({
@@ -69,6 +119,31 @@ export function MentionsTable({
   const router = useRouter();
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [hidingId, setHidingId] = useState<string | null>(null);
+  const [sortKey, setSortKey] = useState<SortKey>("audience");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+
+  function handleSort(key: SortKey) {
+    if (key === sortKey) {
+      setSortDir(sortDir === "asc" ? "desc" : "asc");
+    } else {
+      setSortKey(key);
+      // Sensible defaults per column
+      setSortDir(key === "audience" ? "desc" : key === "date" ? "desc" : "asc");
+    }
+  }
+
+  const sorted = useMemo(() => {
+    const arr = [...mentions];
+    arr.sort((a, b) => {
+      const av = getSortValue(a, sortKey);
+      const bv = getSortValue(b, sortKey);
+      let cmp: number;
+      if (typeof av === "number" && typeof bv === "number") cmp = av - bv;
+      else cmp = String(av).localeCompare(String(bv));
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+    return arr;
+  }, [mentions, sortKey, sortDir]);
 
   async function handleHide(episodeId: string) {
     if (!confirm("Hide this episode? It won't appear in the list anymore.")) return;
@@ -92,34 +167,19 @@ export function MentionsTable({
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-border-light bg-surface-sunken">
-            <th className="text-left py-2.5 px-4 font-medium text-text-secondary text-xs uppercase tracking-wider">
-              Date
-            </th>
-            <th className="text-left py-2.5 px-4 font-medium text-text-secondary text-xs uppercase tracking-wider">
-              Podcast
-            </th>
-            <th className="text-left py-2.5 px-4 font-medium text-text-secondary text-xs uppercase tracking-wider">
-              Episode
-            </th>
-            <th className="text-right py-2.5 px-4 font-medium text-text-secondary text-xs uppercase tracking-wider">
-              Est. Audience
-            </th>
-            <th className="text-left py-2.5 px-4 font-medium text-text-secondary text-xs uppercase tracking-wider">
-              Sentiment
-            </th>
-            <th className="text-left py-2.5 px-4 font-medium text-text-secondary text-xs uppercase tracking-wider">
-              Confidence
-            </th>
+            <SortHeader label="Date" sortKey="date" current={sortKey} dir={sortDir} onSort={handleSort} />
+            <SortHeader label="Podcast" sortKey="podcast" current={sortKey} dir={sortDir} onSort={handleSort} />
+            <SortHeader label="Episode" sortKey="episode" current={sortKey} dir={sortDir} onSort={handleSort} />
+            <SortHeader label="Est. Audience" sortKey="audience" current={sortKey} dir={sortDir} onSort={handleSort} align="right" />
+            <SortHeader label="Confidence" sortKey="confidence" current={sortKey} dir={sortDir} onSort={handleSort} />
             {view !== "organic" && (
-              <th className="text-left py-2.5 px-4 font-medium text-text-secondary text-xs uppercase tracking-wider">
-                Type
-              </th>
+              <SortHeader label="Type" sortKey="type" current={sortKey} dir={sortDir} onSort={handleSort} />
             )}
             <th className="py-2.5 px-4"></th>
           </tr>
         </thead>
         <tbody>
-          {mentions.map((m) => (
+          {sorted.map((m) => (
             <Fragment key={m.episodeId}>
               <tr
                 className="border-b border-border-light hover:bg-surface-sunken/50 cursor-pointer"
@@ -148,9 +208,6 @@ export function MentionsTable({
                   }
                 >
                   {formatAudience(m.podcastAudienceSize)}
-                </td>
-                <td className={"py-2.5 px-4 " + sentimentColor(m.sentimentScore)}>
-                  {m.sentimentLabel ?? "—"}
                 </td>
                 <td className="py-2.5 px-4">
                   {m.confidenceTier === "high" ? (
@@ -184,7 +241,7 @@ export function MentionsTable({
               </tr>
               {expandedId === m.episodeId && (
                 <tr className="border-b border-border-light bg-surface-sunken/30">
-                  <td colSpan={view !== "organic" ? 8 : 7} className="py-4 px-4">
+                  <td colSpan={view !== "organic" ? 7 : 6} className="py-4 px-4">
                     <div className="space-y-3 text-xs">
                       {m.snippets && (
                         <div>
