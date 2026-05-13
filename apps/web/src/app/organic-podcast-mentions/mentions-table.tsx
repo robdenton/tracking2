@@ -51,7 +51,7 @@ function formatDuration(sec: number | null): string {
   return `${m}m`;
 }
 
-type SortKey = "date" | "podcast" | "episode" | "audience" | "confidence" | "type";
+type SortKey = "date" | "podcast" | "episode" | "audience" | "source" | "type";
 type SortDir = "asc" | "desc";
 
 function getSortValue(m: Mention, key: SortKey): string | number {
@@ -64,11 +64,16 @@ function getSortValue(m: Mention, key: SortKey): string | number {
       return (m.episodeTitle ?? "").toLowerCase();
     case "audience":
       return m.podcastAudienceSize ?? -1;
-    case "confidence":
+    case "source":
       return m.confidenceTier === "high" ? 1 : 0;
     case "type":
       return m.isSponsored ? 1 : 0;
   }
+}
+
+function formatMatchedQueries(s: string | null): string[] {
+  if (!s) return [];
+  return s.split(",").map((q) => q.trim()).filter(Boolean);
 }
 
 function SortHeader({
@@ -171,7 +176,7 @@ export function MentionsTable({
             <SortHeader label="Podcast" sortKey="podcast" current={sortKey} dir={sortDir} onSort={handleSort} />
             <SortHeader label="Episode" sortKey="episode" current={sortKey} dir={sortDir} onSort={handleSort} />
             <SortHeader label="Est. Audience" sortKey="audience" current={sortKey} dir={sortDir} onSort={handleSort} align="right" />
-            <SortHeader label="Confidence" sortKey="confidence" current={sortKey} dir={sortDir} onSort={handleSort} />
+            <SortHeader label="Source" sortKey="source" current={sortKey} dir={sortDir} onSort={handleSort} />
             {view !== "organic" && (
               <SortHeader label="Type" sortKey="type" current={sortKey} dir={sortDir} onSort={handleSort} />
             )}
@@ -209,16 +214,50 @@ export function MentionsTable({
                 >
                   {formatAudience(m.podcastAudienceSize)}
                 </td>
-                <td className="py-2.5 px-4">
-                  {m.confidenceTier === "high" ? (
-                    <span className="text-xs px-2 py-0.5 rounded bg-accent-light text-accent-strong">
-                      High
-                    </span>
-                  ) : (
-                    <span className="text-xs px-2 py-0.5 rounded bg-[#F4EFE6] text-[#8B7350]">
-                      Medium
-                    </span>
-                  )}
+                <td
+                  className="py-2.5 px-4 relative group"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <span
+                    className={
+                      "text-xs px-2 py-0.5 rounded cursor-help " +
+                      (m.confidenceTier === "high"
+                        ? "bg-accent-light text-accent-strong"
+                        : "bg-[#F4EFE6] text-[#8B7350]")
+                    }
+                  >
+                    {m.confidenceTier === "high" ? "High" : "Medium"}
+                  </span>
+                  {/* Hover popover */}
+                  <div className="invisible group-hover:visible absolute z-50 left-0 top-full mt-1 w-80 p-3 rounded-lg border border-border bg-surface shadow-lg text-xs space-y-2 normal-case font-normal">
+                    {m.llmReasoning && (
+                      <div>
+                        <div className="font-semibold text-text-primary mb-1">
+                          Why this is Granola
+                        </div>
+                        <div className="text-text-secondary leading-relaxed">
+                          {m.llmReasoning}
+                        </div>
+                      </div>
+                    )}
+                    {m.matchedQueries && (
+                      <div>
+                        <div className="font-semibold text-text-primary mb-1">
+                          Matched search{formatMatchedQueries(m.matchedQueries).length > 1 ? "es" : ""}
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {formatMatchedQueries(m.matchedQueries).map((q, i) => (
+                            <span
+                              key={i}
+                              className="px-1.5 py-0.5 rounded bg-surface-sunken text-text-secondary font-mono text-[10px]"
+                            >
+                              {q}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </td>
                 {view !== "organic" && (
                   <td className="py-2.5 px-4">
