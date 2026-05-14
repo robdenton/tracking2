@@ -20,14 +20,24 @@ const MODEL = "claude-haiku-4-5";
 const HIGH_PRECISION_QUERIES = new Set([
   '"granola.ai"',
   '"granola.so"',
+  '"granola ai"',
   '"chris pedregal"',
   '"granola" AND "pedregal"',
+  '"granola" AND "Stephenson"',
   '"granola" AND "notetaker"',
   '"granola" AND "notetaking"',
   '"granola" AND "notepad"',
   '"granola" AND "AI notes"',
   '"granola" AND "AI tool"',
   '"granola" AND "transcript"',
+  '"granola" AND "MCP"',
+  '"granola app"',
+  '"try granola"',
+  '"granola does"',
+  '"granola" AND "$125 million"',
+  '"granola" AND "$43 million"',
+  '"granola" AND "Series B"',
+  '"granola" AND "Lightspeed"',
 ]);
 
 const SYSTEM_PROMPT = `You classify whether podcast mentions of "granola" refer to Granola the AI meeting notetaker product, or to granola the breakfast food.

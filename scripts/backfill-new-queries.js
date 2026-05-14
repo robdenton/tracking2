@@ -11,8 +11,20 @@ const KEY = process.env.PODSCAN_API_KEY;
 const BASE = "https://podscan.fm";
 
 const NEW_QUERIES = [
-  { q: '"granola" AND "AI tool"', tier: "high" },
-  { q: '"granola" AND "transcript"', tier: "high" },
+  // High-precision additions
+  { q: '"granola" AND "Stephenson"', tier: "high" },
+  { q: '"granola" AND "MCP"', tier: "high" },
+  { q: '"granola app"', tier: "high" },
+  { q: '"try granola"', tier: "high" },
+  { q: '"granola does"', tier: "high" },
+  { q: '"granola" AND "$125 million"', tier: "high" },
+  { q: '"granola" AND "$43 million"', tier: "high" },
+  { q: '"granola" AND "Series B"', tier: "high" },
+  { q: '"granola" AND "Lightspeed"', tier: "high" },
+  // Medium-precision additions (competitor co-mentions)
+  { q: '"granola" AND "Otter"', tier: "medium" },
+  { q: '"granola" AND "Fathom"', tier: "medium" },
+  { q: '"granola" AND "Fireflies"', tier: "medium" },
 ];
 
 const HIGH_SET = new Set([
@@ -21,12 +33,21 @@ const HIGH_SET = new Set([
   '"granola ai"',
   '"chris pedregal"',
   '"granola" AND "pedregal"',
+  '"granola" AND "Stephenson"',
   '"granola" AND "notetaker"',
   '"granola" AND "notetaking"',
   '"granola" AND "notepad"',
   '"granola" AND "AI notes"',
   '"granola" AND "AI tool"',
   '"granola" AND "transcript"',
+  '"granola" AND "MCP"',
+  '"granola app"',
+  '"try granola"',
+  '"granola does"',
+  '"granola" AND "$125 million"',
+  '"granola" AND "$43 million"',
+  '"granola" AND "Series B"',
+  '"granola" AND "Lightspeed"',
 ]);
 
 async function fetchRetry(url) {

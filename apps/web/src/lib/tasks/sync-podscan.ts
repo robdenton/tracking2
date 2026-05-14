@@ -31,12 +31,21 @@ const HIGH_PRECISION_QUERIES = [
   '"granola ai"',
   '"chris pedregal"',
   '"granola" AND "pedregal"',
+  '"granola" AND "Stephenson"',
   '"granola" AND "notetaker"',
   '"granola" AND "notetaking"',
   '"granola" AND "notepad"',
   '"granola" AND "AI notes"',
   '"granola" AND "AI tool"',
   '"granola" AND "transcript"',
+  '"granola" AND "MCP"',
+  '"granola app"',
+  '"try granola"',
+  '"granola does"',
+  '"granola" AND "$125 million"',
+  '"granola" AND "$43 million"',
+  '"granola" AND "Series B"',
+  '"granola" AND "Lightspeed"',
 ];
 
 // Medium-precision queries: broader; most matches are about Granola
@@ -51,6 +60,9 @@ const MEDIUM_PRECISION_QUERIES = [
   '"i use granola"',
   '"tools like granola"',
   '"granola for"',
+  '"granola" AND "Otter"',
+  '"granola" AND "Fathom"',
+  '"granola" AND "Fireflies"',
 ];
 
 const ALL_QUERIES = [...HIGH_PRECISION_QUERIES, ...MEDIUM_PRECISION_QUERIES];
