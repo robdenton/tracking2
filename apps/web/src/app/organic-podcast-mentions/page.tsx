@@ -151,7 +151,8 @@ export default async function OrganicPodcastMentionsPage({
 
   // Summary counts (ignore date filter for the totals at top)
   const [
-    totalProduct,
+    totalProductOrganic,
+    totalProductPaid,
     totalFood,
     totalAmbiguous,
     totalUnclassified,
@@ -160,7 +161,18 @@ export default async function OrganicPodcastMentionsPage({
     latestClassify,
   ] = await Promise.all([
     prisma.podscanMention.count({
-      where: { excluded: false, llmClassification: "product" },
+      where: {
+        excluded: false,
+        llmClassification: "product",
+        isSponsored: { not: true },
+      },
+    }),
+    prisma.podscanMention.count({
+      where: {
+        excluded: false,
+        llmClassification: "product",
+        isSponsored: true,
+      },
     }),
     prisma.podscanMention.count({
       where: { excluded: false, llmClassification: "food" },
@@ -181,6 +193,8 @@ export default async function OrganicPodcastMentionsPage({
       orderBy: { startedAt: "desc" },
     }),
   ]);
+  const totalProduct = totalProductOrganic + totalProductPaid;
+  const visibleCount = mentions.length;
 
   return (
     <div>
@@ -203,7 +217,7 @@ export default async function OrganicPodcastMentionsPage({
             {totalProduct}
           </div>
           <div className="text-[10px] text-text-muted mt-0.5">
-            AI-verified as Granola product
+            {totalProductOrganic} organic · {totalProductPaid} paid
           </div>
         </div>
         <div className="stat-card bg-surface border border-border-light rounded-lg p-4">
@@ -270,7 +284,7 @@ export default async function OrganicPodcastMentionsPage({
       )}
 
       {/* Filters + export */}
-      <div className="flex items-center justify-between gap-4 mb-5 flex-wrap">
+      <div className="flex items-center justify-between gap-4 mb-2 flex-wrap">
         <div className="flex items-center gap-3 flex-wrap">
           <ViewToggle current={view} />
           <ClassificationToggle current={classification} />
@@ -284,6 +298,24 @@ export default async function OrganicPodcastMentionsPage({
             <DateRangePicker startDate={startDate} endDate={endDate} />
           </Suspense>
         </div>
+      </div>
+      <div className="mb-5 text-xs text-text-muted">
+        Showing <span className="font-medium text-text-secondary">{visibleCount.toLocaleString()}</span>{" "}
+        {view === "organic"
+          ? "organic"
+          : view === "paid"
+            ? "paid"
+            : "all"}{" "}
+        {classification === "product"
+          ? "credible "
+          : classification === "unclassified"
+            ? "unclassified "
+            : ""}
+        mention{visibleCount === 1 ? "" : "s"}
+        {startDate || endDate ? " in selected date range" : ""}.
+        {view === "organic" && classification === "product" && !startDate && !endDate && (
+          <span> Total credible across both views: {totalProduct}.</span>
+        )}
       </div>
 
       {/* Episodes table OR podcasts table */}
