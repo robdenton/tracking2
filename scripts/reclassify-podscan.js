@@ -26,6 +26,8 @@ const HIGH_PRECISION_QUERIES = new Set([
   '"granola" AND "notetaking"',
   '"granola" AND "notepad"',
   '"granola" AND "AI notes"',
+  '"granola" AND "AI tool"',
+  '"granola" AND "transcript"',
 ]);
 
 const SYSTEM_PROMPT = `You classify whether podcast mentions of "granola" refer to Granola the AI meeting notetaker product, or to granola the breakfast food.

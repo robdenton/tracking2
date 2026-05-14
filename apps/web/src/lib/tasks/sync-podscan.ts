@@ -24,7 +24,7 @@ function log(msg: string) {
 
 // High-precision queries: every match is almost certainly about Granola
 // (very specific phrases or co-occurrence with the founder's name or
-// product-specific terminology like "notepad")
+// product-specific terminology)
 const HIGH_PRECISION_QUERIES = [
   '"granola.ai"',
   '"granola.so"',
@@ -35,6 +35,8 @@ const HIGH_PRECISION_QUERIES = [
   '"granola" AND "notetaking"',
   '"granola" AND "notepad"',
   '"granola" AND "AI notes"',
+  '"granola" AND "AI tool"',
+  '"granola" AND "transcript"',
 ];
 
 // Medium-precision queries: broader; most matches are about Granola

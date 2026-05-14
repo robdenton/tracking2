@@ -88,6 +88,8 @@ const QUERY_LABELS: { test: RegExp; label: string }[] = [
   { test: /"granola" AND "notetaking"/, label: "notetaker" },
   { test: /"granola" AND "notepad"/, label: "notepad" },
   { test: /"granola" AND "AI notes"/i, label: "AI notes" },
+  { test: /"granola" AND "AI tool"/i, label: "AI tool" },
+  { test: /"granola" AND "transcript"(?!ion)/i, label: "transcript" },
   { test: /"granola ai"/, label: "granola ai" },
   { test: /"granola" AND "meeting notes"/, label: "meeting notes" },
   { test: /"granola" AND "transcription"/, label: "transcription" },
