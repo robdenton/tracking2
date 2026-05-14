@@ -66,6 +66,38 @@ export default async function OrganicPodcastMentionsPage({
     ],
   });
 
+  // Charts data: same date + classification filters, but ALWAYS includes
+  // both organic and paid so the user can compare them. The chart component
+  // has its own internal toggle for showing/hiding paid.
+  const chartWhere = {
+    excluded: false,
+    ...(classification === "product"
+      ? { llmClassification: "product" }
+      : classification === "unclassified"
+        ? { llmClassification: null }
+        : {}),
+    ...(startDate || endDate
+      ? {
+          postedAt: {
+            ...(startDate ? { gte: startDate } : {}),
+            ...(endDate ? { lte: endDate + "T23:59:59Z" } : {}),
+          },
+        }
+      : {}),
+  };
+  const chartMentions =
+    view === "organic" || view === "paid"
+      ? await prisma.podscanMention.findMany({
+          where: chartWhere,
+          select: {
+            postedAt: true,
+            isSponsored: true,
+            podcastId: true,
+            podcastAudienceSize: true,
+          },
+        })
+      : mentions; // when view='all' we already have everything
+
   // Build per-podcast aggregation from the SAME filtered set
   const podcastAgg = new Map<
     string,
@@ -107,32 +139,40 @@ export default async function OrganicPodcastMentionsPage({
   }
   const podcasts = [...podcastAgg.values()];
 
-  // Build monthly trends from the filtered set.
-  // Reach is computed as sum of UNIQUE podcast audiences per month — so a
-  // podcast that mentioned Granola 10 times in one month only contributes
-  // its audience once. This is the honest "potential listener reach" metric;
-  // per-mention summing inflates months where a single show went on a kick.
+  // Build monthly trends from chartMentions (ignores view filter so we
+  // always have both organic + paid). Reach is sum of UNIQUE podcast
+  // audiences per month (a podcast counted once even with multiple eps).
   const monthMap = new Map<
     string,
     {
       organic: number;
       paid: number;
-      podcastsThisMonth: Map<string, number>; // podcastId -> audience
+      organicPodcasts: Map<string, number>; // podcastId -> audience
+      paidPodcasts: Map<string, number>;
     }
   >();
-  for (const m of mentions) {
+  for (const m of chartMentions) {
     if (!m.postedAt) continue;
     const month = m.postedAt.slice(0, 7); // "YYYY-MM"
     let row = monthMap.get(month);
     if (!row) {
-      row = { organic: 0, paid: 0, podcastsThisMonth: new Map() };
+      row = {
+        organic: 0,
+        paid: 0,
+        organicPodcasts: new Map(),
+        paidPodcasts: new Map(),
+      };
       monthMap.set(month, row);
     }
-    if (m.isSponsored) row.paid++;
-    else {
+    if (m.isSponsored) {
+      row.paid++;
+      if (m.podcastAudienceSize && !row.paidPodcasts.has(m.podcastId)) {
+        row.paidPodcasts.set(m.podcastId, m.podcastAudienceSize);
+      }
+    } else {
       row.organic++;
-      if (m.podcastAudienceSize && !row.podcastsThisMonth.has(m.podcastId)) {
-        row.podcastsThisMonth.set(m.podcastId, m.podcastAudienceSize);
+      if (m.podcastAudienceSize && !row.organicPodcasts.has(m.podcastId)) {
+        row.organicPodcasts.set(m.podcastId, m.podcastAudienceSize);
       }
     }
   }
@@ -143,10 +183,8 @@ export default async function OrganicPodcastMentionsPage({
       monthLabel: MONTH_LABEL(month),
       organic: v.organic,
       paid: v.paid,
-      totalAudience: [...v.podcastsThisMonth.values()].reduce(
-        (s, a) => s + a,
-        0,
-      ),
+      organicReach: [...v.organicPodcasts.values()].reduce((s, a) => s + a, 0),
+      paidReach: [...v.paidPodcasts.values()].reduce((s, a) => s + a, 0),
     }));
 
   // Summary counts (ignore date filter for the totals at top)
