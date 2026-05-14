@@ -59,9 +59,13 @@ export function TrendsChart({ data }: { data: MonthlyDataPoint[] }) {
 
       {/* Total reach (organic only) — bar by month */}
       <div className="border border-border-light rounded-lg p-4 bg-surface">
-        <h3 className="text-sm font-medium text-text-secondary mb-3">
-          Organic reach by month (sum of est. audience)
+        <h3 className="text-sm font-medium text-text-secondary mb-1">
+          Organic reach by month
         </h3>
+        <p className="text-[11px] text-text-muted mb-3">
+          Sum of est. audience for unique podcasts mentioning Granola that
+          month (a podcast counted once even if it had multiple episodes).
+        </p>
         <ResponsiveContainer width="100%" height={260}>
           <BarChart data={data}>
             <CartesianGrid strokeDasharray="3 3" stroke="#EAEBE5" />
