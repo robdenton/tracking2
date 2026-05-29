@@ -319,6 +319,47 @@ model User {
 }
 
 // Employee LinkedIn account connected via Unipile
+// X (Twitter) — brand mentions of Granola
+model XMention {
+  tweetId             String    @id @map("tweet_id")
+  conversationId      String?   @map("conversation_id")
+  inReplyToTweetId    String?   @map("in_reply_to_tweet_id")
+  text                String
+  lang                String?
+  postedAt            DateTime  @map("posted_at")
+
+  // Author
+  authorId            String    @map("author_id")
+  authorUsername      String?   @map("author_username")
+  authorName          String?   @map("author_name")
+  authorVerified      Boolean?  @map("author_verified")
+  authorFollowers     Int?      @map("author_followers")
+
+  // Public metrics (snapshotted at last fetch — accumulate over time)
+  impressionCount     Int       @default(0) @map("impression_count")
+  likeCount           Int       @default(0) @map("like_count")
+  retweetCount        Int       @default(0) @map("retweet_count")
+  replyCount          Int       @default(0) @map("reply_count")
+  quoteCount          Int       @default(0) @map("quote_count")
+  bookmarkCount       Int       @default(0) @map("bookmark_count")
+
+  // LLM classification: is this tweet about Granola the AI product, granola the food,
+  // or ambiguous?
+  llmClassification   String?   @map("llm_classification") // "product" | "food" | "ambiguous"
+  llmReasoning        String?   @map("llm_reasoning")
+  llmClassifiedAt     DateTime? @map("llm_classified_at")
+
+  excluded            Boolean   @default(false) // manual hide for false positives
+  discoveredAt        DateTime  @default(now()) @map("discovered_at")
+  lastSeenAt          DateTime  @default(now()) @map("last_seen_at")
+
+  @@index([postedAt])
+  @@index([llmClassification])
+  @@index([excluded])
+  @@index([impressionCount])
+  @@map("x_mentions")
+}
+
 // Podscan.fm — organic podcast mentions of Granola across all podcasts
 model PodscanMention {
   episodeId           String   @id @map("episode_id") // Podscan episode_id (e.g. ep_xxx)
