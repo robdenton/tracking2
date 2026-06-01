@@ -373,16 +373,19 @@ export async function getImportedVideoViews(videoId: string) {
  * for the last N days. Each cell shows new views gained that day
  * (today minus yesterday). Total shows the latest cumulative count.
  */
-export async function getImportedVideosWithDailyViews(days = 10) {
+export async function getImportedVideosWithDailyViews(
+  days = 10,
+  endDate?: string,
+) {
   const videos = await getImportedVideos();
 
-  // Build display dates (the N days we actually show) plus a wider lookup
-  // window (extra 30 days back) so we can walk backwards through cron-gap
-  // days to find the most recent known viewCount.
+  // Display window ends on `endDate` (or today) and goes back `days` days.
+  // Lookup window has an extra 30 days before for cron-gap interpolation.
   const lookupSpan = days + 30;
+  const endAnchor = endDate ? new Date(endDate + "T00:00:00Z") : new Date();
   const lookupDates: string[] = [];
-  for (let i = lookupSpan; i >= 0; i--) {
-    const d = new Date();
+  for (let i = lookupSpan - 1; i >= 0; i--) {
+    const d = new Date(endAnchor);
     d.setUTCDate(d.getUTCDate() - i);
     lookupDates.push(d.toISOString().slice(0, 10));
   }
@@ -468,13 +471,18 @@ export async function getImportedVideoById(id: string) {
 /**
  * Get imported videos with daily views for a specific channel (by channelTitle).
  */
-export async function getChannelVideosWithDailyViews(channelTitle: string, days = 10) {
-  // Build display dates plus a wider lookup window (extra 30 days back)
-  // so we can walk backwards through cron-gap days to find prior viewCounts.
+export async function getChannelVideosWithDailyViews(
+  channelTitle: string,
+  days = 10,
+  endDate?: string,
+) {
+  // Display window ends on `endDate` (or today) and goes back `days` days.
+  // Lookup window has an extra 30 days before for cron-gap interpolation.
   const lookupSpan = days + 30;
+  const endAnchor = endDate ? new Date(endDate + "T00:00:00Z") : new Date();
   const lookupDates: string[] = [];
-  for (let i = lookupSpan; i >= 0; i--) {
-    const d = new Date();
+  for (let i = lookupSpan - 1; i >= 0; i--) {
+    const d = new Date(endAnchor);
     d.setUTCDate(d.getUTCDate() - i);
     lookupDates.push(d.toISOString().slice(0, 10));
   }
@@ -549,8 +557,14 @@ export async function getChannelVideosWithDailyViews(channelTitle: string, days 
  * Get YouTube channels (publishers) with aggregate daily view increments.
  * Groups imported videos by channelTitle and sums up their daily gains.
  */
-export async function getYouTubeChannelsWithDailyViews(days = 10) {
-  const { videos, dates } = await getImportedVideosWithDailyViews(days);
+export async function getYouTubeChannelsWithDailyViews(
+  days = 10,
+  endDate?: string,
+) {
+  const { videos, dates } = await getImportedVideosWithDailyViews(
+    days,
+    endDate,
+  );
 
   // Group by channel
   const channelMap = new Map<

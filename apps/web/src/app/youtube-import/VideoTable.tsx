@@ -238,11 +238,11 @@ export function VideoTable({
   };
 
   return (
-    <div>
+    <div className="overflow-x-auto border border-border-light rounded-lg">
       <table className="w-full text-xs">
         <thead className="border-b border-border-light">
           <tr>
-            <th className="text-left py-1.5 px-2 text-[11px] font-medium">Title</th>
+            <th className="text-left py-1.5 px-2 text-[11px] font-medium sticky left-0 bg-surface z-10">Title</th>
             <th className="text-left py-1.5 px-1 text-[11px] font-medium">Channel</th>
             <th className="py-1.5 px-1 text-[11px] font-medium text-center">Type</th>
             <SortHeader colKey="depthScore">Depth</SortHeader>
@@ -261,7 +261,7 @@ export function VideoTable({
               key={video.id}
               className="border-b border-border-light transition-colors hover:bg-surface-sunken"
             >
-              <td className="py-1.5 px-2 max-w-[200px]">
+              <td className="py-1.5 px-2 max-w-[200px] sticky left-0 bg-surface hover:bg-surface-sunken">
                 <div className="flex items-center gap-1.5 min-w-0">
                   <Link
                     href={`/youtube-import/${video.id}`}

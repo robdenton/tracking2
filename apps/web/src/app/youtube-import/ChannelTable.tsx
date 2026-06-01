@@ -81,11 +81,11 @@ export function ChannelTable({
   };
 
   return (
-    <div>
+    <div className="overflow-x-auto border border-border-light rounded-lg">
       <table className="w-full text-xs">
         <thead className="border-b border-border-light">
           <tr>
-            <th className="text-left py-1.5 px-2 text-[11px] font-medium">
+            <th className="text-left py-1.5 px-2 text-[11px] font-medium sticky left-0 bg-surface z-10">
               Channel
             </th>
             <SortHeader colKey="videoCount">Videos</SortHeader>
@@ -103,7 +103,7 @@ export function ChannelTable({
               key={channel.channelTitle}
               className="border-b border-border-light transition-colors hover:bg-surface-sunken"
             >
-              <td className="py-1.5 px-2 max-w-[220px]">
+              <td className="py-1.5 px-2 max-w-[220px] sticky left-0 bg-surface hover:bg-surface-sunken">
                 <div className="flex items-center gap-1.5 min-w-0">
                   <Link
                     href={`/youtube-import/channel/${encodeURIComponent(channel.channelTitle)}`}
