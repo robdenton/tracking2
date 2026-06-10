@@ -350,6 +350,31 @@ model GoogleAdsClick {
   @@map("google_ads_clicks")
 }
 
+// Granola users imported from product DB / Omni — used to join GCLIDs against
+// google_ads_clicks for attribution recovery on users whose UTMs were lost.
+model GranolaUser {
+  userId         String   @id @map("user_id")
+  email          String?
+  signedUpAt     DateTime @map("signed_up_at")
+  gclid          String?
+  utmSource      String?  @map("utm_source")
+  utmCampaign    String?  @map("utm_campaign")
+  utmMedium      String?  @map("utm_medium")
+  utmContent     String?  @map("utm_content")
+  utmTerm        String?  @map("utm_term")
+  referrer       String?
+  // Lifecycle markers (optional, populated if available — useful for LTV joins)
+  firstActivatedAt DateTime? @map("first_activated_at")
+  becamePayingAt   DateTime? @map("became_paying_at")
+  importedAt     DateTime @default(now()) @map("imported_at")
+  lastSeenAt     DateTime @default(now()) @map("last_seen_at")
+
+  @@index([gclid])
+  @@index([signedUpAt])
+  @@index([utmSource])
+  @@map("granola_users")
+}
+
 // X (Twitter) — brand mentions of Granola
 model XMention {
   tweetId             String    @id @map("tweet_id")
