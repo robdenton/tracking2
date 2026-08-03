@@ -433,7 +433,13 @@ const PUNCT_CHECKS: { pattern: RegExp; detail: string }[] = [
   { pattern: /,\s*[.!?]/, detail: "comma immediately before a sentence end" },
   { pattern: /[.!?]{2,}/, detail: "duplicated sentence-ending punctuation" },
   { pattern: /\s{2,}/, detail: "double space" },
-  { pattern: /[.!?]\s*,/, detail: "comma immediately after a sentence end" },
+  // "e.g.," and "i.e.," are correct, so a bare /[.!?]\s*,/ is a false positive.
+  // Genuine damage from a splice leaves a SPACE before the comma, and never
+  // follows a known abbreviation.
+  {
+    pattern: /(?<!\b(?:e\.g|i\.e|etc|vs|viz|cf|al|Mr|Mrs|Ms|Dr|Prof|Inc|Ltd|Co|St|No|approx|Fig|Vol|Jr|Sr)\.)[.!?]\s+,/,
+    detail: "comma immediately after a sentence end",
+  },
   { pattern: /\(\s*\)|\[\s*\]/, detail: "empty brackets left behind" },
 ];
 
