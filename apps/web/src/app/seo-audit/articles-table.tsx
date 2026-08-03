@@ -173,6 +173,13 @@ export function ArticlesTable({
                       </span>
                     )}
                     <div className="text-xs text-text-muted mt-0.5 font-mono">{p.slug}</div>
+                    {p.unpublished && (
+                      <div className="mt-1">
+                        <span className="inline-block text-xs font-semibold px-2 py-0.5 rounded bg-orange-100 text-orange-800">
+                          Unpublished — not live
+                        </span>
+                      </div>
+                    )}
                     {st && st.needing > 0 && (
                       <div className="text-xs mt-1">
                         <span
@@ -227,14 +234,20 @@ export function ArticlesTable({
                         —
                       </span>
                     )}
-                    <a
-                      href={postUrl(p.slug)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-accent-strong hover:underline text-xs"
-                    >
-                      Live ↗
-                    </a>
+                    {p.unpublished ? (
+                      <span className="text-text-muted text-xs" title="Not published — the live URL would 404">
+                        not live
+                      </span>
+                    ) : (
+                      <a
+                        href={postUrl(p.slug)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-accent-strong hover:underline text-xs"
+                      >
+                        Live ↗
+                      </a>
+                    )}
                   </td>
                 </tr>
               );

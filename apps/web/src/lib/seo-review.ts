@@ -166,12 +166,22 @@ export async function applyToDraft(opts: {
     throw new Error(`Refusing to patch: unsafe path ${JSON.stringify(path)}`);
   }
 
-  // Seed the draft from the published document if it does not exist yet —
-  // this is what the Studio does when you first edit a published doc.
-  const published = await groq<Record<string, unknown> | null>(`*[_id == $id][0]`, { id: postId });
-  if (!published) throw new Error(`Published document ${postId} not found`);
-  const draftSeed = { ...published, _id: draftId };
-  delete (draftSeed as Record<string, unknown>)._rev;
+  // Seed the draft from the published document only when no draft exists yet —
+  // this is what the Studio does on first edit of a published doc. An
+  // unpublished article already IS a draft, so there is nothing to seed from
+  // and the published lookup would fail.
+  const existingDraft = await readDoc(draftId);
+  let draftSeed: Record<string, unknown> | null = null;
+  if (!existingDraft) {
+    const published = await readDoc(postId);
+    if (!published) {
+      throw new Error(
+        `Neither a draft nor a published version of ${postId} exists — the document may have been deleted.`,
+      );
+    }
+    draftSeed = { ...published, _id: draftId };
+    delete draftSeed._rev;
+  }
 
   let res: Response;
   try {
@@ -180,7 +190,8 @@ export async function applyToDraft(opts: {
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({
         mutations: [
-          { createIfNotExists: draftSeed },
+          // Only include the seed when we actually built one.
+          ...(draftSeed ? [{ createIfNotExists: draftSeed }] : []),
           unset
             ? { patch: { id: draftId, unset: [path] } }
             : { patch: { id: draftId, set: { [path]: newValue } } },
@@ -377,11 +388,33 @@ export interface DraftVerification {
   slug: string;
   postId: string;
   draftExists: boolean;
+  /** False when the article is unpublished, so there is no published baseline. */
+  publishedExists: boolean;
   publishedBlocks: number;
   draftBlocks: number;
   issues: DraftIssue[];
   manualActions: ManualAction[];
   checkedAt: string;
+}
+
+/**
+ * Read the version that should be EDITED: the draft if one exists, otherwise
+ * the published document.
+ *
+ * An article that has been unpublished has no published document at all — the
+ * content lives only in the draft. Reading the published id then returns null
+ * and every edit fails. This also fixes a latent bug: when a draft already
+ * existed, patches were computed against PUBLISHED text but applied to the
+ * DRAFT, so a span already edited could be overwritten with stale content.
+ */
+export async function readEditableDoc(
+  postId: string,
+): Promise<{ doc: Record<string, unknown> | null; source: "draft" | "published" | "none" }> {
+  const draft = await readDoc(`drafts.${postId}`);
+  if (draft) return { doc: draft, source: "draft" };
+  const published = await readDoc(postId);
+  if (published) return { doc: published, source: "published" };
+  return { doc: null, source: "none" };
 }
 
 /** Read a document including drafts — needs the write token's read access. */
@@ -470,6 +503,10 @@ export async function verifyDraft(slug: string): Promise<DraftVerification> {
     readDoc(postId),
     readDoc(`drafts.${postId}`),
   ]);
+  // An unpublished article has no published version to diff against, so the
+  // "was this already in the published copy?" guard cannot run. Say so rather
+  // than silently reporting the author's own phrasing as our damage.
+  const hasBaseline = Boolean(published);
 
   const issues: DraftIssue[] = [];
   const pubBlocks = (published?.body as PtBlock[] | undefined) ?? [];
@@ -484,6 +521,7 @@ export async function verifyDraft(slug: string): Promise<DraftVerification> {
       ...pubBlocks.map((b) => blockText(b)),
     ].join("\n");
     const preExisting = (snippet: string) => {
+      if (!hasBaseline) return false; // no baseline to compare against
       const norm = snippet.toLowerCase().replace(/\s+/g, " ").trim();
       return norm.length > 15 && publishedText.toLowerCase().replace(/\s+/g, " ").includes(norm);
     };
@@ -600,6 +638,7 @@ export async function verifyDraft(slug: string): Promise<DraftVerification> {
     slug,
     postId,
     draftExists: Boolean(draft),
+    publishedExists: hasBaseline,
     publishedBlocks: pubBlocks.length,
     draftBlocks: draftBlocks.length,
     issues,

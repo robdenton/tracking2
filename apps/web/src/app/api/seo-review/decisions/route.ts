@@ -6,6 +6,7 @@ import {
   recordDecision,
   markApplied,
   applyToDraft,
+  readEditableDoc,
   SanityTokenMissing,
   SanityTokenInvalid,
 } from "@/lib/seo-review";
@@ -211,20 +212,17 @@ async function planPatch(opts: {
         "This finding predates field-level targeting and cannot be applied safely. Re-run the review for this article, then try again.",
     };
   }
-  const res = await fetch(
-    `https://oy7f1h9b.api.sanity.io/v2021-06-07/data/query/production`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ query: `*[_id == $id][0]`, params: { id: postId } }),
-      cache: "no-store",
-    },
-  );
-  if (!res.ok) return { error: `Could not read document: ${res.status}` };
-  const doc = (await res.json()).result as
-    | { title?: string; summary?: string; body?: PtNode[] }
-    | null;
-  if (!doc) return { error: "Document not found" };
+  // Read the version that will actually be edited — the draft if one exists.
+  // An unpublished article has no published document, and a draft that already
+  // carries edits is the correct basis for the next patch.
+  const { doc: raw } = await readEditableDoc(postId);
+  const doc = raw as { title?: string; summary?: string; body?: PtNode[] } | null;
+  if (!doc) {
+    return {
+      error:
+        "Neither a draft nor a published version of this article exists in Sanity — it may have been deleted.",
+    };
+  }
 
   const splice = (base: string): string => {
     const i = base.indexOf(original);
@@ -356,14 +354,8 @@ async function planDeletion(opts: {
     return { path: `body[_key=="${blockKey}"]`, unset: true };
   }
 
-  const res = await fetch(`https://oy7f1h9b.api.sanity.io/v2021-06-07/data/query/production`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ query: `*[_id == $id][0]`, params: { id: postId } }),
-    cache: "no-store",
-  });
-  if (!res.ok) return { error: `Could not read document: ${res.status}` };
-  const doc = (await res.json()).result as { body?: PtNode[] } | null;
+  const { doc: rawDoc } = await readEditableDoc(postId);
+  const doc = rawDoc as { body?: PtNode[] } | null;
   const node = (doc?.body ?? []).find((b) => b._key === blockKey);
   if (!node) return { error: `Block ${blockKey} not found.` };
 
