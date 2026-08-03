@@ -74,6 +74,11 @@ export function renderIndex({ inventory, ledger, generatedAt, rulesHash, expecte
   body{margin:0;background:var(--bg);color:var(--ink);
        font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
   .wrap{max-width:1280px;margin:0 auto;padding:26px 22px 70px}
+  .topnav{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+  .topnav a{font-size:13px;padding:6px 13px;border:1px solid var(--line);border-radius:8px;
+            background:var(--card);text-decoration:none;color:var(--muted)}
+  .topnav a:hover{border-color:var(--accent);color:var(--accent)}
+  .topnav a.on{background:var(--ink);color:#fff;border-color:var(--ink);font-weight:600}
   h1{font-size:22px;margin:0 0 4px}
   .sub{color:var(--muted);font-size:13px;margin:0 0 18px}
   .summary{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 18px}
@@ -113,6 +118,11 @@ export function renderIndex({ inventory, ledger, generatedAt, rulesHash, expecte
   code{background:#f1f1f0;padding:1px 5px;border-radius:4px;font-size:12px}
   footer{color:var(--muted);font-size:12px;margin-top:26px}
 </style></head><body><div class="wrap">
+  <nav class="topnav">
+    <a href="/seo-audit">All articles</a>
+    <a href="index.html" class="on">Review status</a>
+    <a href="/seo-review/changes">Change log</a>
+  </nav>
   <h1>Granola SEO — consent &amp; disclosure review</h1>
   <p class="sub">Sanity <code>oy7f1h9b/production</code> · <code>*[_type == "post" &amp;&amp; hidden == true]</code> ·
      Generated ${esc(generatedAt)} · RULES.md sha256 <code>${esc(rulesHash)}</code></p>

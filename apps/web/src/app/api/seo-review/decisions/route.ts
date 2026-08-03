@@ -7,6 +7,7 @@ import {
   markApplied,
   applyToDraft,
   SanityTokenMissing,
+  SanityTokenInvalid,
 } from "@/lib/seo-review";
 
 export const dynamic = "force-dynamic";
@@ -123,7 +124,7 @@ export async function POST(request: NextRequest) {
       draftId: `drafts.${finding.post_id}`,
     });
   } catch (e) {
-    if (e instanceof SanityTokenMissing) {
+    if (e instanceof SanityTokenMissing || e instanceof SanityTokenInvalid) {
       return NextResponse.json(
         { ok: true, decision, appliedToDraft: false, warning: e.message },
         { status: 200 },

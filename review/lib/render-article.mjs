@@ -154,6 +154,7 @@ export function renderArticlePage({ post, segments, findings, counts, prev, next
        background:var(--card);text-decoration:none;color:var(--ink)}
   .nav a:hover{border-color:var(--accent);color:var(--accent)}
   .nav .disabled{color:#c0c0c0}
+  .nav .sep{border:none;padding:0;width:10px}
   .wrap{display:grid;grid-template-columns:minmax(0,1fr) 420px;gap:28px;max-width:1500px;margin:0 auto;padding:24px}
   @media (max-width:1100px){.wrap{grid-template-columns:1fr}.panel{position:static!important;max-height:none!important}}
   .prose{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:28px 32px;
@@ -230,7 +231,10 @@ export function renderArticlePage({ post, segments, findings, counts, prev, next
     <span>${countPills}</span>
   </div>
   <div class="nav">
-    <a href="index.html">← Index</a>
+    <a href="/seo-audit">All articles</a>
+    <a href="index.html">Review status</a>
+    <a href="/seo-review/changes">Change log</a>
+    <span class="sep"></span>
     ${prev ? `<a href="${esc(prev)}.html" id="prevlink">← Previous</a>` : '<span class="disabled">← Previous</span>'}
     ${next ? `<a href="${esc(next)}.html" id="nextlink">Next →</a>` : '<span class="disabled">Next →</span>'}
     <span class="disabled" style="border:none">← / → arrow keys</span>

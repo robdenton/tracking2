@@ -3,6 +3,17 @@ import { verifyCronSecret, unauthorizedResponse } from "@/lib/cron-auth";
 import { prisma } from "@/lib/prisma";
 import { tableExists } from "@/lib/seo-review";
 
+// Is the token a single, header-safe value? Reports shape only — never the value.
+function tokenUsable(): string {
+  const raw = process.env.SANITY_WRITE_TOKEN;
+  if (!raw) return "missing";
+  const t = raw.trim();
+  if (!t) return "empty";
+  if (/\s/.test(t)) return "INVALID: contains spaces or line breaks (pasted more than once?)";
+  if (!/^[\x21-\x7e]+$/.test(t)) return "INVALID: contains non-header-safe characters";
+  return `ok (${t.length} chars)`;
+}
+
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
@@ -18,6 +29,7 @@ export async function GET(request: NextRequest) {
       tableExists: exists,
       rows: count ? Number(count[0].n) : 0,
       sanityWriteTokenConfigured: Boolean(process.env.SANITY_WRITE_TOKEN),
+      sanityWriteTokenUsable: tokenUsable(),
     });
   } catch (e) {
     return NextResponse.json(

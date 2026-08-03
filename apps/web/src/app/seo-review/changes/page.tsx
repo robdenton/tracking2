@@ -1,4 +1,5 @@
 import { getAppliedChanges, getPublishStatus } from "@/lib/seo-review";
+import { SeoNav } from "../nav";
 
 // Audit log of every copy change written to a Sanity DRAFT from the consent &
 // disclosure review, with live draft/published status read from Sanity at
@@ -41,6 +42,7 @@ export default async function SeoChangeLogPage() {
 
   return (
     <main className="max-w-5xl mx-auto px-6 py-10">
+      <SeoNav active="changes" crumbs={[{ label: "SEO articles", href: "/seo-audit" }, { label: "Change log" }]} />
       <h1 className="text-2xl font-semibold text-text-primary mb-1">
         SEO review — change log
       </h1>

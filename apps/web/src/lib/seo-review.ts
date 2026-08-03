@@ -102,13 +102,53 @@ export class SanityTokenMissing extends Error {
  * patches only the given path. The caller must have verified the original text
  * anchors verbatim.
  */
+/** Strip anything that would make the value an invalid HTTP header, and never
+ *  let the secret itself reach an error message or a log line. */
+export class SanityTokenInvalid extends Error {
+  constructor(detail: string) {
+    super(
+      `SANITY_WRITE_TOKEN is set but is not a usable value (${detail}). Re-enter it in Vercel as a single line with no spaces or line breaks, then redeploy.`,
+    );
+    this.name = "SanityTokenInvalid";
+  }
+}
+
+function readToken(): string {
+  const raw = process.env.SANITY_WRITE_TOKEN;
+  if (!raw) throw new SanityTokenMissing();
+  const token = raw.trim();
+  if (!token) throw new SanityTokenMissing();
+  // A Sanity token is a single opaque string. Whitespace inside it means the
+  // value was pasted more than once or wrapped across lines — both produce an
+  // "invalid header value" from fetch, so fail with a useful message instead.
+  if (/\s/.test(token)) {
+    throw new SanityTokenInvalid("it contains spaces or line breaks — it looks like the value was pasted more than once");
+  }
+  if (!/^[\x21-\x7e]+$/.test(token)) {
+    throw new SanityTokenInvalid("it contains characters that are not valid in an HTTP header");
+  }
+  return token;
+}
+
+/** Remove any occurrence of the secret from a message before it is surfaced. */
+function redact(message: string): string {
+  const raw = process.env.SANITY_WRITE_TOKEN;
+  let out = message;
+  if (raw) {
+    for (const piece of [raw, raw.trim(), ...raw.split(/\s+/)]) {
+      if (piece && piece.length > 8) out = out.split(piece).join("[redacted]");
+    }
+  }
+  // Belt and braces: redact anything token-shaped that survived.
+  return out.replace(/sk[A-Za-z0-9._-]{16,}/g, "[redacted]");
+}
+
 export async function applyToDraft(opts: {
   postId: string;
   path: string;
   newValue: string;
 }): Promise<{ draftId: string; transactionId: string }> {
-  const token = process.env.SANITY_WRITE_TOKEN;
-  if (!token) throw new SanityTokenMissing();
+  const token = readToken();
 
   const { postId, path, newValue } = opts;
   const draftId = `drafts.${postId}`;
@@ -126,18 +166,31 @@ export async function applyToDraft(opts: {
   const draftSeed = { ...published, _id: draftId };
   delete (draftSeed as Record<string, unknown>)._rev;
 
-  const res = await fetch(`${API}/data/mutate/${SANITY_DATASET}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({
-      mutations: [
-        { createIfNotExists: draftSeed },
-        { patch: { id: draftId, set: { [path]: newValue } } },
-      ],
-    }),
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API}/data/mutate/${SANITY_DATASET}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        mutations: [
+          { createIfNotExists: draftSeed },
+          { patch: { id: draftId, set: { [path]: newValue } } },
+        ],
+      }),
+    });
+  } catch (e) {
+    // fetch itself rejected (e.g. an unusable header value) — redact before
+    // this reaches a browser or a log.
+    throw new Error(redact(e instanceof Error ? e.message : "request failed"));
+  }
   if (!res.ok) {
-    throw new Error(`Sanity mutate failed: ${res.status} ${await res.text()}`);
+    const detail = redact(await res.text());
+    if (res.status === 401 || res.status === 403) {
+      throw new Error(
+        `Sanity rejected the write token (${res.status}). Check it has Editor permission on project ${SANITY_PROJECT} and has not been revoked.`,
+      );
+    }
+    throw new Error(`Sanity mutate failed: ${res.status} ${detail.slice(0, 300)}`);
   }
   const json = (await res.json()) as { transactionId: string };
   return { draftId, transactionId: json.transactionId };
@@ -186,6 +239,56 @@ export async function markApplied(id: string, path: string): Promise<void> {
     UPDATE seo_review_findings
     SET applied_to_draft = true, applied_at = NOW(), sanity_path = ${path}, updated_at = NOW()
     WHERE id = ${id}`;
+}
+
+export interface SlugStatus {
+  slug: string;
+  total: number;
+  red: number;
+  amber: number;
+  accepted: number;
+  dismissed: number;
+  applied: number;
+}
+
+/**
+ * Per-article review status, aggregated from the decision log.
+ * A slug missing from the result has not been reviewed.
+ */
+export async function getStatusBySlug(): Promise<Record<string, SlugStatus>> {
+  const rows = await prisma.$queryRaw<
+    {
+      slug: string;
+      total: bigint;
+      red: bigint;
+      amber: bigint;
+      accepted: bigint;
+      dismissed: bigint;
+      applied: bigint;
+    }[]
+  >`
+    SELECT slug,
+           count(*)                                             AS total,
+           count(*) FILTER (WHERE disposition = 'red')           AS red,
+           count(*) FILTER (WHERE disposition = 'amber')         AS amber,
+           count(*) FILTER (WHERE decision = 'accept')           AS accepted,
+           count(*) FILTER (WHERE decision = 'dismiss')          AS dismissed,
+           count(*) FILTER (WHERE applied_to_draft = true)       AS applied
+    FROM seo_review_findings
+    GROUP BY slug`;
+  const out: Record<string, SlugStatus> = {};
+  for (const r of rows) {
+    out[r.slug] = {
+      slug: r.slug,
+      total: Number(r.total),
+      red: Number(r.red),
+      amber: Number(r.amber),
+      accepted: Number(r.accepted),
+      dismissed: Number(r.dismissed),
+      applied: Number(r.applied),
+    };
+  }
+  return out;
 }
 
 export async function tableExists(): Promise<boolean> {
