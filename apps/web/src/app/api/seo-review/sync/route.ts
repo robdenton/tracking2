@@ -52,6 +52,27 @@ export async function GET(request: NextRequest) {
       tableExists: exists,
       rows: count ? Number(count[0].n) : 0,
       readPath,
+      // Anything accepted that did not reach the draft — the failures worth
+      // surfacing, with enough detail to diagnose without a session.
+      unapplied: exists
+        ? (
+            await prisma.$queryRaw<
+              { slug: string; disposition: string; layer: string; field_kind: string | null;
+                decision: string; original_text: string; deletion_scope: string | null }[]
+            >`SELECT slug, disposition, layer, field_kind, decision, original_text, deletion_scope
+               FROM seo_review_findings
+               WHERE decision IN ('accept','accept-delete') AND applied_to_draft = false
+               ORDER BY slug`
+          ).map((r) => ({
+            slug: r.slug,
+            decision: r.decision,
+            disposition: r.disposition,
+            layer: r.layer,
+            fieldKind: r.field_kind,
+            deletionScope: r.deletion_scope,
+            text: r.original_text.slice(0, 90),
+          }))
+        : [],
       progress: progress.map((p) => ({
         slug: p.slug,
         needingDecision: Number(p.needing),
