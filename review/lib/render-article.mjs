@@ -104,7 +104,7 @@ function renderPanel(findings) {
     return '<p class="clean">✓ No findings on this article. Every text-bearing field was read; nothing failed the governing test.</p>';
   }
   return findings.map((f) => `
-    <div class="finding ${DISPOSITION_CLASS[f.disposition] || 'd-cleared'}" id="finding-${f.number}" data-num="${f.number}">
+    <div class="finding ${DISPOSITION_CLASS[f.disposition] || 'd-cleared'}${['cleared-in-context', 'cleared-negated', 'about-competitor'].includes(f.disposition) ? ' is-cleared' : ''}" id="finding-${f.number}" data-num="${f.number}" data-disposition="${esc(f.disposition)}">
       <div class="fhead">
         <span class="fnum">${f.number}</span>
         <span class="fdisp">${esc(f.disposition)}</span>
@@ -215,6 +215,15 @@ export function renderArticlePage({ post, segments, findings, counts, prev, next
   .fnote{width:100%;font:inherit;font-size:12.5px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;resize:vertical}
   .finding.decided-accept{background:#f0fdf4} .finding.decided-dismiss{opacity:.62}
   .finding.discarded{display:none}
+  /* Cleared items are listed for auditability but hidden by default — at ~70%
+     of findings they drown the ones that need a decision. */
+  .panel:not(.reveal-cleared) .finding.is-cleared{display:none}
+  .panel.reveal-cleared .finding.is-cleared{opacity:.62}
+  .panelfilters{display:flex;gap:14px;flex-wrap:wrap;margin:0 0 10px;font-size:12px;color:var(--muted)}
+  .tgl{display:inline-flex;align-items:center;gap:5px;cursor:pointer;user-select:none}
+  .tgl input{margin:0}
+  mark.hl.hl-cleared-hidden{background:none!important;box-shadow:none!important;
+    border-bottom:1px dotted #d4d4d4;color:inherit}
   .panel.reveal-discarded .finding.discarded{display:block;opacity:.5;border-left-color:#c9c9c9}
   mark.hl.hl-discarded{background:none!important;box-shadow:none!important;border-bottom:1px dotted #d0d0d0;color:inherit}
   #outstanding{font-size:11px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);margin-left:6px}
@@ -263,8 +272,11 @@ export function renderArticlePage({ post, segments, findings, counts, prev, next
   <aside class="panel">
     <div id="loadwarn" class="loadwarn" style="display:none"></div>
     <div class="panelhead">
-      <h2>Findings <span id="outstanding">${findings.length} of ${findings.length} outstanding</span>
-        <a href="#" id="showdiscarded" style="display:none">show discarded</a></h2>
+      <h2>Findings <span id="outstanding"></span></h2>
+      <div class="panelfilters">
+        <label class="tgl"><input type="checkbox" id="tglcleared"> Show cleared (<span id="nclr">0</span>)</label>
+        <label class="tgl"><input type="checkbox" id="tgldiscarded"> Show discarded (<span id="ndis">0</span>)</label>
+      </div>
       <button class="exportbtn" id="export">Export decisions to CSV</button>
     </div>
     ${renderPanel(findings)}
@@ -395,6 +407,7 @@ export function renderArticlePage({ post, segments, findings, counts, prev, next
       var n = r.getAttribute('data-num');
       state[n] = state[n] || {}; state[n].decision = r.value; mirror(); paint(n);
       send(n, r.value, (state[n] && state[n].note) || null);
+      updateOutstanding();
     });
   });
   var noteTimer = {};
@@ -421,13 +434,18 @@ export function renderArticlePage({ post, segments, findings, counts, prev, next
     updateOutstanding();
   }
   function updateOutstanding(){
-    var all = document.querySelectorAll('.finding').length;
-    var gone = document.querySelectorAll('.finding.discarded').length;
+    var needing = document.querySelectorAll('.finding:not(.is-cleared):not(.discarded)').length;
+    var decided = document.querySelectorAll(
+      '.finding:not(.is-cleared):not(.discarded).decided-accept, ' +
+      '.finding:not(.is-cleared):not(.discarded).decided-dismiss').length;
     var el = document.getElementById('outstanding');
-    if (el) el.textContent = (all - gone) + ' of ' + all + ' outstanding';
-    var t = document.getElementById('showdiscarded');
-    if (t) t.style.display = gone ? 'inline' : 'none';
+    if (el) el.textContent = (needing - decided) + ' of ' + needing + ' needing a decision';
+    var c = document.getElementById('nclr');
+    if (c) c.textContent = document.querySelectorAll('.finding.is-cleared').length;
+    var d = document.getElementById('ndis');
+    if (d) d.textContent = document.querySelectorAll('.finding.discarded').length;
   }
+  updateOutstanding();
   document.querySelectorAll('.clearbtn').forEach(function(b){
     b.addEventListener('click', function(){
       var n = b.getAttribute('data-num');
@@ -438,14 +456,27 @@ export function renderArticlePage({ post, segments, findings, counts, prev, next
       hideFinding(n);
     });
   });
-  // Toggle to bring discarded suggestions back into view.
-  var toggle = document.getElementById('showdiscarded');
-  if (toggle) toggle.addEventListener('click', function(e){
-    e.preventDefault();
-    document.querySelector('.panel').classList.toggle('reveal-discarded');
-    toggle.textContent = document.querySelector('.panel').classList.contains('reveal-discarded')
-      ? 'hide discarded' : 'show discarded';
-  });
+  // Cleared and discarded items stay in the DOM (and in the log) but are hidden
+  // by default so the panel shows only what still needs a decision.
+  var panel = document.querySelector('.panel');
+  var tglC = document.getElementById('tglcleared');
+  var tglD = document.getElementById('tgldiscarded');
+  function applyToggles(){
+    panel.classList.toggle('reveal-cleared', tglC && tglC.checked);
+    panel.classList.toggle('reveal-discarded', tglD && tglD.checked);
+    // Mute highlights whose only finding is hidden, so the prose matches.
+    document.querySelectorAll('mark.hl').forEach(function(m){
+      var nums = m.getAttribute('data-findings').split(',');
+      var anyVisible = nums.some(function(n){
+        var el = document.getElementById('finding-' + n);
+        return el && el.offsetParent !== null;
+      });
+      m.classList.toggle('hl-cleared-hidden', !anyVisible);
+    });
+    updateOutstanding();
+  }
+  if (tglC) tglC.addEventListener('change', applyToggles);
+  if (tglD) tglD.addEventListener('change', applyToggles);
 
   // ---- highlight <-> panel linking ----
   function activate(num){
