@@ -119,6 +119,7 @@ function renderPanel(findings) {
         <label><input type="radio" name="dec-${f.number}" value="dismiss" data-num="${f.number}"> Dismiss</label>
         <button class="clearbtn" data-num="${f.number}" type="button">clear</button>
       </div>
+      <div class="fstatus" data-num="${f.number}"></div>
       <textarea class="fnote" data-num="${f.number}" rows="2" placeholder="Note…"></textarea>
     </div>`).join('\n');
 }
@@ -204,6 +205,9 @@ export function renderArticlePage({ post, segments, findings, counts, prev, next
         background:none;border:1px solid var(--line);border-radius:5px;padding:2px 7px;cursor:pointer}
   .fnote{width:100%;font:inherit;font-size:12.5px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;resize:vertical}
   .finding.decided-accept{background:#f0fdf4} .finding.decided-dismiss{opacity:.62}
+  .fstatus{font-size:11.5px;margin:2px 0 6px;min-height:14px;color:var(--muted)}
+  .fstatus.ok{color:#15803d;font-weight:600}
+  .fstatus.warn{color:#b45309;font-weight:600}
   .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:700}
   .pill.d-red{background:var(--redbg);color:var(--red)} .pill.d-amber{background:var(--amberbg);color:var(--amber)}
   .pill.d-competitor{background:var(--compbg);color:var(--comp)}
@@ -250,14 +254,19 @@ export function renderArticlePage({ post, segments, findings, counts, prev, next
   var SLUG = ${JSON.stringify(post.slug)};
   var KEY = 'granola-review-decisions:' + SLUG;
   var FINDINGS = ${JSON.stringify(findings.map((f) => ({
-    number: f.number, disposition: f.disposition, layer: f.layer, term: f.term || '',
+    number: f.number, id: f.findingId, disposition: f.disposition, layer: f.layer, term: f.term || '',
     field: f.label, quote: f.quote, takeaway: f.reader_takeaway, rewrite: f.suggested_rewrite || '',
   })))};
+  var API = '/api/seo-review/decisions';
+  var idOf = {}; FINDINGS.forEach(function(f){ idOf[f.number] = f.id; });
 
-  // ---- decisions persisted in localStorage ----
+  // ---- decisions persisted SERVER-SIDE ----
+  // Accepting writes the rewrite to the article's Sanity draft. localStorage is
+  // kept only as an offline mirror so a failed request is visibly unsaved
+  // rather than silently lost.
   var state = {};
   try { state = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch(e) { state = {}; }
-  function save(){ try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e){} }
+  function mirror(){ try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e){} }
   function paint(num){
     var el = document.getElementById('finding-' + num);
     if (!el) return;
@@ -265,35 +274,105 @@ export function renderArticlePage({ post, segments, findings, counts, prev, next
     el.classList.toggle('decided-accept', d.decision === 'accept');
     el.classList.toggle('decided-dismiss', d.decision === 'dismiss');
   }
-  FINDINGS.forEach(function(f){
-    var d = state[f.number];
-    if (!d) return;
-    if (d.decision) {
-      var r = document.querySelector('input[name="dec-' + f.number + '"][value="' + d.decision + '"]');
-      if (r) r.checked = true;
-    }
-    if (d.note) { var t = document.querySelector('.fnote[data-num="' + f.number + '"]'); if (t) t.value = d.note; }
-    paint(f.number);
-  });
+  function setStatus(num, text, cls){
+    var el = document.querySelector('.fstatus[data-num="' + num + '"]');
+    if (!el) return;
+    el.textContent = text || '';
+    el.className = 'fstatus' + (cls ? ' ' + cls : '');
+    el.setAttribute('data-num', num);
+  }
+
+  // Restore decisions from the server (authoritative), falling back to the
+  // local mirror if the API is unreachable.
+  function restore(){
+    fetch(API + '?slug=' + encodeURIComponent(SLUG), {credentials:'same-origin'})
+      .then(function(r){ if(!r.ok) throw new Error('http ' + r.status); return r.json(); })
+      .then(function(j){
+        var byId = {}; (j.findings||[]).forEach(function(x){ byId[x.id] = x; });
+        FINDINGS.forEach(function(f){
+          var s = byId[f.id]; if (!s) return;
+          state[f.number] = { decision: s.decision, note: s.note || '' };
+          if (s.decision) {
+            var r = document.querySelector('input[name="dec-' + f.number + '"][value="' + s.decision + '"]');
+            if (r) r.checked = true;
+          }
+          if (s.note) { var t = document.querySelector('.fnote[data-num="' + f.number + '"]'); if (t) t.value = s.note; }
+          if (s.appliedToDraft) setStatus(f.number, '✓ Written to the Sanity draft', 'ok');
+          paint(f.number);
+        });
+        mirror();
+      })
+      .catch(function(e){
+        // Offline / not signed in: show local mirror but say it is unsaved.
+        FINDINGS.forEach(function(f){
+          var d = state[f.number]; if (!d) return;
+          if (d.decision) {
+            var r = document.querySelector('input[name="dec-' + f.number + '"][value="' + d.decision + '"]');
+            if (r) r.checked = true;
+          }
+          if (d.note) { var t = document.querySelector('.fnote[data-num="' + f.number + '"]'); if (t) t.value = d.note; }
+          setStatus(f.number, '⚠ Not saved to the server — this browser only', 'warn');
+          paint(f.number);
+        });
+      });
+  }
+  restore();
+
+  function send(num, decision, note){
+    var id = idOf[num];
+    if (!id) { setStatus(num, '⚠ No server id for this finding', 'warn'); return; }
+    setStatus(num, 'Saving…', '');
+    fetch(API, {
+      method:'POST', credentials:'same-origin',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ id: id, decision: decision, note: note || null }),
+    })
+      .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
+      .then(function(res){
+        if (!res.ok) { setStatus(num, '⚠ ' + (res.j.error || 'save failed'), 'warn'); return; }
+        if (decision === 'accept') {
+          if (res.j.appliedToDraft) {
+            setStatus(num, res.j.alreadyApplied
+              ? '✓ Already in the Sanity draft'
+              : '✓ Written to the Sanity draft — not published', 'ok');
+          } else {
+            setStatus(num, '⚠ Saved, but NOT applied: ' + (res.j.warning || 'unknown reason'), 'warn');
+          }
+        } else if (decision === 'dismiss') {
+          setStatus(num, res.j.warning ? '⚠ ' + res.j.warning : 'Dismissed', res.j.warning ? 'warn' : '');
+        } else {
+          setStatus(num, res.j.warning ? '⚠ ' + res.j.warning : '', res.j.warning ? 'warn' : '');
+        }
+      })
+      .catch(function(e){ setStatus(num, '⚠ Save failed: ' + e.message, 'warn'); });
+  }
+
   document.querySelectorAll('.fdecide input[type=radio]').forEach(function(r){
     r.addEventListener('change', function(){
       var n = r.getAttribute('data-num');
-      state[n] = state[n] || {}; state[n].decision = r.value; save(); paint(n);
+      state[n] = state[n] || {}; state[n].decision = r.value; mirror(); paint(n);
+      send(n, r.value, (state[n] && state[n].note) || null);
     });
   });
+  var noteTimer = {};
   document.querySelectorAll('.fnote').forEach(function(t){
     t.addEventListener('input', function(){
       var n = t.getAttribute('data-num');
-      state[n] = state[n] || {}; state[n].note = t.value; save();
+      state[n] = state[n] || {}; state[n].note = t.value; mirror();
+      clearTimeout(noteTimer[n]);
+      noteTimer[n] = setTimeout(function(){
+        if (state[n] && state[n].decision) send(n, state[n].decision, t.value);
+      }, 900);
     });
   });
   document.querySelectorAll('.clearbtn').forEach(function(b){
     b.addEventListener('click', function(){
       var n = b.getAttribute('data-num');
-      delete state[n]; save();
+      delete state[n]; mirror();
       document.querySelectorAll('input[name="dec-' + n + '"]').forEach(function(r){ r.checked = false; });
       var t = document.querySelector('.fnote[data-num="' + n + '"]'); if (t) t.value = '';
       paint(n);
+      send(n, null, null);
     });
   });
 

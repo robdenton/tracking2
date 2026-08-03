@@ -171,7 +171,16 @@ async function processArticle(post, rulesText, rulesHash) {
   // Document order, then number.
   const order = new Map(segments.map((s, i) => [s.id, i]));
   anchored.sort((a, b) => (order.get(a.segmentId) - order.get(b.segmentId)) || a.start - b.start);
-  anchored.forEach((f, i) => { f.number = i + 1; });
+  anchored.forEach((f, i) => {
+    f.number = i + 1;
+    // Content-addressed id: stable across re-runs so a sign-off stays attached
+    // to the same finding. If the article copy changes, the id changes too —
+    // a decision on old wording must not silently carry to new wording.
+    f.findingId = createHash('sha256')
+      .update([post._id, f.segmentId, f.start, f.end, f.quote, f.layer, f.term || ''].join('\u0000'))
+      .digest('hex')
+      .slice(0, 32);
+  });
 
   const counts = {};
   for (const f of anchored) counts[f.disposition] = (counts[f.disposition] || 0) + 1;
@@ -248,9 +257,36 @@ async function main() {
   }
   writeFileSync(P.state, JSON.stringify(ledger, null, 2));
 
-  if (flag('--render-only')) {
+  if (flag('--render-only') || flag('--rerender')) {
     regenerate({ corpus, ledger, allFindings, rulesHash });
-    console.log(`Rendered index + CSV from ledger.`);
+    console.log('Rendered index + CSV from ledger.');
+    if (flag('--rerender')) {
+      // Re-emit article pages from stored findings (no model calls), so pages
+      // pick up renderer changes. Finding ids are recomputed deterministically.
+      let n = 0;
+      for (const [pid, rec] of Object.entries(allFindings)) {
+        const post = corpus.find((p) => p._id === pid);
+        if (!post) continue;
+        const segments = extractSegments(post);
+        const findings = rec.findings.map((f) => ({
+          ...f,
+          findingId: createHash('sha256')
+            .update([pid, f.segmentId, f.start, f.end, f.quote, f.layer, f.term || ''].join('\u0000'))
+            .digest('hex').slice(0, 32),
+        }));
+        const counts = {};
+        for (const f of findings) counts[f.disposition] = (counts[f.disposition] || 0) + 1;
+        const idx = corpus.findIndex((p) => p._id === pid);
+        writeFileSync(join(__dirname, `${post.slug}.html`), renderArticlePage({
+          post, segments, findings, counts,
+          prev: idx > 0 ? corpus[idx - 1].slug : null,
+          next: idx < corpus.length - 1 ? corpus[idx + 1].slug : null,
+          generatedAt: new Date().toISOString(), rulesHash, buildError: null,
+        }));
+        n++;
+      }
+      console.log(`Re-rendered ${n} article page(s).`);
+    }
     return;
   }
 
