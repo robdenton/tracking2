@@ -119,14 +119,21 @@ function renderPanel(findings) {
       ${f.deferredToNumber ? `<div class="fdefer">Remedy handled by finding <a href="#finding-${f.deferredToNumber}" class="deferlink" data-goto="${f.deferredToNumber}">#${f.deferredToNumber}</a>, which is anchored to the full phrase.</div>` : ''}
       ${f.deletion_scope && !['none', 'not-advisable'].includes(f.deletion_scope) ? `<div class="fdelete"><b>Option A — delete the ${esc(f.deletion_scope)}:</b> ${esc(f.deletion_rationale || 'Removes the claim entirely.')}</div>` : ''}
       ${f.deletion_scope === 'not-advisable' ? `<div class="fdelete muted-note"><b>Deletion not advised:</b> ${esc(f.deletion_rationale || '')}</div>` : ''}
-      ${f.suggested_rewrite ? `<div class="frewrite"><b>Option B — rewrite the ${esc(f.rewrite_scope || 'sentence')}:</b> ${esc(f.suggested_rewrite)}</div>` : ''}
+      ${f.suggested_rewrite ? `<div class="frewrite" data-num="${f.number}"><b>Option B — rewrite the ${esc(f.rewrite_scope || 'sentence')}:</b> ${esc(f.suggested_rewrite)}</div>` : ''}
       <div class="fdecide">
         ${f.deletion_scope && !['none', 'not-advisable'].includes(f.deletion_scope) ? `<label><input type="radio" name="dec-${f.number}" value="accept-delete" data-num="${f.number}"> Delete</label>` : ''}
         ${f.suggested_rewrite ? `<label><input type="radio" name="dec-${f.number}" value="accept" data-num="${f.number}"> Rewrite</label>` : ''}
         <button class="clearbtn" data-num="${f.number}" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
       </div>
       <div class="fstatus" data-num="${f.number}"></div>
-      <textarea class="fnote" data-num="${f.number}" rows="2" placeholder="Note…"></textarea>
+      ${f.suggested_rewrite ? `
+      <div class="freprompt">
+        <textarea class="fdirect" data-num="${f.number}" rows="2"
+          placeholder="Not happy with the rewrite? Say what to change and generate a new one…"></textarea>
+        <button type="button" class="regenbtn" data-num="${f.number}">Generate new rewrite</button>
+        <div class="regenout" data-num="${f.number}"></div>
+      </div>` : ''}
+      <textarea class="fnote" data-num="${f.number}" rows="2" placeholder="Note (saved with your decision)…"></textarea>
       </div>
     </div>`).join('\n');
 }
@@ -219,6 +226,20 @@ export function renderArticlePage({ post, segments, findings, counts, prev, next
   .fdecide{display:flex;gap:12px;align-items:center;font-size:12.5px;margin:9px 0 6px}
   .fdecide label{cursor:pointer} .clearbtn{margin-left:auto;font-size:11px;color:var(--muted);
         background:none;border:1px solid var(--line);border-radius:5px;padding:2px 7px;cursor:pointer}
+  .freprompt{margin:4px 0 7px}
+  .fdirect{width:100%;font:inherit;font-size:12.5px;padding:6px 8px;border:1px solid var(--line);
+           border-radius:6px;resize:vertical;background:#fcfcff}
+  .regenbtn{margin-top:5px;font-size:11.5px;padding:4px 10px;border:1px solid var(--accent);
+            color:var(--accent);background:var(--card);border-radius:6px;cursor:pointer;font-weight:600}
+  .regenbtn:hover:not(:disabled){background:var(--accent);color:#fff}
+  .regenbtn:disabled{opacity:.55;cursor:default}
+  .regenout{font-size:12.5px;margin-top:6px}
+  .newrw{background:#f0fdf4;border-left:3px solid #16a34a;padding:8px 10px;border-radius:6px;color:#065f46}
+  .newrw .why{color:#3f6212;font-size:11.5px;margin-top:4px}
+  .newrw .acts{margin-top:6px;display:flex;gap:8px}
+  .newrw button{font-size:11.5px;padding:3px 9px;border-radius:5px;cursor:pointer;border:1px solid var(--line);background:#fff}
+  .newrw button.use{border-color:#16a34a;color:#166534;font-weight:600}
+  .regenerr{background:#fef3c7;border-left:3px solid #d97706;padding:7px 10px;border-radius:6px;color:#78350f}
   .fnote{width:100%;font:inherit;font-size:12.5px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;resize:vertical}
   .finding.decided-accept{background:#f0fdf4} .finding.decided-dismiss{opacity:.62}
   /* Once decided, a finding collapses to a single line so the panel shows what
@@ -575,6 +596,65 @@ export function renderArticlePage({ post, segments, findings, counts, prev, next
         hl.scrollIntoView({behavior:'smooth', block:'center'});
         hl.classList.remove('pulse'); void hl.offsetWidth; hl.classList.add('pulse');
       }
+    });
+  });
+
+  // ---- re-prompt a rewrite ----
+  // The reviewer disagrees with the proposal but does not want a deletion.
+  // Their direction goes back to the model, which returns a revised rewrite.
+  // Nothing reaches Sanity until they then click Rewrite.
+  document.querySelectorAll('.regenbtn').forEach(function(b){
+    b.addEventListener('click', function(){
+      var n = b.getAttribute('data-num');
+      var ta = document.querySelector('.fdirect[data-num="' + n + '"]');
+      var out = document.querySelector('.regenout[data-num="' + n + '"]');
+      var feedback = (ta && ta.value || '').trim();
+      if (!feedback) {
+        out.innerHTML = '<div class="regenerr">Say what you want changed first.</div>';
+        return;
+      }
+      b.disabled = true; b.textContent = 'Generating…';
+      out.innerHTML = '';
+      fetch('/api/seo-review/regenerate', {
+        method:'POST', credentials:'same-origin',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ id: idOf[n], feedback: feedback }),
+      })
+        .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
+        .then(function(res){
+          b.disabled = false; b.textContent = 'Generate new rewrite';
+          if (!res.ok) {
+            out.innerHTML = '<div class="regenerr">' + esc2(res.j.error || 'Could not generate a rewrite.') + '</div>';
+            return;
+          }
+          out.innerHTML =
+            '<div class="newrw"><b>New rewrite (' + esc2(res.j.scope) + ' scope):</b> ' + esc2(res.j.rewrite) +
+            (res.j.explanation ? '<div class="why">' + esc2(res.j.explanation) + '</div>' : '') +
+            '<div class="acts">' +
+              '<button type="button" class="use" data-num="' + n + '">Use this rewrite</button>' +
+              '<button type="button" class="again" data-num="' + n + '">Try again</button>' +
+            '</div></div>';
+          out.querySelector('.use').addEventListener('click', function(){
+            // Store it as the proposal, then apply via the normal Rewrite path
+            // so there is still exactly one route into Sanity.
+            fetch('/api/seo-review/regenerate', {
+              method:'POST', credentials:'same-origin',
+              headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({ id: idOf[n], feedback: feedback, keep: true }),
+            }).then(function(){
+              var rw = document.querySelector('.frewrite[data-num="' + n + '"]');
+              if (rw) rw.innerHTML = '<b>Option B — rewrite (updated by you):</b> ' + esc2(res.j.rewrite);
+              out.innerHTML = '<div class="newrw">Saved as the proposed rewrite. Click <b>Rewrite</b> above to write it to the Sanity draft.</div>';
+            });
+          });
+          out.querySelector('.again').addEventListener('click', function(){
+            out.innerHTML = ''; if (ta) ta.focus();
+          });
+        })
+        .catch(function(e){
+          b.disabled = false; b.textContent = 'Generate new rewrite';
+          out.innerHTML = '<div class="regenerr">' + esc2(e.message) + '</div>';
+        });
     });
   });
 

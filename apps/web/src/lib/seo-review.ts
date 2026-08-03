@@ -741,3 +741,143 @@ export async function repairDraft(slug: string, apply: boolean): Promise<RepairR
 
   return { slug, postId, repaired, unrepairable };
 }
+
+// --- Re-prompting a rewrite ------------------------------------------------
+// A reviewer who dislikes a proposed rewrite but does not want the passage
+// deleted needs a third option: steer it. This regenerates the rewrite from the
+// original text plus their direction, under the same rules the review ran on.
+
+const RULES_SUMMARY = `You are revising proposed replacement copy for Granola's published SEO articles, as part of a brand-safety and liability review.
+
+The standard the copy must meet:
+
+1. DISCLOSURE. A reader must never come away believing they can use Granola in a meeting without other participants knowing it is taking notes. Non-disclosure — others not knowing, not noticing, not being told — must never be positioned as a benefit, feature or reason to choose Granola.
+
+2. NO BOT-DENIGRATION. Never position meeting bots as bad: not intrusive, not awkward, not unreliable, not high-friction. An article arguing bots are bad has already made imperceptibility the implicit benefit. Do not swap one anti-bot argument for another.
+
+3. DO NOT INTRODUCE THE NO-BOT FACT. If the original passage did not make the point that no bot joins the call, your replacement must not add it.
+
+4. FACTUAL ACCURACY. Granola's notes and transcripts are stored in Granola's cloud infrastructure and sync to Granola's servers. Never write or imply that notes stay only on the device, are stored locally only, are not in the cloud, or never touch a third-party server. Those claims are false.
+
+5. WRITE TOWARD WHAT GRANOLA DOES — note quality, less time writing things up, staying present in the conversation, what the user gets afterwards — rather than what it avoids.
+
+6. SCOPE. Your replacement must fit exactly the scope given. A sentence-scope replacement must read correctly between the sentences either side of it and must not restate them. A paragraph-scope replacement replaces the whole paragraph and must be written standalone.
+
+7. Match the surrounding voice and register. Do not add claims that were not there. Do not pad.`;
+
+export interface RegenerateResult {
+  rewrite: string;
+  explanation: string;
+  scope: string;
+}
+
+/**
+ * Ask the model for a revised rewrite, given the reviewer's direction.
+ * Returns the proposal only — nothing is written to Sanity here.
+ */
+export async function regenerateRewrite(opts: {
+  finding: FindingRow;
+  feedback: string;
+  contextBefore?: string;
+  contextAfter?: string;
+}): Promise<RegenerateResult> {
+  const key = process.env.ANTHROPIC_API_KEY?.trim();
+  if (!key) {
+    throw new Error(
+      "ANTHROPIC_API_KEY is not configured for this app. Add it in Vercel (Settings → Environment Variables) and redeploy.",
+    );
+  }
+  const { finding, feedback } = opts;
+  const scope = finding.rewrite_scope && finding.rewrite_scope !== "none"
+    ? finding.rewrite_scope
+    : "sentence";
+
+  const user = `ARTICLE: ${finding.title}
+FIELD: ${finding.field_label}
+
+THE FLAGGED TEXT (${scope} scope — your replacement replaces exactly this much):
+"""
+${finding.original_text}
+"""
+
+WHY IT WAS FLAGGED:
+${finding.reader_takeaway ?? "(not recorded)"}
+
+THE REWRITE PREVIOUSLY PROPOSED, WHICH THE REVIEWER IS NOT HAPPY WITH:
+"""
+${finding.final_text ?? finding.proposed_text ?? "(none)"}
+"""
+
+THE REVIEWER'S DIRECTION — follow this closely; it takes precedence over the previous proposal, but never over the standard above:
+"""
+${feedback}
+"""
+
+Produce a revised replacement. It must still fully resolve the reason the text was flagged.`;
+
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": key,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model: "claude-opus-5",
+      max_tokens: 2000,
+      system: RULES_SUMMARY,
+      tools: [
+        {
+          name: "propose_rewrite",
+          description: "Return the revised replacement copy.",
+          input_schema: {
+            type: "object",
+            properties: {
+              rewrite: {
+                type: "string",
+                description: `The replacement copy, at ${scope} scope. Plain prose, no quotes around it, no commentary.`,
+              },
+              explanation: {
+                type: "string",
+                description:
+                  "One sentence on how this answers the reviewer's direction while still resolving the original problem.",
+              },
+            },
+            required: ["rewrite", "explanation"],
+          },
+        },
+      ],
+      tool_choice: { type: "tool", name: "propose_rewrite" },
+      messages: [{ role: "user", content: user }],
+    }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    if (res.status === 400 && body.includes("credit balance")) {
+      throw new Error("The Anthropic API credit balance is too low to generate a new rewrite.");
+    }
+    if (res.status === 401) throw new Error("The Anthropic API key was rejected (401).");
+    throw new Error(`Anthropic API error ${res.status}: ${body.slice(0, 200)}`);
+  }
+
+  const json = (await res.json()) as {
+    content: { type: string; input?: { rewrite?: string; explanation?: string } }[];
+  };
+  const block = json.content.find((b) => b.type === "tool_use");
+  if (!block?.input?.rewrite) throw new Error("The model did not return a rewrite.");
+
+  return {
+    rewrite: block.input.rewrite,
+    explanation: block.input.explanation ?? "",
+    scope,
+  };
+}
+
+/** Store a reviewer-approved replacement without applying it. */
+export async function setProposedText(id: string, text: string): Promise<void> {
+  await prisma.$executeRaw`
+    UPDATE seo_review_findings
+    SET proposed_text = ${text}, updated_at = NOW()
+    WHERE id = ${id}`;
+}

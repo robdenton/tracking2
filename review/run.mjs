@@ -82,6 +82,7 @@ async function processArticle(post, rulesText, rulesHash) {
 
   // Layer B — semantic pass runs INDEPENDENTLY (it never sees aHits), and the
   // lexicon adjudication runs separately so nothing is silently cleared.
+  const usage = { input: 0, output: 0 };
   const [semantic, adjudicated] = await Promise.all([
     semanticPass({ rulesText, post, segments }),
     adjudicateLexicon({
@@ -90,6 +91,10 @@ async function processArticle(post, rulesText, rulesHash) {
       hits: aHits.map((h) => ({ tier: h.tier, term: h.term, label: h.label, quote: h.quote, sentence: h.sentence })),
     }),
   ]);
+
+  for (const r of [semantic, adjudicated]) {
+    if (r && r.usage) { usage.input += r.usage.input_tokens || 0; usage.output += r.usage.output_tokens || 0; }
+  }
 
   // Fold adjudications back onto the Layer A hits — every hit gets a
   // disposition; an unadjudicated hit becomes `not-audited`, never dropped.
@@ -296,7 +301,7 @@ async function processArticle(post, rulesText, rulesHash) {
     anomalies.push(`${repairLog.withdrawn} finding(s) withdrawn during the re-quote pass — confirm they were genuinely mistaken.`);
   }
 
-  return { segments, findings: anchored, counts, lexiconHitCount: aHits.length, words, repairLog, anomalies };
+  return { segments, findings: anchored, counts, lexiconHitCount: aHits.length, words, repairLog, anomalies, usage };
 }
 
 // --- render ----------------------------------------------------------------
@@ -409,7 +414,7 @@ async function main() {
     const label = `[${i + 1}/${queue.length}] ${post.slug}`;
     const t0 = Date.now();
     try {
-      const { segments, findings, counts, lexiconHitCount, words, repairLog, anomalies } =
+      const { segments, findings, counts, lexiconHitCount, words, repairLog, anomalies, usage } =
         await processArticle(post, rulesText, rulesHash);
 
       const idx = corpus.findIndex((p) => p._id === post._id);
@@ -424,12 +429,13 @@ async function main() {
       ledger[post._id] = {
         slug: post.slug, title: post.title, status: 'done', counts,
         findingsTotal: findings.length, lexiconHits: lexiconHitCount, words,
-        repairs: repairLog, anomalies,
+        repairs: repairLog, anomalies, usage,
         seconds: Math.round((Date.now() - t0) / 1000),
         timestamp: new Date().toISOString(), rulesHash, model: MODEL,
       };
       const summary = Object.entries(counts).map(([k, v]) => `${k}:${v}`).join(' ') || 'clean';
-      console.log(`${label}  ✓ ${findings.length} findings  (${summary})  ${words}w  ${Math.round((Date.now() - t0) / 1000)}s`);
+      const cost = (usage.input / 1e6) * 5 + (usage.output / 1e6) * 25;
+      console.log(`${label}  ✓ ${findings.length} findings  (${summary})  ${words}w  ${Math.round((Date.now() - t0) / 1000)}s  $${cost.toFixed(3)}`);
       if (repairLog.attempted) {
         console.log(`      re-quote pass: ${repairLog.attempted} attempted, ${repairLog.repaired} repaired, ${repairLog.withdrawn} withdrawn`);
       }
@@ -488,6 +494,18 @@ async function main() {
   console.log(`Unchecked:  ${unchecked}`);
   const totalFindings = Object.values(allFindings).reduce((n, r) => n + r.findings.length, 0);
   console.log(`Findings:   ${totalFindings} across ${Object.keys(allFindings).length} articles`);
+  // Actual spend, so the remaining-cost estimate is measured rather than guessed.
+  let tin = 0, tout = 0, n = 0;
+  for (const v of Object.values(ledger)) {
+    if (v.usage) { tin += v.usage.input || 0; tout += v.usage.output || 0; n++; }
+  }
+  if (n) {
+    const spent = (tin / 1e6) * 5 + (tout / 1e6) * 25;
+    const per = spent / n;
+    const left = corpus.length - done - errored;
+    console.log(`Spend:      $${spent.toFixed(2)} over ${n} article(s) = $${per.toFixed(3)} each`);
+    console.log(`Projected:  $${(per * left).toFixed(2)} for the remaining ${left}`);
+  }
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });
