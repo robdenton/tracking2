@@ -649,7 +649,14 @@ export async function repairDraft(slug: string, apply: boolean): Promise<RepairR
     b.children.forEach((child, ci) => {
       const original = child.text ?? "";
       if (!original.trim()) return;
-      let working = original;
+      // Preserve the span's own leading/trailing whitespace. A span very often
+      // starts with a space because it follows a link — "Download Granola" +
+      // " for free on Mac…". Trimming it would run the words together, so the
+      // repair operates on the interior only and reattaches the edges.
+      const lead = original.match(/^\s*/)?.[0] ?? "";
+      const trail = original.match(/\s*$/)?.[0] ?? "";
+      let working = original.slice(lead.length, original.length - trail.length);
+      const core = working;
       const removedBits: string[] = [];
 
       for (let pass = 0; pass < 3; pass++) {
@@ -660,6 +667,11 @@ export async function repairDraft(slug: string, apply: boolean): Promise<RepairR
         break;
       }
       working = tidyPunctuation(working);
+
+      // Only a real change counts. Whitespace-only differences are not damage,
+      // and rewriting them would churn every span in the document.
+      if (working === core) return;
+      working = lead + working + trail;
 
       if (working !== original) {
         repaired.push({
