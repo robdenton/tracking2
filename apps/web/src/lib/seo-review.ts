@@ -338,3 +338,199 @@ export async function tableExists(): Promise<boolean> {
     SELECT to_regclass('public.seo_review_findings')::text AS t`;
   return Boolean(rows[0]?.t);
 }
+
+// --- Post-edit draft verification -----------------------------------------
+// Automated splices leave artifacts: stranded punctuation where a clause was
+// removed, a rewrite that restates its neighbour, a block emptied by deletion.
+// Two such defects reached a live draft before this existed, so the check runs
+// against the draft itself rather than trusting that the edits were clean.
+
+export interface DraftIssue {
+  kind: "punctuation" | "duplication" | "empty-block" | "fragment" | "length";
+  where: string;
+  detail: string;
+  text: string;
+}
+
+export interface ManualAction {
+  reason: string;
+  disposition: string;
+  decision: string;
+  fieldLabel: string;
+  text: string;
+}
+
+export interface DraftVerification {
+  slug: string;
+  postId: string;
+  draftExists: boolean;
+  publishedBlocks: number;
+  draftBlocks: number;
+  issues: DraftIssue[];
+  manualActions: ManualAction[];
+  checkedAt: string;
+}
+
+/** Read a document including drafts — needs the write token's read access. */
+async function readDoc(id: string): Promise<Record<string, unknown> | null> {
+  const token = process.env.SANITY_WRITE_TOKEN?.trim();
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (token && !/\s/.test(token)) headers.Authorization = `Bearer ${token}`;
+  const res = await fetch(`${API}/data/query/${SANITY_DATASET}`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ query: `*[_id == $id][0]`, params: { id } }),
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`Sanity read failed: ${res.status}`);
+  return (await res.json()).result ?? null;
+}
+
+interface PtBlock {
+  _key?: string;
+  _type?: string;
+  html?: string;
+  style?: string;
+  children?: { text?: string }[];
+}
+
+const blockText = (b: PtBlock) =>
+  b._type === "block" ? (b.children ?? []).map((c) => c.text ?? "").join("") : "";
+
+const sentencesOf = (t: string) =>
+  t.split(/(?<=[.!?])\s+/).map((x) => x.trim()).filter((x) => x.length > 25);
+
+const PUNCT_CHECKS: { pattern: RegExp; detail: string }[] = [
+  { pattern: /,\s*,/, detail: "stranded comma — text was removed between two commas" },
+  { pattern: /\s+[,;]/, detail: "space before a comma or semicolon" },
+  { pattern: /,\s*[.!?]/, detail: "comma immediately before a sentence end" },
+  { pattern: /[.!?]{2,}/, detail: "duplicated sentence-ending punctuation" },
+  { pattern: /\s{2,}/, detail: "double space" },
+  { pattern: /[.!?]\s*,/, detail: "comma immediately after a sentence end" },
+  { pattern: /\(\s*\)|\[\s*\]/, detail: "empty brackets left behind" },
+];
+
+export async function verifyDraft(slug: string): Promise<DraftVerification> {
+  const rows = await getFindingsForSlug(slug);
+  if (rows.length === 0) throw new Error(`No findings recorded for "${slug}"`);
+  const postId = rows[0].post_id;
+
+  const [published, draft] = await Promise.all([
+    readDoc(postId),
+    readDoc(`drafts.${postId}`),
+  ]);
+
+  const issues: DraftIssue[] = [];
+  const pubBlocks = (published?.body as PtBlock[] | undefined) ?? [];
+  const draftBlocks = (draft?.body as PtBlock[] | undefined) ?? [];
+
+  if (draft) {
+    const fields: { where: string; text: string }[] = [
+      { where: "Title", text: String(draft.title ?? "") },
+      { where: "Meta / summary", text: String(draft.summary ?? "") },
+      ...draftBlocks
+        .filter((b) => b._type === "block")
+        .map((b, i) => ({
+          where: `Block ${i + 1}${b.style && b.style !== "normal" ? ` (${b.style})` : ""}`,
+          text: blockText(b),
+        })),
+    ];
+
+    for (const f of fields) {
+      if (!f.text) continue;
+      for (const c of PUNCT_CHECKS) {
+        const m = f.text.match(c.pattern);
+        if (m) {
+          const at = m.index ?? 0;
+          issues.push({
+            kind: "punctuation",
+            where: f.where,
+            detail: c.detail,
+            text: f.text.slice(Math.max(0, at - 60), at + 80).trim(),
+          });
+        }
+      }
+      const seen = new Set<string>();
+      for (const s of sentencesOf(f.text)) {
+        const norm = s.toLowerCase().replace(/[^a-z0-9 ]/g, "").trim();
+        if (norm.length > 30 && seen.has(norm)) {
+          issues.push({
+            kind: "duplication",
+            where: f.where,
+            detail: "sentence appears twice in the same field",
+            text: s,
+          });
+        }
+        seen.add(norm);
+      }
+      if (f.where === "Meta / summary" && f.text.length > 0 && f.text.length < 50) {
+        issues.push({
+          kind: "length",
+          where: f.where,
+          detail: `summary is only ${f.text.length} characters`,
+          text: f.text,
+        });
+      }
+    }
+
+    const pubByKey = new Map(pubBlocks.map((b) => [b._key, blockText(b)]));
+    draftBlocks.forEach((b, i) => {
+      if (b._type !== "block") return;
+      const t = blockText(b);
+      const was = pubByKey.get(b._key) ?? "";
+      if (was && !t.trim()) {
+        issues.push({
+          kind: "empty-block",
+          where: `Block ${i + 1}`,
+          detail: "block is now empty — remove it in the Studio",
+          text: was.slice(0, 120),
+        });
+      } else if (was && t.trim() && t.length < 25 && was.length > 80) {
+        issues.push({
+          kind: "fragment",
+          where: `Block ${i + 1}`,
+          detail: "block reduced to a fragment",
+          text: t,
+        });
+      } else if (
+        t.trim() && was.trim() &&
+        /[.!?]$/.test(was.trim()) && !/[.!?:"')\]]$/.test(t.trim())
+      ) {
+        issues.push({
+          kind: "fragment",
+          where: `Block ${i + 1}`,
+          detail: "block no longer ends with punctuation",
+          text: t.slice(-110),
+        });
+      }
+    });
+  }
+
+  const manualActions: ManualAction[] = rows
+    .filter((r) => ["accept", "accept-delete"].includes(r.decision ?? "") && !r.applied_to_draft)
+    .map((r) => ({
+      reason:
+        r.field_kind === "rawHtml"
+          ? "Inside a comparison table — editing table HTML automatically risks corrupting the table"
+          : r.field_kind === "linkHref"
+            ? "This is a link URL — rewriting it automatically would break the link"
+            : r.field_kind === "slug"
+              ? "Changing the slug would break the live URL"
+              : "The flagged text spans multiple styled spans (bold or a link), so editing it automatically could corrupt the formatting",
+      disposition: r.disposition,
+      decision: r.decision ?? "",
+      fieldLabel: r.field_label,
+      text: r.original_text,
+    }));
+
+  return {
+    slug,
+    postId,
+    draftExists: Boolean(draft),
+    publishedBlocks: pubBlocks.length,
+    draftBlocks: draftBlocks.length,
+    issues,
+    manualActions,
+    checkedAt: new Date().toISOString(),
+  };
+}
