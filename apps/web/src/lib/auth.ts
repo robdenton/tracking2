@@ -2,6 +2,7 @@ import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "./prisma";
+import { isAllowedEmail } from "./access";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
@@ -21,13 +22,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       }
       return token;
     },
-    async signIn({ user, account, profile }) {
-      // Only allow @granola.so email addresses
-      if (user.email && user.email.endsWith("@granola.so")) {
-        return true;
-      }
-      // Deny access for non-Granola emails
-      return false;
+    async signIn({ user }) {
+      // @granola.so, or a named collaborator on the allowlist. Everyone else is
+      // denied and lands on the /auth/error page.
+      return isAllowedEmail(user.email);
     },
     async session({ session, token }) {
       // Add user data from JWT token to session

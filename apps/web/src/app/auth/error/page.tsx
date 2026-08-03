@@ -17,7 +17,7 @@ export default function AuthErrorPage({
           <div className="mt-4 rounded-md bg-red-50 p-4">
             <p className="text-sm text-red-800">
               {error === "AccessDenied"
-                ? "Access denied. Only @granola.so email addresses are allowed."
+                ? "Access denied. This tool is limited to @granola.so addresses and a small number of approved collaborators."
                 : "An error occurred during authentication. Please try again."}
             </p>
           </div>

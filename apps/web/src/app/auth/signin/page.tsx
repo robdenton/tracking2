@@ -44,7 +44,7 @@ export default function SignInPage() {
           </button>
         </form>
         <p className="text-center text-xs text-text-secondary">
-          Only @granola.so email addresses are allowed
+          @granola.so addresses and approved collaborators only
         </p>
       </div>
     </div>
