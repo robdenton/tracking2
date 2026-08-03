@@ -17,7 +17,9 @@ A script, not judgment. Case-insensitive, matching the listed terms **and their 
 `secretly`, `stealth`, `hidden`, `undetectable`, `invisible`, `covert`, `spy`, `discreetly records`, `no one knows`, `nobody knows`, `silently records`, `secretly listens`, `no one can tell`, `invisible to everyone`
 
 **AMBER terms** — legitimate product language that becomes a problem in the wrong frame:
-`private`, `secure`, `compliant`, `encrypted`, `local`, `invisible`, `automatic`, `effortless`, `no bot`, `in the background`, `works silently`, `never recorded`
+`private`, `encrypted`, `local`, `invisible`, `automatic`, `effortless`, `no bot`, `in the background`, `works silently`, `never recorded`
+
+`secure` and `compliant` were removed from this list after measurement: across 49 articles they produced 378 findings, 377 of them cleared-in-context. They are procurement vocabulary, not consent vocabulary — a bare match carries no signal. Layer B still reads every sentence containing them, so a genuine misstatement about security or compliance posture is still caught; it is caught semantically rather than by string match.
 
 Every hit is output with its surrounding sentence. This layer is the safety net: zero misses on literal terms.
 
@@ -45,7 +47,7 @@ These come from the brand owner and override your own judgment:
 | "Works silently" / "in the background" | Clearly about not interrupting **the user's own workflow** | Anything suggesting imperceptibility to **other participants** |
 | "Your conversations are never recorded" | Flag regardless — also verify factual accuracy | Always review; it implies there's nothing to disclose |
 | "No bot joins your call" | Framed as reliability/UX, alongside disclosure-positive language | Framed as a way others won't see or know |
-| "Private", "secure", "encrypted", "local", "compliant" | Making a genuine data-handling claim | Making a claim about other people's awareness |
+| "Private", "encrypted", "local" (and, semantically, "secure" / "compliant") | Making a genuine data-handling claim | Making a claim about other people's awareness |
 
 **Approved framing — the sanctioned way to make the no-bot point:**
 
@@ -111,7 +113,16 @@ A separate failure mode from disclosure, tracked as its own category: **`accurac
 
 **Notes and transcripts are stored in Granola's cloud infrastructure and sync to Granola's servers.** They do not live only on the user's device.
 
-Therefore any copy stating or implying that notes, transcripts or recordings:
+### The subject test — apply this first
+
+This check turns entirely on **what the sentence is a claim about**. Get the subject right before deciding anything else.
+
+| Subject of the claim | Status |
+|---|---|
+| **Audio / the recording** | Accurate. **Out of scope. Do not flag.** The audio really is deleted once notes are generated, and no recording really is kept. |
+| **Notes, transcripts, text, "your data", "your information"** | In scope. These are cloud-stored and sync to Granola's servers. |
+
+Therefore any copy stating or implying that **notes, transcripts or user data**:
 
 - never leave the user's device / Mac / computer
 - are stored only locally, or on-device only
@@ -121,6 +132,10 @@ Therefore any copy stating or implying that notes, transcripts or recordings:
 
 …is **factually inaccurate**. Flag it `red`, category `accuracy`.
 
+Granola's own notes and transcripts sit in the cloud and on third-party servers. Copy that tells a reader otherwise is the exposure. Copy that describes audio being captured from the laptop and deleted afterwards is simply true, and describing it is fine.
+
+**The one edge case that still flags:** an absence claim with no stated subject, or a subject broader than audio — "no storage", "nothing is stored anywhere", "we store nothing". A reader applies that to their notes. If the sentence names audio or the recording as its subject, clear it.
+
 This is a legal and trust exposure independent of the consent question. A reader who chooses Granola believing their notes never leave their laptop has been misled, regardless of anything said about disclosure.
 
 ### Precision — what this does NOT cover
@@ -128,12 +143,12 @@ This is a legal and trust exposure independent of the consent question. A reader
 Do not flag these. They are different claims and several are true:
 
 - **"Your notes stay in black. AI additions appear in gray."** This describes text colour in the editor. It is not a storage claim. This phrasing is common in the corpus and must never be flagged as an accuracy issue.
-- **"Audio is captured from your device"** / "captures device audio directly" — a description of the capture method, not of where data is stored.
-- **"Audio is deleted immediately after transcription"** — a retention claim. In scope only if you have reason to doubt it; flag `amber` for verification rather than `red`.
+- **"Audio is captured from your device"** / "captures device audio directly" / "captured locally" — a description of the capture method, not of where data is stored.
+- **"Audio is deleted immediately after transcription"** / "no recording is stored" / "no audio files are retained" / "transcribed then deleted" / "audio is discarded, only the text persists" — **all accurate, all out of scope. Do not flag these, and do not flag them "for verification".** The brand owner has confirmed this behaviour directly. An earlier version of this rule said to raise them `amber` pending verification; that produced 18 findings the reviewer rejected and none they accepted on those grounds. Verification is complete. Clear them.
 - **"Third-party AI providers are contractually prohibited from training on user data"** — a contractual claim about use, not a claim that no third party holds data.
 - Claims about SOC 2, GDPR, ISO 27001, DPAs, SSO or admin controls — compliance posture, not storage location.
 
-The test is narrow: **does the copy tell the reader their data stays off Granola's (or any third party's) servers?** If yes, it is inaccurate. If it says something else about security, privacy or compliance, it belongs to the disclosure test or is simply fine.
+The test is narrow: **does the copy tell the reader their notes or transcripts stay off Granola's (or any third party's) servers?** If yes, it is inaccurate. If it describes audio capture or audio deletion, it is accurate and out of scope. If it says something else about security, privacy or compliance, it belongs to the disclosure test or is simply fine.
 
 ### Remedies
 

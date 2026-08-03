@@ -41,8 +41,19 @@ const RED_EXTRA = [
 
 const AMBER_PATTERNS = [
   ['private', /\bprivate(?:ly)?\b|\bprivacy\b/gi],
-  ['secure', /\bsecure(?:ly|d)?\b|\bsecurity\b/gi],
-  ['compliant', /\bcompliant\b|\bcompliance\b/gi],
+  // 'secure'/'security' and 'compliant'/'compliance' were removed from this
+  // lexicon after measurement. Across 49 reviewed articles they produced 378
+  // findings, of which 377 were cleared-in-context — page titles ("Security"),
+  // meta descriptions listing certifications, glossary definitions of SOC 2.
+  // The single exception was itself an artifact of the retired
+  // retention-claim rule. Decided acceptance was 0/4 and 1/4.
+  //
+  // These are procurement vocabulary, not consent vocabulary. A bare term match
+  // carries no signal; what matters is the framing around it, and Layer B reads
+  // every sentence independently of this lexicon, so genuine misstatements about
+  // security or compliance posture are still caught semantically (and false
+  // storage claims by the accuracy patterns below). Removing them costs no
+  // recall and removes ~7.7 rows per article from the review queue.
   ['encrypted', /\bencrypt(?:ed|ion|s)?\b/gi],
   ['local', /\blocal(?:ly)?\b/gi],
   ['automatic', /\bautomatic(?:ally)?\b|\bautomated\b/gi],
