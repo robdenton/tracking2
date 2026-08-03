@@ -21,6 +21,7 @@ const DEFAULT_COLLABORATORS = [
   "team@discoveredlabs.com",
   "majda@discoveredlabs.com",
   "shqiponje@discoveredlabs.com",
+  "ben@discoveredlabs.com",
 ];
 
 const collaborators = new Set(
