@@ -161,6 +161,7 @@ export async function POST(request: NextRequest) {
     blockKey: finding.block_key,
     original: finding.original_text,
     replacement,
+    scope: finding.rewrite_scope,
   });
   if ("error" in plan) {
     return NextResponse.json(
@@ -201,8 +202,9 @@ async function planPatch(opts: {
   blockKey: string | null;
   original: string;
   replacement: string;
+  scope?: string | null;
 }): Promise<{ path: string; newValue: string } | { error: string }> {
-  const { postId, fieldKind, blockKey, original, replacement } = opts;
+  const { postId, fieldKind, blockKey, original, replacement, scope } = opts;
   if (!fieldKind) {
     return {
       error:
@@ -259,6 +261,23 @@ async function planPatch(opts: {
     if (node._key !== blockKey) continue; // target exactly the recorded block
     if (node._type === "block" && Array.isArray(node.children)) {
       const full = node.children.map((c) => c.text ?? "").join("");
+
+      // A paragraph-scope rewrite replaces the WHOLE block. Splicing it in at
+      // the quote's position instead inserts the new paragraph inside the old
+      // one, duplicating everything around it.
+      if (scope === "paragraph") {
+        if (node.children.length !== 1) {
+          return {
+            error:
+              "This is a whole-paragraph rewrite, but the paragraph contains bold text or a link. Replacing it automatically would destroy that formatting — rewrite it by hand in the Studio.",
+          };
+        }
+        return {
+          path: `body[_key=="${node._key}"].children[0].text`,
+          newValue: tidySeam(replacement),
+        };
+      }
+
       const start = full.indexOf(original);
       if (start === -1) continue;
       const stop = start + original.length;
