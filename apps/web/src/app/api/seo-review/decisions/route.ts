@@ -67,9 +67,9 @@ export async function POST(request: NextRequest) {
 
   const { id, decision = null, note = null, finalText = null } = body;
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
-  if (decision !== null && !["accept", "dismiss", "discard"].includes(decision)) {
+  if (decision !== null && !["accept", "accept-delete", "dismiss", "discard"].includes(decision)) {
     return NextResponse.json(
-      { error: "decision must be accept, dismiss, discard or null" },
+      { error: "decision must be accept, accept-delete, dismiss, discard or null" },
       { status: 400 },
     );
   }
@@ -79,9 +79,11 @@ export async function POST(request: NextRequest) {
 
   await recordDecision({ id, decision, note, finalText, decidedBy: who });
 
-  // Dismiss / undo: record only. Note that undoing an accept does NOT revert a
+  const isApply = decision === "accept" || decision === "accept-delete";
+
+  // Dismiss / discard / undo: record only. Note that undoing an accept does NOT revert a
   // draft that was already written — say so explicitly rather than implying it.
-  if (decision !== "accept") {
+  if (!isApply) {
     return NextResponse.json({
       ok: true,
       decision,
@@ -94,9 +96,51 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  // Accept — apply to the draft.
+  // Apply to the draft.
   if (finding.applied_to_draft) {
     return NextResponse.json({ ok: true, decision, appliedToDraft: true, alreadyApplied: true });
+  }
+
+  // Deletion path — remove the passage rather than reword it.
+  if (decision === "accept-delete") {
+    const scope = finding.deletion_scope;
+    if (!scope || scope === "none" || scope === "not-advisable") {
+      return NextResponse.json(
+        { ok: true, decision, appliedToDraft: false, warning: "No deletion remedy was proposed for this finding." },
+        { status: 200 },
+      );
+    }
+    const plan = await planDeletion({
+      postId: finding.post_id,
+      fieldKind: finding.field_kind,
+      blockKey: finding.block_key,
+      original: finding.original_text,
+      scope,
+    });
+    if ("error" in plan) {
+      return NextResponse.json({ ok: true, decision, appliedToDraft: false, warning: plan.error }, { status: 200 });
+    }
+    try {
+      await applyToDraft({
+        postId: finding.post_id,
+        path: plan.path,
+        newValue: plan.newValue,
+        unset: plan.unset,
+      });
+      await markApplied(id, plan.path);
+      return NextResponse.json({
+        ok: true, decision, appliedToDraft: true, deleted: true, scope,
+        path: plan.path, draftId: `drafts.${finding.post_id}`,
+      });
+    } catch (e) {
+      if (e instanceof SanityTokenMissing || e instanceof SanityTokenInvalid) {
+        return NextResponse.json({ ok: true, decision, appliedToDraft: false, warning: e.message }, { status: 200 });
+      }
+      return NextResponse.json(
+        { ok: true, decision, appliedToDraft: false, warning: e instanceof Error ? e.message : "delete failed" },
+        { status: 200 },
+      );
+    }
   }
 
   const replacement = finalText ?? finding.proposed_text;
@@ -246,6 +290,64 @@ async function planPatch(opts: {
   }
   return {
     error: `Could not find the original text verbatim in block ${blockKey}. The article may have been edited since the review ran — re-run the review for this article.`,
+  };
+}
+
+// Plan a deletion. Sentence scope removes the flagged text (and its trailing
+// space) from the span; paragraph scope removes the whole block. Body blocks
+// only — deleting a title, summary, slug or URL is never automatic.
+async function planDeletion(opts: {
+  postId: string;
+  fieldKind: string | null;
+  blockKey: string | null;
+  original: string;
+  scope: string;
+}): Promise<{ path: string; newValue?: string; unset?: boolean } | { error: string }> {
+  const { postId, fieldKind, blockKey, original, scope } = opts;
+  if (fieldKind !== "block" && fieldKind !== "rawHtml") {
+    return { error: `Deleting from the ${fieldKind ?? "unknown"} field is not automatic — do it by hand in the Studio.` };
+  }
+  if (!blockKey) return { error: "No block reference — cannot delete safely." };
+
+  if (scope === "paragraph") {
+    // Remove the whole block. Reversible: this is a draft.
+    return { path: `body[_key=="${blockKey}"]`, unset: true };
+  }
+
+  const res = await fetch(`https://oy7f1h9b.api.sanity.io/v2021-06-07/data/query/production`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query: `*[_id == $id][0]`, params: { id: postId } }),
+    cache: "no-store",
+  });
+  if (!res.ok) return { error: `Could not read document: ${res.status}` };
+  const doc = (await res.json()).result as { body?: PtNode[] } | null;
+  const node = (doc?.body ?? []).find((b) => b._key === blockKey);
+  if (!node) return { error: `Block ${blockKey} not found.` };
+
+  if (node._type === "rawHtml") {
+    return { error: "Deleting from table HTML is not automatic — do it by hand in the Studio." };
+  }
+  const children = node.children ?? [];
+  const full = children.map((c) => c.text ?? "").join("");
+  const start = full.indexOf(original);
+  if (start === -1) return { error: "The flagged text is no longer present verbatim — re-run the review for this article." };
+  const stop = start + original.length;
+  let offset = 0;
+  for (let i = 0; i < children.length; i++) {
+    const t = children[i].text ?? "";
+    if (start >= offset && stop <= offset + t.length) {
+      const local = start - offset;
+      let cut = t.slice(0, local) + t.slice(local + original.length);
+      // Tidy the seam: drop a stranded leading space and a doubled space.
+      cut = cut.replace(/ {2,}/g, " ").replace(/^\s+/, (m) => (local === 0 ? "" : m));
+      return { path: `body[_key=="${blockKey}"].children[${i}].text`, newValue: cut };
+    }
+    offset += t.length;
+  }
+  return {
+    error:
+      "The flagged text spans multiple styled spans (bold or a link). Deleting it automatically could corrupt the markup — remove it by hand in the Studio.",
   };
 }
 

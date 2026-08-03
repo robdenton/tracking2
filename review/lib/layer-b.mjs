@@ -47,7 +47,23 @@ const FINDING_PROPS = {
   },
   suggested_rewrite: {
     type: 'string',
-    description: 'A concrete proposed rewrite of the quoted text. For cleared items, may be an empty string.',
+    description:
+      'Replacement copy. Follow the Addendum: never introduce the no-bot fact, never disparage meeting bots on any grounds, write toward what Granola does rather than what it avoids. Prefer rewriting the whole paragraph over threading a clean sentence into a contaminated one. Empty string for cleared items.',
+  },
+  rewrite_scope: {
+    type: 'string',
+    enum: ['sentence', 'paragraph', 'none'],
+    description: 'Does suggested_rewrite replace just the quoted sentence, or the whole paragraph? "none" for cleared items.',
+  },
+  suggested_deletion_scope: {
+    type: 'string',
+    enum: ['sentence', 'paragraph', 'not-advisable', 'none'],
+    description:
+      'The deletion remedy. What should be REMOVED to eliminate the risk entirely: the flagged sentence, or the whole paragraph? Use "not-advisable" only when removal would leave the article incoherent. "none" for cleared items. Deletion is a first-class option — when a passage exists mainly to make a point about bots, privacy, consent or what participants notice, deletion is usually the better remedy.',
+  },
+  deletion_rationale: {
+    type: 'string',
+    description: 'One sentence: what the reader loses if this is deleted, and why deletion is or is not the better remedy here. Empty string for cleared items.',
   },
   confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
 };
@@ -64,7 +80,7 @@ const SEMANTIC_TOOL = {
         items: {
           type: 'object',
           properties: FINDING_PROPS,
-          required: ['segment_id', 'quote', 'disposition', 'reader_takeaway', 'suggested_rewrite', 'confidence'],
+          required: ['segment_id', 'quote', 'disposition', 'reader_takeaway', 'suggested_rewrite', 'rewrite_scope', 'suggested_deletion_scope', 'deletion_rationale', 'confidence'],
         },
       },
     },
@@ -87,9 +103,12 @@ const ADJUDICATE_TOOL = {
             disposition: { type: 'string', enum: DISPOSITIONS },
             reader_takeaway: { type: 'string' },
             suggested_rewrite: { type: 'string' },
+            rewrite_scope: { type: 'string', enum: ['sentence', 'paragraph', 'none'] },
+            suggested_deletion_scope: { type: 'string', enum: ['sentence', 'paragraph', 'not-advisable', 'none'] },
+            deletion_rationale: { type: 'string' },
             confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
           },
-          required: ['hit_index', 'disposition', 'reader_takeaway', 'suggested_rewrite', 'confidence'],
+          required: ['hit_index', 'disposition', 'reader_takeaway', 'suggested_rewrite', 'rewrite_scope', 'suggested_deletion_scope', 'deletion_rationale', 'confidence'],
         },
       },
     },
@@ -143,6 +162,10 @@ Operating instructions:
 - Every text-bearing field is in scope, including the title, the meta/summary, headings, list items, table cells, link anchor text and CTA text — a flagged phrase in a meta description is just as public as one in paragraph three.
 - Apply the context rules for AMBER exactly as written; they override your own judgment. "Invisible" is RED in all uses. "Your conversations are never recorded" is flagged regardless.
 - Use disposition \`about-competitor\` for text describing a competitor's behaviour; still report it — those sit closest to the line.
+- Apply the **Addendum** in full. In particular: flag bot-denigration (copy positioning meeting bots as intrusive, awkward, unreliable or high-friction) as a finding in its own right, at \`amber\` or worse.
+- For EVERY red and amber finding propose BOTH remedies: a deletion (with scope) and a rewrite (with scope). Deletion is a first-class option, not a fallback — when a passage exists mainly to make a point about bots, privacy, consent or what participants notice, say so and prefer deletion.
+- Your rewrite must not introduce the no-bot fact if the original did not make that point, must not disparage bots on any grounds (including reliability or friction), and should describe what Granola does rather than what it avoids.
+- Where the judgement is close, take the more conservative option.
 - Use \`cleared-negated\` / \`cleared-in-context\` for text you considered and are clearing; still report it with your reasoning. Nothing is silently cleared.
 
 CRITICAL — quoting: every \`quote\` must be copied VERBATIM from the segment text, character for character. It must be findable by exact substring search. Do not paraphrase, normalise punctuation or quotation marks, add ellipses, or fix typos. Quote a single sentence or clause, not an entire long segment.`;
@@ -227,6 +250,7 @@ Each hit below is a literal term match found by a deterministic script, with its
 - \`cleared-negated\` — the term is present but negated.
 - \`cleared-in-context\` — legitimately used (e.g. "private" making a genuine data-handling claim about where notes are stored).
 - A miss is expensive; a false positive is cheap. When genuinely torn between clearing and amber, choose amber.
+- Apply the **Addendum** in full: for every red/amber hit propose BOTH a deletion (with scope) and a rewrite (with scope). Never introduce the no-bot fact as a remedy, and never disparage meeting bots on any grounds.
 - You must return one entry for EVERY hit index. Nothing is silently dropped.`;
 
   const user = `ARTICLE

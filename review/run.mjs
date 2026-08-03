@@ -111,6 +111,9 @@ async function processArticle(post, rulesText, rulesHash) {
       disposition: d ? d.disposition : 'not-audited',
       reader_takeaway: d ? d.reader_takeaway : 'Not adjudicated by the model — review by hand.',
       suggested_rewrite: d ? d.suggested_rewrite : '',
+      rewrite_scope: d ? d.rewrite_scope : 'none',
+      deletion_scope: d ? d.suggested_deletion_scope : 'none',
+      deletion_rationale: d ? d.deletion_rationale : '',
       confidence: d ? d.confidence : 'low',
     };
   });
@@ -124,6 +127,9 @@ async function processArticle(post, rulesText, rulesHash) {
     disposition: f.disposition,
     reader_takeaway: f.reader_takeaway,
     suggested_rewrite: f.suggested_rewrite,
+    rewrite_scope: f.rewrite_scope || 'sentence',
+    deletion_scope: f.suggested_deletion_scope || 'none',
+    deletion_rationale: f.deletion_rationale || '',
     confidence: f.confidence,
   }));
 
@@ -221,12 +227,14 @@ function regenerate({ corpus, ledger, allFindings, rulesHash }) {
   }));
 
   const header = ['_id', 'slug', 'title', 'layer', 'term_or_pattern', 'disposition', 'verbatim_quote',
-    'sentence_context', 'reader_takeaway', 'suggested_rewrite', 'confidence'];
+    'sentence_context', 'reader_takeaway', 'suggested_rewrite', 'rewrite_scope',
+    'deletion_scope', 'deletion_rationale', 'confidence'];
   const lines = [header.join(',')];
   for (const [id, rec] of Object.entries(allFindings)) {
     for (const f of rec.findings) {
       lines.push([id, rec.slug, rec.title, f.layer, f.term || '', f.disposition, f.quote,
-        f.sentence || '', f.reader_takeaway, f.suggested_rewrite || '', f.confidence].map(csvField).join(','));
+        f.sentence || '', f.reader_takeaway, f.suggested_rewrite || '', f.rewrite_scope || '',
+        f.deletion_scope || '', f.deletion_rationale || '', f.confidence].map(csvField).join(','));
     }
   }
   writeFileSync(P.csv, lines.join('\n') + '\n');

@@ -113,10 +113,12 @@ function renderPanel(findings) {
       <div class="ffield">${esc(f.label)}</div>
       <blockquote class="fquote">${esc(f.quote)}</blockquote>
       <div class="ftake"><b>Reader takeaway:</b> ${esc(f.reader_takeaway)}</div>
-      ${f.suggested_rewrite ? `<div class="frewrite"><b>Suggested rewrite:</b> ${esc(f.suggested_rewrite)}</div>` : ''}
+      ${f.deletion_scope && !['none', 'not-advisable'].includes(f.deletion_scope) ? `<div class="fdelete"><b>Option A — delete the ${esc(f.deletion_scope)}:</b> ${esc(f.deletion_rationale || 'Removes the claim entirely.')}</div>` : ''}
+      ${f.deletion_scope === 'not-advisable' ? `<div class="fdelete muted-note"><b>Deletion not advised:</b> ${esc(f.deletion_rationale || '')}</div>` : ''}
+      ${f.suggested_rewrite ? `<div class="frewrite"><b>Option B — rewrite the ${esc(f.rewrite_scope || 'sentence')}:</b> ${esc(f.suggested_rewrite)}</div>` : ''}
       <div class="fdecide">
-        <label><input type="radio" name="dec-${f.number}" value="accept" data-num="${f.number}"> Accept</label>
-        <label><input type="radio" name="dec-${f.number}" value="dismiss" data-num="${f.number}"> Dismiss</label>
+        ${f.deletion_scope && !['none', 'not-advisable'].includes(f.deletion_scope) ? `<label><input type="radio" name="dec-${f.number}" value="accept-delete" data-num="${f.number}"> Delete</label>` : ''}
+        ${f.suggested_rewrite ? `<label><input type="radio" name="dec-${f.number}" value="accept" data-num="${f.number}"> Rewrite</label>` : ''}
         <button class="clearbtn" data-num="${f.number}" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
       </div>
       <div class="fstatus" data-num="${f.number}"></div>
@@ -200,7 +202,9 @@ export function renderArticlePage({ post, segments, findings, counts, prev, next
   .ffield{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
   .fquote{margin:0 0 8px;padding:7px 11px;background:#f7f7f6;border-radius:6px;font-style:italic;font-size:13px}
   .ftake,.frewrite{margin-bottom:7px;font-size:13px}
-  .frewrite{color:#065f46;background:#f0fdf4;padding:7px 10px;border-radius:6px}
+  .frewrite{color:#065f46;background:#f0fdf4;padding:7px 10px;border-radius:6px;margin-bottom:7px}
+  .fdelete{color:#7c2d12;background:#fff7ed;padding:7px 10px;border-radius:6px;margin-bottom:7px}
+  .fdelete.muted-note{color:var(--muted);background:#f7f7f6}
   .fdecide{display:flex;gap:12px;align-items:center;font-size:12.5px;margin:9px 0 6px}
   .fdecide label{cursor:pointer} .clearbtn{margin-left:auto;font-size:11px;color:var(--muted);
         background:none;border:1px solid var(--line);border-radius:5px;padding:2px 7px;cursor:pointer}
@@ -343,11 +347,13 @@ export function renderArticlePage({ post, segments, findings, counts, prev, next
       .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
       .then(function(res){
         if (!res.ok) { setStatus(num, '⚠ ' + (res.j.error || 'save failed'), 'warn'); return; }
-        if (decision === 'accept') {
+        if (decision === 'accept' || decision === 'accept-delete') {
           if (res.j.appliedToDraft) {
             setStatus(num, res.j.alreadyApplied
               ? '✓ Already in the Sanity draft'
-              : '✓ Written to the Sanity draft — not published', 'ok');
+              : (res.j.deleted
+                  ? '✓ ' + (res.j.scope === 'paragraph' ? 'Paragraph' : 'Sentence') + ' removed in the Sanity draft — not published'
+                  : '✓ Written to the Sanity draft — not published'), 'ok');
           } else {
             setStatus(num, '⚠ Saved, but NOT applied: ' + (res.j.warning || 'unknown reason'), 'warn');
           }

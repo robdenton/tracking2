@@ -65,3 +65,38 @@ Every finding gets exactly one:
 - `not-audited` — could not be processed, with the reason
 
 **Nothing is silently cleared.** A cleared item that never appears in the output is indistinguishable from a miss. I want to audit the clearing decisions, because that's where a real miss would hide.
+
+---
+
+## Addendum — editorial position and remedies
+
+This section governs **what to propose**, not what to flag. The governing test above is unchanged.
+
+### A third failure mode: bot-denigration
+
+Positioning meeting bots as bad — intrusive, awkward, unreliable, high-friction — is itself a finding, flagged `amber` at minimum.
+
+Two reasons. It disparages competitors. And more importantly, an article that argues bots are bad has already made imperceptibility the implicit benefit, even if no sentence says so. Removing the disclosure wording while keeping the anti-bot argument does not fix the problem; it relocates it.
+
+This applies to **rewrites as well as source copy**. A rewrite that replaces "bots make participants self-conscious" with "bots are unreliable" has not resolved the finding.
+
+### Every red and amber finding gets two remedies
+
+Propose both, and let the reviewer choose:
+
+1. **A deletion** — remove the passage. State the deletion scope (`sentence` or `paragraph`) and what, if anything, the reader loses.
+2. **A rewrite** — replacement copy. State the rewrite scope (`sentence` or `paragraph`).
+
+Deletion is a first-class option, not a fallback. When a passage exists mainly to make a point about bots, privacy, consent, or what participants notice, deletion is usually the better remedy: the article rarely needs the point at all, and removing it eliminates the risk instead of relocating it.
+
+### Rules for rewrites
+
+- **Do not introduce the no-bot fact as a remedy.** If the original passage did not make that point, the rewrite must not add it. Reaching for "No meeting bot joins your calls" to patch a disclosure problem is the most common way these rewrites go wrong.
+- **Never disparage meeting bots** — not on awareness, not on friction, not on reliability, not on cost.
+- **Write toward what Granola does**, not what it avoids: note quality, less time writing things up, staying present in the conversation, what the user gets afterwards. Avoid framing built on the absence of something.
+- **Prefer wholesale change over minimal patching.** Rewriting a whole paragraph, or cutting it, is preferred to threading a clean sentence into a contaminated paragraph. Do not optimise for the smallest edit.
+- Where the no-bot fact genuinely belongs — a setup or reliability section where it is simply true and relevant — state it plainly, once, and never adjacent to any language about what other participants see, notice, or are told.
+
+### Err toward caution
+
+Where a judgement is close, take the more conservative option: prefer deleting to rewriting, prefer saying less to saying more, prefer dropping a claim to defending it. Losing a paragraph of SEO copy is cheap. A reader concluding that Granola is for recording people without telling them is not.
