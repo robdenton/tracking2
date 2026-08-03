@@ -420,7 +420,12 @@ function repeatedPhrase(text: string, minWords = 5): string | null {
       const norm = gram.toLowerCase().replace(/[^a-z0-9 ]/g, "");
       if (norm.length < 20) continue;
       const prev = seen.get(norm);
-      if (prev !== undefined && i >= prev + n) return gram; // non-overlapping repeat
+      // Only ADJACENT (or near-adjacent) repeats indicate splice damage.
+      // Well-written prose repeats phrases deliberately — "The direct report
+      // owns the agenda… When your direct report owns the agenda…" is rhetoric,
+      // not a defect. Requiring the copies to sit next to each other is what
+      // distinguishes damage from style.
+      if (prev !== undefined && i >= prev + n && i - (prev + n) <= 3) return gram;
       if (prev === undefined) seen.set(norm, i);
     }
   }
@@ -458,6 +463,18 @@ export async function verifyDraft(slug: string): Promise<DraftVerification> {
   const draftBlocks = (draft?.body as PtBlock[] | undefined) ?? [];
 
   if (draft) {
+    // Anything already true of the published article is not our damage. This is
+    // the strongest guard against reporting the author's own style as a defect.
+    const publishedText = [
+      String(published?.title ?? ""),
+      String(published?.summary ?? ""),
+      ...pubBlocks.map((b) => blockText(b)),
+    ].join("\n");
+    const preExisting = (snippet: string) => {
+      const norm = snippet.toLowerCase().replace(/\s+/g, " ").trim();
+      return norm.length > 15 && publishedText.toLowerCase().replace(/\s+/g, " ").includes(norm);
+    };
+
     const fields: { where: string; text: string }[] = [
       { where: "Title", text: String(draft.title ?? "") },
       { where: "Meta / summary", text: String(draft.summary ?? "") },
@@ -486,7 +503,7 @@ export async function verifyDraft(slug: string): Promise<DraftVerification> {
       const seen = new Set<string>();
       for (const s of sentencesOf(f.text)) {
         const norm = s.toLowerCase().replace(/[^a-z0-9 ]/g, "").trim();
-        if (norm.length > 12 && seen.has(norm)) {
+        if (norm.length > 12 && seen.has(norm) && !preExisting(s + " " + s)) {
           issues.push({
             kind: "duplication",
             where: f.where,
@@ -498,7 +515,7 @@ export async function verifyDraft(slug: string): Promise<DraftVerification> {
       }
       // Mid-sentence repeats, which whole-sentence comparison cannot see.
       const phrase = repeatedPhrase(f.text);
-      if (phrase) {
+      if (phrase && !preExisting(phrase + " " + phrase)) {
         issues.push({
           kind: "duplication",
           where: f.where,
