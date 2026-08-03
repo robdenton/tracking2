@@ -108,6 +108,7 @@ function renderPanel(findings) {
       <div class="fhead">
         <span class="fnum">${f.number}</span>
         <span class="fdisp">${esc(f.disposition)}</span>
+        ${f.category && f.category !== 'disclosure' ? `<span class="fcat cat-${esc(f.category)}">${f.category === 'accuracy' ? 'FACTUAL ACCURACY' : 'BOT DENIGRATION'}</span>` : ''}
         <span class="flayer" title="Which layer caught it">Layer ${esc(f.layer)}${f.term ? ` · "${esc(f.term)}"` : ''}</span>
       </div>
       <div class="fdone" aria-hidden="true"></div>
@@ -203,6 +204,9 @@ export function renderArticlePage({ post, segments, findings, counts, prev, next
   .d-red .fdisp{color:var(--red)} .d-amber .fdisp{color:var(--amber)}
   .d-competitor .fdisp{color:var(--comp)} .d-cleared .fdisp,.d-notaudited .fdisp{color:var(--clr)}
   .flayer{font-size:11px;color:var(--muted);margin-left:auto}
+  .fcat{font-size:10px;font-weight:800;letter-spacing:.06em;padding:2px 7px;border-radius:5px}
+  .cat-accuracy{background:#1e1b4b;color:#fff}
+  .cat-bot-denigration{background:#7c2d12;color:#fff}
   .ffield{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
   .fquote{margin:0 0 8px;padding:7px 11px;background:#f7f7f6;border-radius:6px;font-style:italic;font-size:13px}
   .ftake,.frewrite{margin-bottom:7px;font-size:13px}

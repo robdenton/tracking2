@@ -114,6 +114,8 @@ async function processArticle(post, rulesText, rulesHash) {
       rewrite_scope: d ? d.rewrite_scope : 'none',
       deletion_scope: d ? d.suggested_deletion_scope : 'none',
       deletion_rationale: d ? d.deletion_rationale : '',
+      category: d ? (d.category || (h.tier === 'accuracy' ? 'accuracy' : 'disclosure'))
+                  : (h.tier === 'accuracy' ? 'accuracy' : 'disclosure'),
       confidence: d ? d.confidence : 'low',
     };
   });
@@ -130,6 +132,7 @@ async function processArticle(post, rulesText, rulesHash) {
     rewrite_scope: f.rewrite_scope || 'sentence',
     deletion_scope: f.suggested_deletion_scope || 'none',
     deletion_rationale: f.deletion_rationale || '',
+    category: f.category || 'disclosure',
     confidence: f.confidence,
   }));
 
@@ -306,13 +309,13 @@ function regenerate({ corpus, ledger, allFindings, rulesHash }) {
 
   const header = ['_id', 'slug', 'title', 'layer', 'term_or_pattern', 'disposition', 'verbatim_quote',
     'sentence_context', 'reader_takeaway', 'suggested_rewrite', 'rewrite_scope',
-    'deletion_scope', 'deletion_rationale', 'confidence'];
+    'deletion_scope', 'deletion_rationale', 'category', 'confidence'];
   const lines = [header.join(',')];
   for (const [id, rec] of Object.entries(allFindings)) {
     for (const f of rec.findings) {
       lines.push([id, rec.slug, rec.title, f.layer, f.term || '', f.disposition, f.quote,
         f.sentence || '', f.reader_takeaway, f.suggested_rewrite || '', f.rewrite_scope || '',
-        f.deletion_scope || '', f.deletion_rationale || '', f.confidence].map(csvField).join(','));
+        f.deletion_scope || '', f.deletion_rationale || '', f.category || '', f.confidence].map(csvField).join(','));
     }
   }
   writeFileSync(P.csv, lines.join('\n') + '\n');

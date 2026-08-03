@@ -53,6 +53,23 @@ const AMBER_PATTERNS = [
   ['never recorded', /\bnever\s+record(?:ed|s|ing)?\b|\bnot\s+recorded\b/gi],
 ];
 
+// ACCURACY patterns — claims that data stays off Granola's servers. Per the
+// brand owner notes ARE cloud-stored, so these are factually false.
+//
+// Deliberately narrow. A loose pattern such as /your (?:notes|data) stays?/
+// matches "Your notes stay in black. AI additions appear in gray." 81 times
+// across the corpus — that is text colour, not storage, and flagging it would
+// bury the real hits.
+const ACCURACY_PATTERNS = [
+  ['never leaves your device', /\bnever\s+leaves?\s+(?:your|the)\s+(?:device|machine|mac|computer|laptop|desktop)\b/gi],
+  ['stays on your device', /\b(?:stays?|remains?|lives?|kept)\s+(?:only\s+)?on\s+(?:your|the)\s+(?:device|machine|mac|computer|laptop)\b/gi],
+  ['no cloud', /\bno\s+cloud\s+(?:dependency|storage|sync|upload|servers?)\b|\b(?:not|never)\s+(?:stored|saved|kept|uploaded)\s+(?:in|to)\s+the\s+cloud\b|\bwithout\s+(?:the\s+)?cloud\b/gi],
+  ['stored locally / on-device', /\b(?:stored|saved|kept|held|processed)\s+(?:entirely\s+|only\s+|100%\s+)?(?:locally|on[- ]device)\b/gi],
+  ['local-only', /\b(?:local[- ]only|on[- ]device only|entirely local|fully local|100% local|runs? locally with no)\b/gi],
+  ['no third-party server', /\b(?:no|never|without|zero)\s+third[- ]party\s+(?:servers?|storage|infrastructure|cloud|systems?)\b|\bnot\s+(?:on|stored on)\s+(?:a\s+)?third[- ]party\s+servers?\b/gi],
+  ['never uploaded', /\bnever\s+(?:uploaded|transmitted|sent to (?:our|the) (?:server|cloud))\b/gi],
+];
+
 // 'invisible' appears in BOTH lists in RULES.md; the context table says treat
 // it as RED in all uses. It is therefore scanned as RED only (above) to avoid
 // duplicate findings for the same span.
@@ -97,6 +114,7 @@ export function scanPost(post) {
     // sentence context for a URL is just the URL itself.
     const sentences = splitSentences(seg.text);
     const seen = new Set();
+    scanWith(ACCURACY_PATTERNS, 'accuracy', seg, sentences, out, seen);
     scanWith(RED_PATTERNS, 'red', seg, sentences, out, seen);
     scanWith(RED_PHRASES, 'red', seg, sentences, out, seen);
     scanWith(RED_EXTRA, 'red', seg, sentences, out, seen);

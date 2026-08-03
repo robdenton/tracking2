@@ -100,3 +100,41 @@ Deletion is a first-class option, not a fallback. When a passage exists mainly t
 ### Err toward caution
 
 Where a judgement is close, take the more conservative option: prefer deleting to rewriting, prefer saying less to saying more, prefer dropping a claim to defending it. Losing a paragraph of SEO copy is cheap. A reader concluding that Granola is for recording people without telling them is not.
+
+---
+
+## Addendum 2 — factual accuracy of data-handling claims
+
+A separate failure mode from disclosure, tracked as its own category: **`accuracy`**.
+
+### Ground truth, from the brand owner
+
+**Notes and transcripts are stored in Granola's cloud infrastructure and sync to Granola's servers.** They do not live only on the user's device.
+
+Therefore any copy stating or implying that notes, transcripts or recordings:
+
+- never leave the user's device / Mac / computer
+- are stored only locally, or on-device only
+- are not stored in the cloud, or that there is "no cloud dependency"
+- never touch a third-party server, or that no third party ever holds the data
+- are never uploaded or transmitted
+
+…is **factually inaccurate**. Flag it `red`, category `accuracy`.
+
+This is a legal and trust exposure independent of the consent question. A reader who chooses Granola believing their notes never leave their laptop has been misled, regardless of anything said about disclosure.
+
+### Precision — what this does NOT cover
+
+Do not flag these. They are different claims and several are true:
+
+- **"Your notes stay in black. AI additions appear in gray."** This describes text colour in the editor. It is not a storage claim. This phrasing is common in the corpus and must never be flagged as an accuracy issue.
+- **"Audio is captured from your device"** / "captures device audio directly" — a description of the capture method, not of where data is stored.
+- **"Audio is deleted immediately after transcription"** — a retention claim. In scope only if you have reason to doubt it; flag `amber` for verification rather than `red`.
+- **"Third-party AI providers are contractually prohibited from training on user data"** — a contractual claim about use, not a claim that no third party holds data.
+- Claims about SOC 2, GDPR, ISO 27001, DPAs, SSO or admin controls — compliance posture, not storage location.
+
+The test is narrow: **does the copy tell the reader their data stays off Granola's (or any third party's) servers?** If yes, it is inaccurate. If it says something else about security, privacy or compliance, it belongs to the disclosure test or is simply fine.
+
+### Remedies
+
+Same two options as everything else — a deletion and a rewrite. For accuracy findings the deletion is usually correct: the claim is false, and the article rarely needs it. A rewrite must not replace one unverifiable claim with another; describe what is actually true (encryption in transit and at rest, retention policy, access controls, certifications) or say nothing.

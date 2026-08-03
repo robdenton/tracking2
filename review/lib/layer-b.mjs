@@ -65,6 +65,12 @@ const FINDING_PROPS = {
     type: 'string',
     description: 'One sentence: what the reader loses if this is deleted, and why deletion is or is not the better remedy here. Empty string for cleared items.',
   },
+  category: {
+    type: 'string',
+    enum: ['disclosure', 'accuracy', 'bot-denigration'],
+    description:
+      'Which failure mode this is. "accuracy" = a factually inaccurate data-handling claim (per Addendum 2: notes ARE cloud-stored, so any claim they stay on-device / off third-party servers / out of the cloud is false). "bot-denigration" = positions meeting bots as bad. "disclosure" = the governing consent test. Use the most specific one.',
+  },
   confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
 };
 
@@ -80,7 +86,7 @@ const SEMANTIC_TOOL = {
         items: {
           type: 'object',
           properties: FINDING_PROPS,
-          required: ['segment_id', 'quote', 'disposition', 'reader_takeaway', 'suggested_rewrite', 'rewrite_scope', 'suggested_deletion_scope', 'deletion_rationale', 'confidence'],
+          required: ['segment_id', 'quote', 'disposition', 'reader_takeaway', 'suggested_rewrite', 'rewrite_scope', 'suggested_deletion_scope', 'deletion_rationale', 'category', 'confidence'],
         },
       },
     },
@@ -106,9 +112,10 @@ const ADJUDICATE_TOOL = {
             rewrite_scope: { type: 'string', enum: ['sentence', 'paragraph', 'none'] },
             suggested_deletion_scope: { type: 'string', enum: ['sentence', 'paragraph', 'not-advisable', 'none'] },
             deletion_rationale: { type: 'string' },
+            category: { type: 'string', enum: ['disclosure', 'accuracy', 'bot-denigration'] },
             confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
           },
-          required: ['hit_index', 'disposition', 'reader_takeaway', 'suggested_rewrite', 'rewrite_scope', 'suggested_deletion_scope', 'deletion_rationale', 'confidence'],
+          required: ['hit_index', 'disposition', 'reader_takeaway', 'suggested_rewrite', 'rewrite_scope', 'suggested_deletion_scope', 'deletion_rationale', 'category', 'confidence'],
         },
       },
     },
@@ -166,6 +173,9 @@ Operating instructions:
 - For EVERY red and amber finding propose BOTH remedies: a deletion (with scope) and a rewrite (with scope). Deletion is a first-class option, not a fallback — when a passage exists mainly to make a point about bots, privacy, consent or what participants notice, say so and prefer deletion.
 - Your rewrite must not introduce the no-bot fact if the original did not make that point, must not disparage bots on any grounds (including reliability or friction), and should describe what Granola does rather than what it avoids.
 - Where the judgement is close, take the more conservative option.
+- **Apply Addendum 2.** Independently of the consent test, hunt for factually inaccurate data-handling claims: copy telling the reader their notes/transcripts/recordings never leave their device, are stored only locally or on-device, are not in the cloud, or never touch a third-party server. Notes ARE cloud-stored, so these are false — flag \`red\`, category \`accuracy\`.
+- Be precise about what that does NOT include. "Your notes stay in black. AI additions appear in gray." is about TEXT COLOUR in the editor and must never be flagged as an accuracy issue. Nor are: capture-method descriptions, retention claims, contractual claims about training data, or compliance certifications.
+- Where an on-device/no-cloud claim describes a COMPETITOR or a native OS feature accurately, disposition it \`about-competitor\` or clear it — the claim is only false when made about Granola.
 - Use \`cleared-negated\` / \`cleared-in-context\` for text you considered and are clearing; still report it with your reasoning. Nothing is silently cleared.
 
 CRITICAL — quoting: every \`quote\` must be copied VERBATIM from the segment text, character for character. It must be findable by exact substring search. Do not paraphrase, normalise punctuation or quotation marks, add ellipses, or fix typos. Quote a single sentence or clause, not an entire long segment.`;
@@ -251,6 +261,7 @@ Each hit below is a literal term match found by a deterministic script, with its
 - \`cleared-in-context\` — legitimately used (e.g. "private" making a genuine data-handling claim about where notes are stored).
 - A miss is expensive; a false positive is cheap. When genuinely torn between clearing and amber, choose amber.
 - Apply the **Addendum** in full: for every red/amber hit propose BOTH a deletion (with scope) and a rewrite (with scope). Never introduce the no-bot fact as a remedy, and never disparage meeting bots on any grounds.
+- Hits tagged as accuracy-family terms (on-device, local-only, no cloud, no third-party server) fall under **Addendum 2**: about Granola they are factually FALSE and are \`red\`, category \`accuracy\`. About a competitor or a native OS feature they may be accurate — disposition \`about-competitor\` or clear them. "Your notes stay in black" is text colour, never an accuracy issue.
 - **Your remedy must act on the text you are anchored to.** The hit is a specific matched term. If that term is legitimate where it sits and the real problem is a DIFFERENT part of the sentence, do NOT propose a remedy for that other text — the semantic pass reports it separately, and two findings proposing edits to the same sentence from different anchors is confusing and produces conflicting patches. In that case disposition the hit \`cleared-in-context\`, say plainly in reader_takeaway that the term itself is fine and the concern lies elsewhere in the sentence, and return empty remedies (rewrite "", scopes "none").
 - You must return one entry for EVERY hit index. Nothing is silently dropped.`;
 
