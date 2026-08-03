@@ -102,6 +102,11 @@ async function processArticle(post, rulesText, rulesHash) {
       tier: h.tier,
       segmentId: h.segmentId,
       quote: h.quote,
+      // Carry the scanner's EXACT offsets. Without these, anchoring re-derives
+      // by indexOf and every repeat of a term collapses onto its first
+      // occurrence — un-highlighting the rest.
+      start: h.start,
+      end: h.end,
       sentence: h.sentence,
       disposition: d ? d.disposition : 'not-audited',
       reader_takeaway: d ? d.reader_takeaway : 'Not adjudicated by the model — review by hand.',

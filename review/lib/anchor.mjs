@@ -35,10 +35,19 @@ export function anchorQuote(segment, quote) {
 
 // Anchor a whole finding list against the segment map.
 // Returns { anchored, errors } — callers decide whether errors fail the build.
+//
+// If a finding already carries exact offsets (Layer A's scanner knows precisely
+// where it matched), those are TRUSTED after verification. Re-deriving them with
+// indexOf would collapse every repeat of a term onto its first occurrence —
+// silently un-highlighting the 2nd..nth occurrence and making distinct findings
+// indistinguishable. Only model-supplied quotes (Layer B) are located by search.
 export function anchorFindings(findings, segments) {
   const byId = new Map(segments.map((s) => [s.id, s]));
   const anchored = [];
   const errors = [];
+  // Track spans already claimed, so a repeated Layer B quote anchors to the
+  // next free occurrence rather than piling onto the first.
+  const claimed = new Map();
   for (const f of findings) {
     const seg = byId.get(f.segmentId);
     if (!seg) {
@@ -46,7 +55,28 @@ export function anchorFindings(findings, segments) {
       continue;
     }
     try {
-      const { start, end, ambiguous } = anchorQuote(seg, f.quote);
+      let start, end, ambiguous = false;
+      if (Number.isInteger(f.start) && Number.isInteger(f.end)
+          && seg.text.slice(f.start, f.end) === f.quote) {
+        // Exact offsets supplied and verified against the rendered text.
+        start = f.start; end = f.end;
+      } else {
+        // Search. Skip occurrences already claimed by an earlier finding.
+        const taken = claimed.get(seg.id) || new Set();
+        let idx = seg.text.indexOf(f.quote);
+        while (idx !== -1 && taken.has(idx)) idx = seg.text.indexOf(f.quote, idx + 1);
+        if (idx === -1) {
+          // All occurrences claimed — fall back to strict anchoring so a
+          // genuinely unlocatable quote still fails loudly.
+          const r = anchorQuote(seg, f.quote);
+          start = r.start; end = r.end; ambiguous = r.ambiguous;
+        } else {
+          start = idx; end = idx + f.quote.length;
+          ambiguous = seg.text.indexOf(f.quote, idx + 1) !== -1;
+        }
+      }
+      if (!claimed.has(seg.id)) claimed.set(seg.id, new Set());
+      claimed.get(seg.id).add(start);
       anchored.push({ ...f, start, end, ambiguous, label: seg.label, field: seg.field });
     } catch (e) {
       errors.push({ finding: f, reason: e.message, detail: e.detail });

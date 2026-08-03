@@ -84,5 +84,21 @@ export async function POST(request: NextRequest) {
     inserted++;
   }
 
-  return NextResponse.json({ ok: true, upserted: inserted });
+  // Prune orphans: rows for these articles that are no longer produced by the
+  // review (e.g. the finding changed, so its content-addressed id changed).
+  // NEVER prunes a row that carries a decision or was applied to a draft —
+  // a sign-off or a real draft edit must never be deleted by a re-sync.
+  let pruned = 0;
+  const slugs = [...new Set(findings.map((f) => f.slug))];
+  const keepIds = findings.map((f) => f.id);
+  if (slugs.length > 0 && keepIds.length > 0) {
+    pruned = await prisma.$executeRaw`
+      DELETE FROM seo_review_findings
+      WHERE slug = ANY(${slugs}::text[])
+        AND id <> ALL(${keepIds}::text[])
+        AND decision IS NULL
+        AND applied_to_draft = false`;
+  }
+
+  return NextResponse.json({ ok: true, upserted: inserted, pruned });
 }
