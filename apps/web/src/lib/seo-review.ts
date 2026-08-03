@@ -206,21 +206,40 @@ export async function applyToDraft(opts: {
 }
 
 // --- persistence -----------------------------------------------------------
+// NOTE: every query lists columns explicitly. `SELECT *` changes its result
+// type whenever a column is added, which invalidates cached prepared-statement
+// plans on pooled connections and fails with
+// `0A000: cached plan must not change result type` until the pool recycles.
 export async function getFindingsForSlug(slug: string): Promise<FindingRow[]> {
   return prisma.$queryRaw<FindingRow[]>`
-    SELECT * FROM seo_review_findings WHERE slug = ${slug} ORDER BY id ASC`;
+    SELECT id, post_id, slug, title, segment_id, field_label, layer, term,
+           disposition, confidence, original_text, proposed_text, final_text,
+           reader_takeaway, decision, note, decided_by, decided_at,
+           rules_hash, model, applied_to_draft, applied_at, sanity_path,
+           field_kind, block_key, rewrite_scope, deletion_scope, deletion_note
+    FROM seo_review_findings WHERE slug = ${slug} ORDER BY id ASC`;
 }
 
 export async function getFinding(id: string): Promise<FindingRow | null> {
   const rows = await prisma.$queryRaw<FindingRow[]>`
-    SELECT * FROM seo_review_findings WHERE id = ${id} LIMIT 1`;
+    SELECT id, post_id, slug, title, segment_id, field_label, layer, term,
+           disposition, confidence, original_text, proposed_text, final_text,
+           reader_takeaway, decision, note, decided_by, decided_at,
+           rules_hash, model, applied_to_draft, applied_at, sanity_path,
+           field_kind, block_key, rewrite_scope, deletion_scope, deletion_note
+    FROM seo_review_findings WHERE id = ${id} LIMIT 1`;
   return rows[0] ?? null;
 }
 
 /** Every change that has actually been written to a draft — the audit log. */
 export async function getAppliedChanges(): Promise<FindingRow[]> {
   return prisma.$queryRaw<FindingRow[]>`
-    SELECT * FROM seo_review_findings
+    SELECT id, post_id, slug, title, segment_id, field_label, layer, term,
+           disposition, confidence, original_text, proposed_text, final_text,
+           reader_takeaway, decision, note, decided_by, decided_at,
+           rules_hash, model, applied_to_draft, applied_at, sanity_path,
+           field_kind, block_key, rewrite_scope, deletion_scope, deletion_note
+    FROM seo_review_findings
     WHERE applied_to_draft = true
     ORDER BY applied_at DESC`;
 }
@@ -229,7 +248,12 @@ export async function getAppliedChanges(): Promise<FindingRow[]> {
  *  reject a flag is as auditable as the decision to apply one. */
 export async function getDiscardedChanges(): Promise<FindingRow[]> {
   return prisma.$queryRaw<FindingRow[]>`
-    SELECT * FROM seo_review_findings
+    SELECT id, post_id, slug, title, segment_id, field_label, layer, term,
+           disposition, confidence, original_text, proposed_text, final_text,
+           reader_takeaway, decision, note, decided_by, decided_at,
+           rules_hash, model, applied_to_draft, applied_at, sanity_path,
+           field_kind, block_key, rewrite_scope, deletion_scope, deletion_note
+    FROM seo_review_findings
     WHERE decision IN ('discard', 'dismiss')
     ORDER BY decided_at DESC`;
 }

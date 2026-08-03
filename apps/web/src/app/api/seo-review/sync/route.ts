@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyCronSecret, unauthorizedResponse } from "@/lib/cron-auth";
 import { prisma } from "@/lib/prisma";
-import { tableExists } from "@/lib/seo-review";
+import { tableExists, getFindingsForSlug } from "@/lib/seo-review";
 
 // Is the token a single, header-safe value? Reports shape only — never the value.
 function tokenUsable(): string {
@@ -25,9 +25,21 @@ export async function GET(request: NextRequest) {
     const count = exists
       ? await prisma.$queryRaw<{ n: bigint }[]>`SELECT count(*)::bigint AS n FROM seo_review_findings`
       : null;
+    // Exercise the SAME query the review page uses, so a broken read path is
+    // caught here rather than only surfacing to a signed-in reviewer.
+    let readPath = "ok";
+    if (exists) {
+      try {
+        const probe = await getFindingsForSlug("enterprise-ai-notetaker-vs-dovetail");
+        readPath = `ok (${probe.length} rows for probe slug)`;
+      } catch (e) {
+        readPath = `FAILING: ${e instanceof Error ? e.message.split("\n").slice(0, 3).join(" ") : "unknown"}`;
+      }
+    }
     return NextResponse.json({
       tableExists: exists,
       rows: count ? Number(count[0].n) : 0,
+      readPath,
       sanityWriteTokenConfigured: Boolean(process.env.SANITY_WRITE_TOKEN),
       sanityWriteTokenUsable: tokenUsable(),
     });
