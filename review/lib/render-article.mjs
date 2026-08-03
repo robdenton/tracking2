@@ -21,7 +21,7 @@ const DISPOSITION_CLASS = {
 };
 
 const SANITY_STUDIO = (id) =>
-  `https://oy7f1h9b.sanity.studio/structure/post;${encodeURIComponent(id)}`;
+  `https://www.granola.ai/studio/structure/seoPosts;${encodeURIComponent(id)}`;
 
 // Render one segment's text with its highlights spliced in.
 function renderSegmentText(seg, findings) {
@@ -702,7 +702,7 @@ export function renderArticlePage({ post, segments, findings, counts, prev, next
           out.push('<div class="vok" style="margin-top:8px">✓ Nothing left to do by hand.</div>');
         }
         if (j.draftExists) {
-          out.push('<div style="margin-top:8px"><a href="https://oy7f1h9b.sanity.studio/structure/post;' +
+          out.push('<div style="margin-top:8px"><a href="https://www.granola.ai/studio/structure/seoPosts;' +
                    encodeURIComponent(j.postId) + '" target="_blank" rel="noopener">Open the draft in Sanity Studio ↗</a></div>');
         }
         vout.innerHTML = out.join('');
@@ -725,7 +725,7 @@ export function renderArticlePage({ post, segments, findings, counts, prev, next
               '<div class="why">' + esc2(a.reason) + '</div>' +
               '<span class="txt">' + esc2(a.text) + '</span></div>';
           }).join('') +
-          '<div style="font-size:12px"><a href="https://oy7f1h9b.sanity.studio/structure/post;' +
+          '<div style="font-size:12px"><a href="https://www.granola.ai/studio/structure/seoPosts;' +
           encodeURIComponent(j.postId) + '" target="_blank" rel="noopener">Open in Sanity Studio to make these ↗</a></div>';
         } else {
           mbox.style.display = 'none';

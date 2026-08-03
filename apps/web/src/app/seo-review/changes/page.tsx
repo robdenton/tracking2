@@ -7,7 +7,7 @@ import { SeoNav } from "../nav";
 export const dynamic = "force-dynamic";
 
 const STUDIO = (id: string) =>
-  `https://oy7f1h9b.sanity.studio/structure/post;${encodeURIComponent(id)}`;
+  `https://www.granola.ai/studio/structure/seoPosts;${encodeURIComponent(id)}`;
 
 function fmt(d: Date | string | null): string {
   if (!d) return "—";
