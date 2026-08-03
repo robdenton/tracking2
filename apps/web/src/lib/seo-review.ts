@@ -398,7 +398,34 @@ const blockText = (b: PtBlock) =>
   b._type === "block" ? (b.children ?? []).map((c) => c.text ?? "").join("") : "";
 
 const sentencesOf = (t: string) =>
-  t.split(/(?<=[.!?])\s+/).map((x) => x.trim()).filter((x) => x.length > 25);
+  t.split(/(?<=[.!?])\s+/).map((x) => x.trim()).filter((x) => x.length > 12);
+
+/**
+ * Find the longest word-sequence that appears more than once in a string.
+ *
+ * Sentence-level comparison is not enough: splicing a paragraph in at a
+ * sentence's position repeats a phrase MID-sentence, e.g.
+ * "Download Granola … connect your calendar, and Download Granola … connect
+ * your calendar, and run your next meeting". No whole sentence repeats there,
+ * so a sentence-only check reports the paragraph as clean.
+ */
+function repeatedPhrase(text: string, minWords = 5): string | null {
+  const words = text.split(/\s+/).filter(Boolean);
+  if (words.length < minWords * 2) return null;
+  // Longest first, so the report names the biggest duplicated run.
+  for (let n = Math.floor(words.length / 2); n >= minWords; n--) {
+    const seen = new Map<string, number>();
+    for (let i = 0; i + n <= words.length; i++) {
+      const gram = words.slice(i, i + n).join(" ");
+      const norm = gram.toLowerCase().replace(/[^a-z0-9 ]/g, "");
+      if (norm.length < 20) continue;
+      const prev = seen.get(norm);
+      if (prev !== undefined && i >= prev + n) return gram; // non-overlapping repeat
+      if (prev === undefined) seen.set(norm, i);
+    }
+  }
+  return null;
+}
 
 const PUNCT_CHECKS: { pattern: RegExp; detail: string }[] = [
   { pattern: /,\s*,/, detail: "stranded comma — text was removed between two commas" },
@@ -453,7 +480,7 @@ export async function verifyDraft(slug: string): Promise<DraftVerification> {
       const seen = new Set<string>();
       for (const s of sentencesOf(f.text)) {
         const norm = s.toLowerCase().replace(/[^a-z0-9 ]/g, "").trim();
-        if (norm.length > 30 && seen.has(norm)) {
+        if (norm.length > 12 && seen.has(norm)) {
           issues.push({
             kind: "duplication",
             where: f.where,
@@ -462,6 +489,16 @@ export async function verifyDraft(slug: string): Promise<DraftVerification> {
           });
         }
         seen.add(norm);
+      }
+      // Mid-sentence repeats, which whole-sentence comparison cannot see.
+      const phrase = repeatedPhrase(f.text);
+      if (phrase) {
+        issues.push({
+          kind: "duplication",
+          where: f.where,
+          detail: "a phrase is repeated within this field",
+          text: phrase.length > 160 ? phrase.slice(0, 160) + "…" : phrase,
+        });
       }
       if (f.where === "Meta / summary" && f.text.length > 0 && f.text.length < 50) {
         issues.push({
