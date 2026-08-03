@@ -268,6 +268,7 @@ export function renderArticlePage({ post, segments, findings, counts, prev, next
   .verifyout{font-size:12.5px;color:var(--muted);line-height:1.5}
   .vissue{background:#fef3c7;border-left:3px solid #d97706;padding:7px 10px;border-radius:6px;margin:6px 0;color:#78350f}
   .vmanual{background:#eef2ff;border-left:3px solid var(--accent);padding:7px 10px;border-radius:6px;margin:6px 0;color:#312e81}
+  .vidle{background:#f7f7f6;border-left:3px solid #c9c9c9;padding:7px 10px;border-radius:6px;color:var(--muted)}
   .vok{background:#f0fdf4;border-left:3px solid #16a34a;padding:7px 10px;border-radius:6px;color:#166534}
   .vsnip{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;display:block;margin-top:3px;opacity:.85}
   .loadwarn{background:#fef3c7;border:1px solid #f0c674;color:#92400e;padding:9px 12px;
@@ -597,7 +598,8 @@ export function renderArticlePage({ post, segments, findings, counts, prev, next
       .then(function(j){
         var out = [];
         if (!j.draftExists) {
-          out.push('<div class="vok">No draft exists for this article yet — nothing has been written to Sanity.</div>');
+          out.push('<div class="vidle">Nothing applied yet. This check runs against the Sanity draft, ' +
+                   'which is created the first time you accept a change. Not a problem \u2014 there is just nothing to check so far.</div>');
         } else {
           out.push('<div style="margin-bottom:6px">Draft has <b>' + j.draftBlocks + '</b> blocks (published has ' + j.publishedBlocks + ').</div>');
           if (j.issues.length === 0) {
@@ -619,8 +621,10 @@ export function renderArticlePage({ post, segments, findings, counts, prev, next
         } else if (j.draftExists) {
           out.push('<div class="vok" style="margin-top:8px">✓ Nothing left to do by hand.</div>');
         }
-        out.push('<div style="margin-top:8px"><a href="https://oy7f1h9b.sanity.studio/structure/post;' +
-                 encodeURIComponent(j.postId) + '" target="_blank" rel="noopener">Open the draft in Sanity Studio ↗</a></div>');
+        if (j.draftExists) {
+          out.push('<div style="margin-top:8px"><a href="https://oy7f1h9b.sanity.studio/structure/post;' +
+                   encodeURIComponent(j.postId) + '" target="_blank" rel="noopener">Open the draft in Sanity Studio ↗</a></div>');
+        }
         vout.innerHTML = out.join('');
         vbtn.disabled = false;
 
