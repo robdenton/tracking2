@@ -113,6 +113,7 @@ function renderPanel(findings) {
       <div class="ffield">${esc(f.label)}</div>
       <blockquote class="fquote">${esc(f.quote)}</blockquote>
       <div class="ftake"><b>Reader takeaway:</b> ${esc(f.reader_takeaway)}</div>
+      ${f.deferredToNumber ? `<div class="fdefer">Remedy handled by finding <a href="#finding-${f.deferredToNumber}" class="deferlink" data-goto="${f.deferredToNumber}">#${f.deferredToNumber}</a>, which is anchored to the full phrase.</div>` : ''}
       ${f.deletion_scope && !['none', 'not-advisable'].includes(f.deletion_scope) ? `<div class="fdelete"><b>Option A — delete the ${esc(f.deletion_scope)}:</b> ${esc(f.deletion_rationale || 'Removes the claim entirely.')}</div>` : ''}
       ${f.deletion_scope === 'not-advisable' ? `<div class="fdelete muted-note"><b>Deletion not advised:</b> ${esc(f.deletion_rationale || '')}</div>` : ''}
       ${f.suggested_rewrite ? `<div class="frewrite"><b>Option B — rewrite the ${esc(f.rewrite_scope || 'sentence')}:</b> ${esc(f.suggested_rewrite)}</div>` : ''}
@@ -205,6 +206,9 @@ export function renderArticlePage({ post, segments, findings, counts, prev, next
   .frewrite{color:#065f46;background:#f0fdf4;padding:7px 10px;border-radius:6px;margin-bottom:7px}
   .fdelete{color:#7c2d12;background:#fff7ed;padding:7px 10px;border-radius:6px;margin-bottom:7px}
   .fdelete.muted-note{color:var(--muted);background:#f7f7f6}
+  .fdefer{font-size:12px;color:var(--muted);background:#f4f4ff;border-left:2px solid var(--accent);
+          padding:6px 9px;border-radius:5px;margin-bottom:7px}
+  .fdefer a{color:var(--accent);font-weight:600}
   .fdecide{display:flex;gap:12px;align-items:center;font-size:12.5px;margin:9px 0 6px}
   .fdecide label{cursor:pointer} .clearbtn{margin-left:auto;font-size:11px;color:var(--muted);
         background:none;border:1px solid var(--line);border-radius:5px;padding:2px 7px;cursor:pointer}
@@ -223,6 +227,8 @@ export function renderArticlePage({ post, segments, findings, counts, prev, next
   .pill.d-competitor{background:var(--compbg);color:var(--comp)}
   .pill.d-cleared,.pill.d-notaudited{background:#f0f0f0;color:var(--clr)}
   .pill.d-clean{background:#dcfce7;color:var(--ok)}
+  .loadwarn{background:#fef3c7;border:1px solid #f0c674;color:#92400e;padding:9px 12px;
+            border-radius:8px;font-size:12.5px;margin-bottom:10px;line-height:1.45}
   .clean{background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;padding:14px;border-radius:9px;font-size:14px}
   .exportbtn{font-size:12px;padding:5px 11px;border:1px solid var(--line);border-radius:7px;background:var(--card);cursor:pointer}
   .exportbtn:hover{border-color:var(--accent);color:var(--accent)}
@@ -255,6 +261,7 @@ export function renderArticlePage({ post, segments, findings, counts, prev, next
     ${renderBody(segments, findingsBySeg)}
   </main>
   <aside class="panel">
+    <div id="loadwarn" class="loadwarn" style="display:none"></div>
     <div class="panelhead">
       <h2>Findings <span id="outstanding">${findings.length} of ${findings.length} outstanding</span>
         <a href="#" id="showdiscarded" style="display:none">show discarded</a></h2>
@@ -300,7 +307,14 @@ export function renderArticlePage({ post, segments, findings, counts, prev, next
   // local mirror if the API is unreachable.
   function restore(){
     fetch(API + '?slug=' + encodeURIComponent(SLUG), {credentials:'same-origin'})
-      .then(function(r){ if(!r.ok) throw new Error('http ' + r.status); return r.json(); })
+      .then(function(r){
+        if (!r.ok) {
+          return r.text().then(function(t){
+            throw new Error('HTTP ' + r.status + (t ? ' — ' + t.slice(0, 160) : ''));
+          });
+        }
+        return r.json();
+      })
       .then(function(j){
         var byId = {}; (j.findings||[]).forEach(function(x){ byId[x.id] = x; });
         FINDINGS.forEach(function(f){
@@ -321,6 +335,14 @@ export function renderArticlePage({ post, segments, findings, counts, prev, next
       })
       .catch(function(e){
         // Offline / not signed in: show local mirror but say it is unsaved.
+        // Say WHY, not just that it failed — a bare "not saved" gives no way to
+        // diagnose. Shown once at the top rather than on every finding.
+        var banner = document.getElementById('loadwarn');
+        if (banner) {
+          banner.style.display = 'block';
+          banner.textContent = '⚠ Could not load saved decisions: ' + e.message +
+            '  — anything you change now is stored in this browser only. Reload once you are signed in.';
+        }
         FINDINGS.forEach(function(f){
           var d = state[f.number]; if (!d) return;
           if (d.decision) {
@@ -328,7 +350,6 @@ export function renderArticlePage({ post, segments, findings, counts, prev, next
             if (r) r.checked = true;
           }
           if (d.note) { var t = document.querySelector('.fnote[data-num="' + f.number + '"]'); if (t) t.value = d.note; }
-          setStatus(f.number, '⚠ Not saved to the server — this browser only', 'warn');
           paint(f.number);
         });
       });

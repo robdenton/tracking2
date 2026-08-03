@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { createHash } from 'node:crypto';
 
-import { extractSegments } from './lib/extract.mjs';
+import { extractSegments, splitSentences } from './lib/extract.mjs';
 import { scanPost } from './lib/layer-a.mjs';
 import { semanticPass, adjudicateLexicon, repairQuotes, MODEL } from './lib/layer-b.mjs';
 import { anchorFindings, reconcileLexicon, AnchorError } from './lib/anchor.mjs';
@@ -179,6 +179,79 @@ async function processArticle(post, rulesText, rulesHash) {
   // 2. Lexicon reconciliation: scan count must equal rendered lexicon findings.
   reconcileLexicon(aHits.length, anchored.filter((f) => f.layer === 'A').length);
 
+  // --- Deduplicate overlapping remedies -----------------------------------
+  // A Layer A hit anchors to a matched TERM. Where the term itself is fine and
+  // the real problem is elsewhere in the same sentence, the semantic pass
+  // already reports it against the right span. Two findings proposing edits to
+  // the same sentence from different anchors is confusing to review and can
+  // produce conflicting patches, so the lexicon finding defers.
+  //
+  // It is downgraded, never dropped: it stays visible with its reasoning, and
+  // points at the finding that owns the remedy. RED lexicon terms are exempt —
+  // there the word itself is the problem.
+  const RED_TERMS = new Set(['secretly', 'stealth', 'hidden', 'undetectable', 'invisible',
+    'covert', 'spy', 'discreet', 'undetected', 'silent']);
+  const bBySeg = new Map();
+  for (const f of anchored.filter((x) => x.layer === 'B')) {
+    if (!bBySeg.has(f.segmentId)) bBySeg.set(f.segmentId, []);
+    bBySeg.get(f.segmentId).push(f);
+  }
+  let deferred = 0;
+  for (const f of anchored) {
+    if (f.layer !== 'A') continue;
+    if (!['red', 'amber'].includes(f.disposition)) continue;
+    // A RED term is exempt only when no semantic finding already covers it —
+    // if a sibling span contains the word, that finding owns the remedy and
+    // the word stays highlighted as part of it.
+    // A short quote is a bare TERM, so any remedy for it necessarily rewrites
+    // text beyond its own anchor. Containment is the wrong test — the term
+    // often sits before the phrase that is actually the problem. If the
+    // semantic pass has flagged anything in the same segment, that finding owns
+    // the remedy and this one defers.
+    if (f.quote.length > 30) continue;               // a phrase, not a bare term
+    const siblings = (bBySeg.get(f.segmentId) || [])
+      .filter((b) => ['red', 'amber'].includes(b.disposition));
+    if (siblings.length === 0) continue;
+    const containing = siblings.find((b) => f.start >= b.start && f.end <= b.end);
+    if (!containing && RED_TERMS.has(f.term)) continue;  // word itself is the issue
+    const overlapping =
+      containing ||
+      siblings.sort((a, b) => Math.abs(a.start - f.start) - Math.abs(b.start - f.start))[0];
+    f.disposition = 'cleared-in-context';
+    f.deferredTo = overlapping;                        // resolved to a number below
+    f.reader_takeaway =
+      `The term "${f.term}" is legitimate here. The concern in this sentence is the surrounding framing, ` +
+      `which is reported separately with the remedy attached to the right span.`;
+    f.suggested_rewrite = '';
+    f.rewrite_scope = 'none';
+    f.deletion_scope = 'none';
+    f.deletion_rationale = '';
+    deferred++;
+  }
+
+  // Expand a short anchor to the sentence its remedy rewrites, so the highlight
+  // matches the text that will actually change. A finding anchored to one word
+  // but proposing to replace a whole sentence reads as a suggestion about the
+  // wrong thing.
+  const segTextById = new Map(segments.map((s) => [s.id, s.text]));
+  let expanded = 0;
+  for (const f of anchored) {
+    if (!['red', 'amber'].includes(f.disposition)) continue;
+    if (!f.suggested_rewrite) continue;
+    if (!['sentence', 'paragraph'].includes(f.rewrite_scope)) continue;
+    if (f.quote.length > 40) continue;                 // already a phrase
+    const text = segTextById.get(f.segmentId);
+    if (!text) continue;
+    const sentence = splitSentences(text).find((sn) => f.start >= sn.start && f.end <= sn.end);
+    if (!sentence || sentence.text === f.quote) continue;
+    if (sentence.text.length > 400) continue;          // don't swallow huge blocks
+    f.quote = sentence.text;
+    f.start = sentence.start;
+    f.end = sentence.end;
+    f.anchorExpanded = true;
+    expanded++;
+  }
+
   // Document order, then number.
   const order = new Map(segments.map((s, i) => [s.id, i]));
   anchored.sort((a, b) => (order.get(a.segmentId) - order.get(b.segmentId)) || a.start - b.start);
@@ -192,9 +265,14 @@ async function processArticle(post, rulesText, rulesHash) {
       .digest('hex')
       .slice(0, 32);
   });
+  for (const f of anchored) {
+    if (f.deferredTo) { f.deferredToNumber = f.deferredTo.number; delete f.deferredTo; }
+  }
 
   const counts = {};
   for (const f of anchored) counts[f.disposition] = (counts[f.disposition] || 0) + 1;
+  if (deferred) counts._deferredToSemantic = deferred;
+  if (expanded) counts._anchorExpanded = expanded;
 
   // --- anomaly self-check --------------------------------------------------
   // A silent failure looks exactly like a clean article. These flags surface

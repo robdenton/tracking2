@@ -251,6 +251,7 @@ Each hit below is a literal term match found by a deterministic script, with its
 - \`cleared-in-context\` — legitimately used (e.g. "private" making a genuine data-handling claim about where notes are stored).
 - A miss is expensive; a false positive is cheap. When genuinely torn between clearing and amber, choose amber.
 - Apply the **Addendum** in full: for every red/amber hit propose BOTH a deletion (with scope) and a rewrite (with scope). Never introduce the no-bot fact as a remedy, and never disparage meeting bots on any grounds.
+- **Your remedy must act on the text you are anchored to.** The hit is a specific matched term. If that term is legitimate where it sits and the real problem is a DIFFERENT part of the sentence, do NOT propose a remedy for that other text — the semantic pass reports it separately, and two findings proposing edits to the same sentence from different anchors is confusing and produces conflicting patches. In that case disposition the hit \`cleared-in-context\`, say plainly in reader_takeaway that the term itself is fine and the concern lies elsewhere in the sentence, and return empty remedies (rewrite "", scopes "none").
 - You must return one entry for EVERY hit index. Nothing is silently dropped.`;
 
   const user = `ARTICLE
