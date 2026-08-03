@@ -36,10 +36,29 @@ export async function GET(request: NextRequest) {
         readPath = `FAILING: ${e instanceof Error ? e.message.split("\n").slice(0, 3).join(" ") : "unknown"}`;
       }
     }
+    // Decision progress per article — lets a run be verified without a session.
+    const progress = exists
+      ? await prisma.$queryRaw<
+          { slug: string; needing: bigint; decided: bigint; applied: bigint; failed: bigint }[]
+        >`SELECT slug,
+                 count(*) FILTER (WHERE disposition IN ('red','amber'))                        AS needing,
+                 count(*) FILTER (WHERE disposition IN ('red','amber') AND decision IS NOT NULL) AS decided,
+                 count(*) FILTER (WHERE applied_to_draft = true)                                AS applied,
+                 count(*) FILTER (WHERE decision IN ('accept','accept-delete')
+                                   AND applied_to_draft = false)                                AS failed
+          FROM seo_review_findings GROUP BY slug ORDER BY slug`
+      : [];
     return NextResponse.json({
       tableExists: exists,
       rows: count ? Number(count[0].n) : 0,
       readPath,
+      progress: progress.map((p) => ({
+        slug: p.slug,
+        needingDecision: Number(p.needing),
+        decided: Number(p.decided),
+        appliedToDraft: Number(p.applied),
+        acceptedButNotApplied: Number(p.failed),
+      })),
       sanityWriteTokenConfigured: Boolean(process.env.SANITY_WRITE_TOKEN),
       sanityWriteTokenUsable: tokenUsable(),
     });

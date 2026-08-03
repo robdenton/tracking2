@@ -110,6 +110,8 @@ function renderPanel(findings) {
         <span class="fdisp">${esc(f.disposition)}</span>
         <span class="flayer" title="Which layer caught it">Layer ${esc(f.layer)}${f.term ? ` · "${esc(f.term)}"` : ''}</span>
       </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
       <div class="ffield">${esc(f.label)}</div>
       <blockquote class="fquote">${esc(f.quote)}</blockquote>
       <div class="ftake"><b>Reader takeaway:</b> ${esc(f.reader_takeaway)}</div>
@@ -124,6 +126,7 @@ function renderPanel(findings) {
       </div>
       <div class="fstatus" data-num="${f.number}"></div>
       <textarea class="fnote" data-num="${f.number}" rows="2" placeholder="Note…"></textarea>
+      </div>
     </div>`).join('\n');
 }
 
@@ -214,6 +217,16 @@ export function renderArticlePage({ post, segments, findings, counts, prev, next
         background:none;border:1px solid var(--line);border-radius:5px;padding:2px 7px;cursor:pointer}
   .fnote{width:100%;font:inherit;font-size:12.5px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;resize:vertical}
   .finding.decided-accept{background:#f0fdf4} .finding.decided-dismiss{opacity:.62}
+  /* Once decided, a finding collapses to a single line so the panel shows what
+     is still outstanding at a glance. Click the header to reopen it. */
+  .finding.collapsed{padding:8px 13px;cursor:pointer}
+  .finding.collapsed .fbody{display:none}
+  .finding.collapsed .fhead{margin-bottom:0}
+  .finding.collapsed .fdone{display:block}
+  .fdone{display:none;font-size:11.5px;font-weight:600;margin-top:3px}
+  .finding.collapsed.decided-accept .fdone{color:#15803d}
+  .finding.collapsed.decided-dismiss .fdone{color:var(--muted)}
+  .finding.collapsed:hover{box-shadow:0 0 0 1px var(--accent)}
   .finding.discarded{display:none}
   /* Cleared items are listed for auditability but hidden by default — at ~70%
      of findings they drown the ones that need a decision. */
@@ -304,9 +317,27 @@ export function renderArticlePage({ post, segments, findings, counts, prev, next
     var el = document.getElementById('finding-' + num);
     if (!el) return;
     var d = state[num] || {};
-    el.classList.toggle('decided-accept', d.decision === 'accept');
+    var isAccept = d.decision === 'accept' || d.decision === 'accept-delete';
+    el.classList.toggle('decided-accept', isAccept);
     el.classList.toggle('decided-dismiss', d.decision === 'dismiss');
+    // Collapse anything decided, unless the reviewer has reopened it.
+    if (d.decision && !el.dataset.reopened) el.classList.add('collapsed');
+    if (!d.decision) el.classList.remove('collapsed');
   }
+  function setDone(num, text){
+    var el = document.getElementById('finding-' + num);
+    if (!el) return;
+    var d = el.querySelector('.fdone');
+    if (d) d.textContent = text;
+  }
+  // Clicking a collapsed card reopens it for review.
+  document.addEventListener('click', function(e){
+    var card = e.target.closest('.finding.collapsed');
+    if (!card) return;
+    if (e.target.closest('.fdecide') || e.target.closest('.fnote')) return;
+    card.dataset.reopened = '1';
+    card.classList.remove('collapsed');
+  });
   function setStatus(num, text, cls){
     var el = document.querySelector('.fstatus[data-num="' + num + '"]');
     if (!el) return;
@@ -338,7 +369,8 @@ export function renderArticlePage({ post, segments, findings, counts, prev, next
           }
           if (s.note) { var t = document.querySelector('.fnote[data-num="' + f.number + '"]'); if (t) t.value = s.note; }
           if (s.decision === 'discard') { setStatus(f.number, 'Discarded', ''); hideFinding(f.number); }
-          else if (s.appliedToDraft) setStatus(f.number, '✓ Written to the Sanity draft', 'ok');
+          else if (s.appliedToDraft) { setStatus(f.number, '✓ Written to the Sanity draft', 'ok'); setDone(f.number, '✓ Written to the Sanity draft'); }
+          else if (s.decision === 'dismiss') setDone(f.number, 'Dismissed — no change made');
           else if (s.decision === 'accept') setStatus(f.number, '⚠ Accepted but not yet written to the draft — click Accept again to retry', 'warn');
           paint(f.number);
         });
@@ -382,16 +414,24 @@ export function renderArticlePage({ post, segments, findings, counts, prev, next
         if (!res.ok) { setStatus(num, '⚠ ' + (res.j.error || 'save failed'), 'warn'); return; }
         if (decision === 'accept' || decision === 'accept-delete') {
           if (res.j.appliedToDraft) {
-            setStatus(num, res.j.alreadyApplied
+            var msg = res.j.alreadyApplied
               ? '✓ Already in the Sanity draft'
               : (res.j.deleted
                   ? '✓ ' + (res.j.scope === 'paragraph' ? 'Paragraph' : 'Sentence') + ' removed in the Sanity draft — not published'
-                  : '✓ Written to the Sanity draft — not published'), 'ok');
+                  : '✓ Written to the Sanity draft — not published');
+            setStatus(num, msg, 'ok');
+            setDone(num, msg);
           } else {
-            setStatus(num, '⚠ Saved, but NOT applied: ' + (res.j.warning || 'unknown reason'), 'warn');
+            var w = '⚠ Saved, but NOT applied: ' + (res.j.warning || 'unknown reason');
+            setStatus(num, w, 'warn');
+            setDone(num, w);
+            // A failure must stay open — collapsing it would hide the problem.
+            var el = document.getElementById('finding-' + num);
+            if (el) { el.dataset.reopened = '1'; el.classList.remove('collapsed'); }
           }
         } else if (decision === 'dismiss') {
           setStatus(num, res.j.warning ? '⚠ ' + res.j.warning : 'Dismissed', res.j.warning ? 'warn' : '');
+          setDone(num, res.j.warning ? '⚠ ' + res.j.warning : 'Dismissed — no change made');
         } else {
           setStatus(num, res.j.warning ? '⚠ ' + res.j.warning : '', res.j.warning ? 'warn' : '');
         }
