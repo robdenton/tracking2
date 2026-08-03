@@ -571,3 +571,138 @@ export async function verifyDraft(slug: string): Promise<DraftVerification> {
     checkedAt: new Date().toISOString(),
   };
 }
+
+// --- Automatic repair of edit artifacts ------------------------------------
+// The checker reports damage; this repairs it. Deliberately DETERMINISTIC: it
+// only removes text that is provably duplicated, or fixes punctuation. It never
+// rewrites meaning, never adds a claim, and never touches copy that is merely
+// awkward — that is a judgement call and goes to Manual Reviews instead.
+
+/** Remove an exact consecutive repeat of a phrase, keeping one copy. */
+export function dedupePhrase(text: string): { fixed: string; removed: string | null } {
+  const words = text.split(/\s+/).filter(Boolean);
+  for (let n = Math.floor(words.length / 2); n >= 4; n--) {
+    for (let i = 0; i + 2 * n <= words.length; i++) {
+      const a = words.slice(i, i + n).join(" ");
+      const b = words.slice(i + n, i + 2 * n).join(" ");
+      const norm = (x: string) => x.toLowerCase().replace(/[^a-z0-9 ]/g, "").trim();
+      if (norm(a).length >= 20 && norm(a) === norm(b)) {
+        const kept = [...words.slice(0, i + n), ...words.slice(i + 2 * n)].join(" ");
+        return { fixed: kept, removed: a };
+      }
+    }
+  }
+  return { fixed: text, removed: null };
+}
+
+/** Collapse an immediately repeated sentence. */
+export function dedupeSentence(text: string): { fixed: string; removed: string | null } {
+  const parts = text.split(/(?<=[.!?])\s+/);
+  const out: string[] = [];
+  let removed: string | null = null;
+  for (const p of parts) {
+    const norm = p.toLowerCase().replace(/[^a-z0-9 ]/g, "").trim();
+    const prev = out.length ? out[out.length - 1].toLowerCase().replace(/[^a-z0-9 ]/g, "").trim() : "";
+    if (norm && norm === prev) { removed = p; continue; }
+    out.push(p);
+  }
+  return { fixed: out.join(" "), removed };
+}
+
+export function tidyPunctuation(s: string): string {
+  return s
+    .replace(/ {2,}/g, " ")
+    .replace(/\s*([,;])\s*(?=[,;])/g, "")
+    .replace(/\s+([,;.!?])/g, "$1")
+    .replace(/,\s*([.!?])/g, "$1")
+    .replace(/([.!?])\s*,\s*/g, "$1 ")
+    .replace(/([.!?])\1+/g, "$1")
+    .trim();
+}
+
+export interface RepairResult {
+  slug: string;
+  postId: string;
+  repaired: { where: string; path: string; removed: string; before: string; after: string }[];
+  unrepairable: { where: string; detail: string; text: string }[];
+}
+
+/**
+ * Repair artifacts in a draft. Only spans that are single-child, or whose
+ * damage sits entirely inside one span, are touched — anything else would risk
+ * link/bold markup and is reported for manual work instead.
+ */
+export async function repairDraft(slug: string, apply: boolean): Promise<RepairResult> {
+  const rows = await getFindingsForSlug(slug);
+  if (rows.length === 0) throw new Error(`No findings recorded for "${slug}"`);
+  const postId = rows[0].post_id;
+  const draft = await readDoc(`drafts.${postId}`);
+  if (!draft) return { slug, postId, repaired: [], unrepairable: [] };
+
+  const repaired: RepairResult["repaired"] = [];
+  const unrepairable: RepairResult["unrepairable"] = [];
+  const sets: Record<string, string> = {};
+
+  const blocks = (draft.body as PtBlock[] | undefined) ?? [];
+  blocks.forEach((b, i) => {
+    if (b._type !== "block" || !b._key || !Array.isArray(b.children)) return;
+    b.children.forEach((child, ci) => {
+      const original = child.text ?? "";
+      if (!original.trim()) return;
+      let working = original;
+      const removedBits: string[] = [];
+
+      for (let pass = 0; pass < 3; pass++) {
+        const p = dedupePhrase(working);
+        if (p.removed) { working = p.fixed; removedBits.push(p.removed); continue; }
+        const s = dedupeSentence(working);
+        if (s.removed) { working = s.fixed; removedBits.push(s.removed); continue; }
+        break;
+      }
+      working = tidyPunctuation(working);
+
+      if (working !== original) {
+        repaired.push({
+          where: `Block ${i + 1}`,
+          path: `body[_key=="${b._key}"].children[${ci}].text`,
+          removed: removedBits.join(" | ") || "punctuation only",
+          before: original.slice(0, 200),
+          after: working.slice(0, 200),
+        });
+        sets[`body[_key=="${b._key}"].children[${ci}].text`] = working;
+      }
+    });
+
+    // Damage spanning two spans cannot be fixed without risking markup.
+    const joined = (b.children ?? []).map((c) => c.text ?? "").join("");
+    if (
+      !repaired.some((r) => r.path.includes(String(b._key))) &&
+      (b.children?.length ?? 0) > 1
+    ) {
+      const words = joined.split(/\s+/).filter(Boolean);
+      if (words.length > 10) {
+        const p = dedupePhrase(joined);
+        if (p.removed) {
+          unrepairable.push({
+            where: `Block ${i + 1}`,
+            detail: "duplicated text spans a link or bold formatting — fix by hand to preserve the markup",
+            text: p.removed.slice(0, 160),
+          });
+        }
+      }
+    }
+  });
+
+  if (apply && Object.keys(sets).length > 0) {
+    const token = process.env.SANITY_WRITE_TOKEN?.trim();
+    if (!token || /\s/.test(token)) throw new SanityTokenMissing();
+    const res = await fetch(`${API}/data/mutate/${SANITY_DATASET}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ mutations: [{ patch: { id: `drafts.${postId}`, set: sets } }] }),
+    });
+    if (!res.ok) throw new Error(`Repair mutate failed: ${res.status}`);
+  }
+
+  return { slug, postId, repaired, unrepairable };
+}

@@ -138,3 +138,32 @@ The test is narrow: **does the copy tell the reader their data stays off Granola
 ### Remedies
 
 Same two options as everything else — a deletion and a rewrite. For accuracy findings the deletion is usually correct: the claim is false, and the article rarely needs it. A rewrite must not replace one unverifiable claim with another; describe what is actually true (encryption in transit and at rest, retention policy, access controls, certifications) or say nothing.
+
+---
+
+## Addendum 3 — writing remedies that apply cleanly
+
+Remedies are applied to the live document by machine. A remedy that reads well in isolation can still damage the page when spliced in. These rules exist because real damage reached real drafts.
+
+### State the scope, and write to exactly that scope
+
+- `rewrite_scope: "sentence"` — the text replaces **only the quoted sentence**. It must fit grammatically between the sentence before it and the sentence after it. Do not restate either.
+- `rewrite_scope: "paragraph"` — the text replaces **the entire paragraph**, including any sentences you did not quote. Write the whole paragraph, standalone. Do not begin by repeating its opening.
+
+The commonest failure is a paragraph-scale rewrite labelled `sentence`, or vice versa. The result is a paragraph containing itself twice, or an orphaned half-sentence.
+
+### Never restate neighbouring copy
+
+Read the sentences either side of your anchor. If your replacement repeats a phrase from them, it will read as duplication once applied. This includes calls to action ("Download Granola for free on Mac, Windows, iOS or Android…") and closing lines ("Setup takes under 5 minutes."), which recur across the corpus and are easy to duplicate accidentally.
+
+### Deletions must leave a grammatical sentence
+
+Before proposing `deletion_scope: "sentence"`, read what remains. Removing a mid-sentence clause leaves the surrounding punctuation behind — "…in the meeting, , and builds…". If removing the passage would leave a broken sentence, choose `paragraph` scope, or propose a rewrite instead and say so in `deletion_rationale`.
+
+### Formatting you cannot see
+
+Some passages carry bold or a link. Those cannot be replaced wholesale without destroying the markup, so they are refused and sent to Manual Reviews. If a quoted passage looks like it begins with a bolded label ("Bot-free capture: …") or contains link text, prefer a `sentence`-scope remedy that leaves the formatted words untouched.
+
+### What is repaired automatically, and what is not
+
+After edits are applied, the draft is checked and **provable** damage is repaired automatically: exactly duplicated phrases and sentences, and stranded punctuation. Nothing else is touched by machine — copy that is merely clumsy, or a claim that needs a human view, is listed under **Manual Reviews** rather than silently rewritten. Your remedies should not rely on that safety net.
