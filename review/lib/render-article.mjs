@@ -6,6 +6,7 @@
 // can open is how you know it was actually read.
 
 import { buildRanges } from './anchor.mjs';
+import { assignBucket } from './risk.mjs';
 
 const esc = (s) => String(s == null ? '' : s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -139,6 +140,16 @@ function renderPanel(findings) {
 }
 
 export function renderArticlePage({ post, segments, findings, counts, prev, next, generatedAt, rulesHash, buildError }) {
+  // This page only exists because the article was reviewed, so the bucket is
+  // never provisional here — findings are always available.
+  const risk = assignBucket({
+    slug: post.slug,
+    title: post.title,
+    red: counts.red || 0,
+    amber: counts.amber || 0,
+    reviewed: true,
+  });
+
   const findingsBySeg = new Map();
   for (const f of findings) {
     if (!findingsBySeg.has(f.segmentId)) findingsBySeg.set(f.segmentId, []);
@@ -299,10 +310,15 @@ export function renderArticlePage({ post, segments, findings, counts, prev, next
   .exportbtn:hover{border-color:var(--accent);color:var(--accent)}
   .builderr{background:#fee2e2;border:1px solid var(--red);color:var(--red);padding:12px 15px;border-radius:9px;margin-bottom:16px;font-size:13.5px}
   code{background:#f0f0ef;padding:1px 5px;border-radius:4px;font-size:12.5px}
+  .bkbadge{padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700;cursor:help}
+  .bkbadge.bk1{background:#fee2e2;color:#991b1b}
+  .bkbadge.bk2{background:#fef3c7;color:#92400e}
+  .bkbadge.bk3{background:#dcfce7;color:#166534}
 </style></head><body>
 <header>
   <h1>${esc(post.title)}</h1>
   <div class="meta">
+    <span class="bkbadge bk${risk.bucket}" title="${esc(risk.reasons.join('\n\n'))}">${esc(risk.label)}</span>
     <span><code>${esc(post.slug)}</code></span>
     <span>Published ${esc(post.publishedAt || '—')}</span>
     <span><code>${esc(post._id)}</code></span>

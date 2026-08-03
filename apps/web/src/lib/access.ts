@@ -65,7 +65,10 @@ const COLLABORATOR_PREFIXES = [
   "/api/auth", // NextAuth itself — without this they cannot sign in or out
 ];
 
-export const COLLABORATOR_HOME = "/seo-review";
+// The review index is the published static page, NOT /seo-review — that path
+// has no page of its own, only the /seo-review/changes child route, so sending
+// collaborators there lands them on a 404.
+export const COLLABORATOR_HOME = "/review/index.html";
 
 export function isPathAllowedForCollaborator(pathname: string): boolean {
   return COLLABORATOR_PREFIXES.some(

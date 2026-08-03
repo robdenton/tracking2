@@ -3,6 +3,8 @@
 // claim, not a fact, so anything without a `done` ledger entry shows as
 // Queued/Checking/Error rather than as a result.
 
+import { assignBucket } from './risk.mjs';
+
 const esc = (s) => String(s == null ? '' : s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
   .replace(/"/g, '&quot;');
@@ -27,13 +29,22 @@ export function renderIndex({ inventory, ledger, generatedAt, rulesHash, expecte
     const entry = ledger[p._id];
     const st = statusOf(entry);
     const c = (entry && entry.counts) || {};
+    const reviewed = !!(entry && entry.status === 'done');
+    const risk = assignBucket({
+      slug: p.slug,
+      title: p.title,
+      red: c.red || 0,
+      amber: c.amber || 0,
+      reviewed,
+    });
     return {
       ...p,
       st,
       red: c.red || 0,
       amber: c.amber || 0,
-      total: entry && entry.status === 'done' ? (entry.findingsTotal || 0) : 0,
-      reviewed: !!(entry && entry.status === 'done'),
+      total: reviewed ? (entry.findingsTotal || 0) : 0,
+      reviewed,
+      risk,
     };
   });
 
@@ -44,9 +55,12 @@ export function renderIndex({ inventory, ledger, generatedAt, rulesHash, expecte
   const nError = rows.filter((r) => r.st.key === 'error').length;
   // The unchecked figure proves the run completed — show it even at zero.
   const nUnchecked = rows.length - nReviewed - nError;
+  const nB1 = rows.filter((r) => r.risk.bucket === 1).length;
+  const nB2 = rows.filter((r) => r.risk.bucket === 2).length;
+  const nB3 = rows.filter((r) => r.risk.bucket === 3).length;
 
   const tbody = rows.map((r, i) => `
-    <tr class="row" data-status="${r.st.key}"
+    <tr class="row" data-status="${r.st.key}" data-bucket="${r.risk.bucket}"
         data-text="${esc((r.title + ' ' + r.slug).toLowerCase())}"
         data-red="${r.red}" data-amber="${r.amber}" data-idx="${i}"
         ${r.reviewed || r.st.key === 'error' ? `onclick="openRow(event,'${esc(r.slug)}')"` : ''}
@@ -55,6 +69,11 @@ export function renderIndex({ inventory, ledger, generatedAt, rulesHash, expecte
       <td class="title">
         <div class="t">${esc(r.title)}</div>
         <div class="s"><code>${esc(r.slug)}</code></div>
+      </td>
+      <td class="bkcell">
+        <span class="bk bk${r.risk.bucket}${r.risk.provisional ? ' prov' : ''}"
+              title="${esc(r.risk.reasons.join('\n\n'))}">${r.risk.bucket}${r.risk.provisional ? '?' : ''}</span>
+        <div class="bklab">${esc(r.risk.contentLabel)}</div>
       </td>
       <td class="stcell"><span class="st ${r.st.cls}"${r.st.title ? ` title="${esc(r.st.title)}"` : ''}>${esc(r.st.text)}</span></td>
       <td class="nowrap">${esc(r.publishedAt || '—')}</td>
@@ -114,6 +133,21 @@ export function renderIndex({ inventory, ledger, generatedAt, rulesHash, expecte
   .st-amber{background:var(--amberbg);color:var(--amber)}
   .st-red{background:var(--redbg);color:var(--red)}
   .st-error{background:#fff;color:var(--red);border:1px solid var(--red)}
+  td.bkcell{width:132px}
+  .bk{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;
+      border-radius:7px;font-size:13px;font-weight:800;cursor:help}
+  .bk1{background:#fee2e2;color:#991b1b} .bk2{background:#fef3c7;color:#92400e}
+  .bk3{background:#dcfce7;color:#166534}
+  .bk.prov{opacity:.72;border:1px dashed currentColor}
+  .bklab{font-size:11px;color:var(--muted);margin-top:3px;line-height:1.3}
+  .bkbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--card);
+         border:1px solid var(--line);border-radius:10px;padding:11px 14px;margin:0 0 14px}
+  .bkbar .lbl{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+  .bkchip{padding:6px 13px;border:1px solid var(--line);border-radius:999px;background:var(--bg);
+          font-size:13px;cursor:pointer;user-select:none;font-weight:600}
+  .bkchip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .bkchip .n{opacity:.65;font-weight:500;margin-left:4px}
+  .bknote{font-size:12px;color:var(--muted);margin-left:auto}
   .muted{color:var(--muted)}
   code{background:#f1f1f0;padding:1px 5px;border-radius:4px;font-size:12px}
   footer{color:var(--muted);font-size:12px;margin-top:26px}
@@ -126,6 +160,15 @@ export function renderIndex({ inventory, ledger, generatedAt, rulesHash, expecte
   <h1>Granola SEO — consent &amp; disclosure review</h1>
   <p class="sub">Sanity <code>oy7f1h9b/production</code> · <code>*[_type == "post" &amp;&amp; hidden == true]</code> ·
      Generated ${esc(generatedAt)} · RULES.md sha256 <code>${esc(rulesHash)}</code></p>
+
+  <div class="bkbar">
+    <span class="lbl">Review bucket</span>
+    <span class="bkchip" data-b="all">All<span class="n">${rows.length}</span></span>
+    <span class="bkchip" data-b="1">Bucket 1 · highest sensitivity<span class="n">${nB1}</span></span>
+    <span class="bkchip" data-b="2">Bucket 2 · medium<span class="n">${nB2}</span></span>
+    <span class="bkchip" data-b="3">Bucket 3 · lowest risk<span class="n">${nB3}</span></span>
+    <span class="bknote">Your choice is remembered on this device. <code>?</code> = not yet reviewed, so the bucket is provisional.</span>
+  </div>
 
   <div class="summary">
     <div class="sm"><b>${expected}</b>in scope</div>
@@ -149,13 +192,14 @@ export function renderIndex({ inventory, ledger, generatedAt, rulesHash, expecte
     </div>
     <select id="sort" onchange="applySort()">
       <option value="worst">Sort: worst first (red ↓, amber ↓)</option>
+      <option value="bucket">Sort: bucket (1 → 3)</option>
       <option value="original">Sort: original order</option>
     </select>
   </div>
   <div class="count" id="count"></div>
 
   <div class="tablewrap"><table id="tbl">
-    <thead><tr><th>#</th><th>Article</th><th>Status</th><th>Published</th><th>Links</th></tr></thead>
+    <thead><tr><th>#</th><th>Article</th><th>Bucket</th><th>Status</th><th>Published</th><th>Links</th></tr></thead>
     <tbody id="tbody">${tbody}</tbody>
   </table></div>
 
@@ -166,6 +210,26 @@ export function renderIndex({ inventory, ledger, generatedAt, rulesHash, expecte
 </div>
 <script>
   var activeFilter = 'all';
+
+  // The bucket choice persists per device, so the agency sets "Bucket 3" once
+  // and it survives reloads and navigating into an article and back. A URL
+  // ?bucket=3 wins over the stored value, so a bucket can be shared as a link.
+  var BK_KEY = 'granola-seo-review.bucket';
+  function readBucket(){
+    var fromUrl = (location.search.match(/[?&]bucket=([^&]+)/) || [])[1];
+    if (fromUrl && /^(all|1|2|3)$/.test(fromUrl)) return fromUrl;
+    try { var v = localStorage.getItem(BK_KEY); if (v && /^(all|1|2|3)$/.test(v)) return v; }
+    catch (e) { /* storage blocked — fall through to the default */ }
+    return 'all';
+  }
+  var activeBucket = readBucket();
+  function saveBucket(v){ try { localStorage.setItem(BK_KEY, v); } catch (e) {} }
+  function paintBucketChips(){
+    document.querySelectorAll('.bkchip').forEach(function(c){
+      c.classList.toggle('on', c.getAttribute('data-b') === activeBucket);
+    });
+  }
+
   function openRow(e, slug){ if (e.target.tagName === 'A') return; location.href = slug + '.html'; }
   function applyFilters(){
     var q = (document.getElementById('filter').value || '').trim().toLowerCase();
@@ -175,13 +239,21 @@ export function renderIndex({ inventory, ledger, generatedAt, rulesHash, expecte
       var matchStatus = activeFilter === 'all' ? true
         : activeFilter === 'unchecked' ? (st === 'queued' || st === 'checking')
         : st === activeFilter;
+      var matchBucket = activeBucket === 'all'
+        || tr.getAttribute('data-bucket') === activeBucket;
       var matchText = !q || tr.getAttribute('data-text').indexOf(q) !== -1;
-      var show = matchStatus && matchText;   // chips COMBINE with the text filter
+      var show = matchStatus && matchBucket && matchText;  // all three COMBINE
       tr.style.display = show ? '' : 'none';
       if (show) shown++;
     });
-    document.getElementById('count').textContent = 'Showing ' + shown + ' of ' + rows.length;
+    document.getElementById('count').textContent = 'Showing ' + shown + ' of ' + rows.length
+      + (activeBucket === 'all' ? '' : ' · bucket ' + activeBucket);
   }
+  document.querySelector('.bkbar').addEventListener('click', function(e){
+    var c = e.target.closest('.bkchip'); if (!c) return;
+    activeBucket = c.getAttribute('data-b');
+    saveBucket(activeBucket); paintBucketChips(); applyFilters();
+  });
   document.getElementById('chips').addEventListener('click', function(e){
     var c = e.target.closest('.chip'); if (!c) return;
     document.querySelectorAll('.chip').forEach(function(x){ x.classList.remove('on'); });
@@ -193,6 +265,11 @@ export function renderIndex({ inventory, ledger, generatedAt, rulesHash, expecte
     var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr.row'));
     rows.sort(function(a,b){
       if (mode === 'original') return (+a.getAttribute('data-idx')) - (+b.getAttribute('data-idx'));
+      if (mode === 'bucket') {
+        var ab = +a.getAttribute('data-bucket'), bb = +b.getAttribute('data-bucket');
+        if (ab !== bb) return ab - bb;                       // 1 first
+        return (+b.getAttribute('data-red')) - (+a.getAttribute('data-red'));
+      }
       var ar = +a.getAttribute('data-red'), br = +b.getAttribute('data-red');
       if (ar !== br) return br - ar;
       var aa = +a.getAttribute('data-amber'), ba = +b.getAttribute('data-amber');
@@ -201,7 +278,7 @@ export function renderIndex({ inventory, ledger, generatedAt, rulesHash, expecte
     });
     rows.forEach(function(r){ tbody.appendChild(r); });
   }
-  applySort(); applyFilters();
+  paintBucketChips(); applySort(); applyFilters();
 </script>
 </body></html>`;
 }

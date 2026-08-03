@@ -6,6 +6,7 @@
 //   node review/run.mjs                      process everything still queued
 //   node review/run.mjs --render-only        rebuild index/pages from the ledger
 //   node review/run.mjs --force              re-process even if already done
+//   node review/run.mjs --bucket 3           process only risk-bucket 3 articles
 //
 // Resumable: anything marked `done` in review/state.json is skipped unless
 // --force. The index is regenerated after EVERY article so progress can be
@@ -22,6 +23,7 @@ import { semanticPass, adjudicateLexicon, repairQuotes, MODEL } from './lib/laye
 import { anchorFindings, reconcileLexicon, AnchorError } from './lib/anchor.mjs';
 import { renderArticlePage } from './lib/render-article.mjs';
 import { renderIndex } from './lib/render-index.mjs';
+import { assignBucket } from './lib/risk.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
@@ -393,6 +395,23 @@ async function main() {
   let queue = corpus;
   const slug = opt('--slug');
   if (slug) queue = corpus.filter((p) => p.slug === slug);
+  // --bucket N: process only articles in a given risk bucket. For unreviewed
+  // articles the bucket comes from subject matter alone, so this selects on the
+  // provisional bucket — which is the point, since it is the only signal that
+  // exists before the review runs.
+  const bucket = opt('--bucket');
+  if (bucket) {
+    queue = queue.filter((p) => {
+      const c = (ledger[p._id] && ledger[p._id].counts) || {};
+      return assignBucket({
+        slug: p.slug,
+        title: p.title,
+        red: c.red || 0,
+        amber: c.amber || 0,
+        reviewed: ledger[p._id] && ledger[p._id].status === 'done',
+      }).bucket === Number(bucket);
+    });
+  }
   if (!flag('--force')) queue = queue.filter((p) => ledger[p._id].status !== 'done');
   const limit = opt('--limit');
   if (limit) queue = queue.slice(0, Number(limit));
