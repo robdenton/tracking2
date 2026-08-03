@@ -160,21 +160,40 @@ export async function POST(request: NextRequest) {
     inserted++;
   }
 
-  // Prune orphans: rows for these articles that are no longer produced by the
-  // review (e.g. the finding changed, so its content-addressed id changed).
-  // NEVER prunes a row that carries a decision or was applied to a draft —
-  // a sign-off or a real draft edit must never be deleted by a re-sync.
-  let pruned = 0;
-  const slugs = [...new Set(findings.map((f) => f.slug))];
-  const keepIds = findings.map((f) => f.id);
-  if (slugs.length > 0 && keepIds.length > 0) {
-    pruned = await prisma.$executeRaw`
-      DELETE FROM seo_review_findings
-      WHERE slug = ANY(${slugs}::text[])
-        AND id <> ALL(${keepIds}::text[])
-        AND decision IS NULL
-        AND applied_to_draft = false`;
+  return NextResponse.json({ ok: true, upserted: inserted });
+}
+
+// POST with { prune: true, slugs, since } — run ONCE after every chunk has been
+// upserted.
+//
+// Pruning per chunk was a data-loss bug: findings are sent in chunks of 200, and
+// deleting "ids not in this chunk" removed rows for an article whose remaining
+// findings were in a later chunk. 232 rows were upserted and 212 survived.
+//
+// Pruning by timestamp instead of by id list is chunk-safe: every row touched by
+// this run has updated_at >= the run's start, so anything older is genuinely
+// stale. Rows carrying a decision or an applied draft edit are never pruned.
+export async function DELETE(request: NextRequest) {
+  if (!verifyCronSecret(request)) return unauthorizedResponse();
+
+  let body: { slugs?: string[]; since?: string };
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "invalid JSON" }, { status: 400 });
+  }
+  const slugs = body.slugs ?? [];
+  const since = body.since ? new Date(body.since) : null;
+  if (slugs.length === 0 || !since || isNaN(since.getTime())) {
+    return NextResponse.json({ error: "slugs and a valid since timestamp are required" }, { status: 400 });
   }
 
-  return NextResponse.json({ ok: true, upserted: inserted, pruned });
+  const pruned = await prisma.$executeRaw`
+    DELETE FROM seo_review_findings
+    WHERE slug = ANY(${slugs}::text[])
+      AND updated_at < ${since}
+      AND decision IS NULL
+      AND applied_to_draft = false`;
+
+  return NextResponse.json({ ok: true, pruned });
 }
