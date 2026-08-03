@@ -98,14 +98,17 @@ export function extractSegments(post) {
       if (node._type === 'block') {
         const text = blockText(node);
         const style = node.style || 'normal';
+        // Record block provenance so a finding can be patched back onto the
+        // exact portable-text node it came from (used by the draft writer).
+        const prov = { blockKey: node._key || null, blockType: 'block' };
         if (node.listItem) {
-          push('listItem', text, { listItem: node.listItem, level: node.level || 1 });
+          push('listItem', text, { ...prov, listItem: node.listItem, level: node.level || 1 });
         } else if (/^h[1-6]$/.test(style)) {
-          push('heading', text, { level: Number(style.slice(1)) });
+          push('heading', text, { ...prov, level: Number(style.slice(1)) });
         } else if (style === 'blockquote') {
-          push('blockquote', text);
+          push('blockquote', text, prov);
         } else {
-          push('paragraph', text);
+          push('paragraph', text, prov);
         }
         // Link anchor text + href as their own reviewable segments.
         for (const l of blockLinks(node)) {
@@ -113,8 +116,9 @@ export function extractSegments(post) {
           if (l.href) push('linkHref', l.href, { href: l.href });
         }
       } else if (node._type === 'rawHtml' && typeof node.html === 'string') {
+        const prov = { blockKey: node._key || null, blockType: 'rawHtml' };
         for (const c of parseTableCells(node.html)) {
-          push(c.tag === 'th' ? 'tableHeader' : 'tableCell', c.text);
+          push(c.tag === 'th' ? 'tableHeader' : 'tableCell', c.text, prov);
         }
         // Any <a href> inside rawHtml.
         const re = /<a\b[^>]*\bhref\s*=\s*["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;

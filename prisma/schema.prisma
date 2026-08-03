@@ -767,3 +767,53 @@ model DubCustomer {
   @@index([groupId])
   @@map("dub_customers")
 }
+
+// One row per flagged item in the SEO consent & disclosure review.
+// Holds BOTH the finding and its sign-off decision, so the full change log —
+// what it was, what was proposed, what it became, who decided, when — is
+// durable and shared across devices rather than living in one browser.
+model SeoReviewFinding {
+  // Content-addressed: sha256 of postId+segmentId+offsets+quote+layer+term.
+  // Stable across re-runs, so a decision stays attached to the same finding.
+  // If the article copy changes the id changes too — a sign-off on old wording
+  // must never silently carry over to new wording.
+  id             String    @id
+
+  postId         String    @map("post_id")
+  slug           String
+  title          String
+  segmentId      String    @map("segment_id")
+  fieldLabel     String    @map("field_label")
+
+  layer          String    // "A" (lexicon) | "B" (semantic)
+  term           String?   // lexicon term, when layer A
+  disposition    String    // red | amber | cleared-* | about-competitor | not-audited
+  confidence     String?
+
+  originalText   String    @map("original_text")   // verbatim quote — what it was
+  proposedText   String?   @map("proposed_text")   // suggested rewrite
+  finalText      String?   @map("final_text")      // reviewer's edit, if any
+  readerTakeaway String?   @map("reader_takeaway")
+
+  // Sign-off
+  decision       String?   // "accept" | "dismiss" | null (undecided)
+  note           String?
+  decidedBy      String?   @map("decided_by")
+  decidedAt      DateTime? @map("decided_at")
+
+  // Provenance
+  rulesHash      String    @map("rules_hash")
+  model          String
+  // Sanity draft application
+  appliedToDraft Boolean   @default(false) @map("applied_to_draft")
+  appliedAt      DateTime? @map("applied_at")
+
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  @@index([slug])
+  @@index([disposition])
+  @@index([decision])
+  @@index([postId])
+  @@map("seo_review_findings")
+}
