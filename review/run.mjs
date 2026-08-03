@@ -37,6 +37,7 @@ const P = {
   csv: join(__dirname, 'findings.csv'),
   snapshot: join(ROOT, 'audit', 'data', 'posts.json'),
   findings: join(DATA, 'findings.json'),
+  buckets: join(ROOT, 'apps', 'web', 'public', 'review', 'buckets.json'),
 };
 
 // --- env -------------------------------------------------------------------
@@ -326,6 +327,31 @@ function regenerate({ corpus, ledger, allFindings, rulesHash }) {
     }
   }
   writeFileSync(P.csv, lines.join('\n') + '\n');
+
+  // Emit the buckets for the Next.js surfaces to read. risk.mjs stays the ONLY
+  // place the bucketing is decided — the web app consumes this file rather than
+  // re-implementing the rules, so the two can never disagree.
+  const buckets = {};
+  for (const p of corpus) {
+    const entry = ledger[p._id] || {};
+    const c = entry.counts || {};
+    const r = assignBucket({
+      slug: p.slug,
+      title: p.title,
+      red: c.red || 0,
+      amber: c.amber || 0,
+      reviewed: entry.status === 'done',
+    });
+    buckets[p.slug] = {
+      bucket: r.bucket,
+      provisional: r.provisional,
+      contentLabel: r.contentLabel,
+      who: r.action.who,
+      short: r.action.short,
+      detail: r.action.detail,
+    };
+  }
+  writeFileSync(P.buckets, JSON.stringify({ generatedAt, buckets }, null, 2));
 }
 
 // --- main ------------------------------------------------------------------

@@ -73,7 +73,9 @@ export function renderIndex({ inventory, ledger, generatedAt, rulesHash, expecte
       <td class="bkcell">
         <span class="bk bk${r.risk.bucket}${r.risk.provisional ? ' prov' : ''}"
               title="${esc(r.risk.reasons.join('\n\n'))}">${r.risk.bucket}${r.risk.provisional ? '?' : ''}</span>
-        <div class="bklab">${esc(r.risk.contentLabel)}</div>
+        <span class="act act${r.risk.bucket}"
+              title="${esc(r.risk.action.detail)}">${esc(r.risk.action.short)}</span>
+        <div class="bklab">${esc(r.risk.action.who)} · ${esc(r.risk.contentLabel)}</div>
       </td>
       <td class="stcell"><span class="st ${r.st.cls}"${r.st.title ? ` title="${esc(r.st.title)}"` : ''}>${esc(r.st.text)}</span></td>
       <td class="nowrap">${esc(r.publishedAt || '—')}</td>
@@ -133,7 +135,16 @@ export function renderIndex({ inventory, ledger, generatedAt, rulesHash, expecte
   .st-amber{background:var(--amberbg);color:var(--amber)}
   .st-red{background:var(--redbg);color:var(--red)}
   .st-error{background:#fff;color:var(--red);border:1px solid var(--red)}
-  td.bkcell{width:132px}
+  td.bkcell{width:186px}
+  .act{display:inline-block;margin-left:7px;padding:2px 9px;border-radius:6px;font-size:11.5px;
+       font-weight:700;vertical-align:top;cursor:help}
+  .act1{background:#fee2e2;color:#991b1b} .act2{background:#fef3c7;color:#92400e}
+  .act3{background:#dcfce7;color:#166534}
+  .legend{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:13px 16px;margin:0 0 14px}
+  .legend h2{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 9px}
+  .legend .row2{display:flex;gap:11px;align-items:baseline;margin-bottom:7px;font-size:13px}
+  .legend .row2:last-child{margin-bottom:0}
+  .legend .who{color:var(--muted);font-size:12px}
   .bk{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;
       border-radius:7px;font-size:13px;font-weight:800;cursor:help}
   .bk1{background:#fee2e2;color:#991b1b} .bk2{background:#fef3c7;color:#92400e}
@@ -161,13 +172,26 @@ export function renderIndex({ inventory, ledger, generatedAt, rulesHash, expecte
   <p class="sub">Sanity <code>oy7f1h9b/production</code> · <code>*[_type == "post" &amp;&amp; hidden == true]</code> ·
      Generated ${esc(generatedAt)} · RULES.md sha256 <code>${esc(rulesHash)}</code></p>
 
+  <div class="legend">
+    <h2>What to do with each article</h2>
+    <div class="row2"><span class="act act3">Review &amp; decide</span>
+      <span>Yours to complete — accept, delete or dismiss each finding.
+      <span class="who">Agency · bucket 3</span></span></div>
+    <div class="row2"><span class="act act2">Review &amp; recommend</span>
+      <span>Review every finding and leave a <b>note</b> saying what you'd do. Don't accept or delete — Granola makes the final call.
+      <span class="who">Agency · bucket 2</span></span></div>
+    <div class="row2"><span class="act act1">Do not review</span>
+      <span>Consent, privacy, data storage, security or competitor comparisons. Read for context if useful, but leave the decisions to Granola.
+      <span class="who">Granola in-house · bucket 1</span></span></div>
+  </div>
+
   <div class="bkbar">
-    <span class="lbl">Review bucket</span>
-    <span class="bkchip" data-b="all">All<span class="n">${rows.length}</span></span>
-    <span class="bkchip" data-b="1">Bucket 1 · highest sensitivity<span class="n">${nB1}</span></span>
-    <span class="bkchip" data-b="2">Bucket 2 · medium<span class="n">${nB2}</span></span>
-    <span class="bkchip" data-b="3">Bucket 3 · lowest risk<span class="n">${nB3}</span></span>
-    <span class="bknote">Your choice is remembered on this device. <code>?</code> = not yet reviewed, so the bucket is provisional.</span>
+    <span class="lbl">Show</span>
+    <span class="bkchip" data-b="all">Everything<span class="n">${rows.length}</span></span>
+    <span class="bkchip" data-b="3">Review &amp; decide<span class="n">${nB3}</span></span>
+    <span class="bkchip" data-b="2">Review &amp; recommend<span class="n">${nB2}</span></span>
+    <span class="bkchip" data-b="1">Do not review<span class="n">${nB1}</span></span>
+    <span class="bknote">Your choice is remembered on this device. <code>?</code> = not yet reviewed, so the label is provisional.</span>
   </div>
 
   <div class="summary">

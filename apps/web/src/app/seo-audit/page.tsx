@@ -1,5 +1,6 @@
 import { fetchSeoPosts } from "@/lib/seo-audit";
 import { getStatusBySlug } from "@/lib/seo-review";
+import { getBuckets } from "@/lib/seo-buckets";
 import { ArticlesTable, type RowStatus } from "./articles-table";
 import { SeoNav } from "../seo-review/nav";
 
@@ -11,6 +12,7 @@ export const revalidate = 0;
 
 export default async function SeoAuditPage() {
   const posts = await fetchSeoPosts(3600);
+  const buckets = await getBuckets();
 
   let statuses: Record<string, RowStatus> = {};
   let statusError: string | null = null;
@@ -66,7 +68,7 @@ export default async function SeoAuditPage() {
         </div>
       </div>
 
-      <ArticlesTable posts={posts} statuses={statuses} />
+      <ArticlesTable posts={posts} statuses={statuses} buckets={buckets} />
     </main>
   );
 }

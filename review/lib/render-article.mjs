@@ -314,17 +314,27 @@ export function renderArticlePage({ post, segments, findings, counts, prev, next
   .bkbadge.bk1{background:#fee2e2;color:#991b1b}
   .bkbadge.bk2{background:#fef3c7;color:#92400e}
   .bkbadge.bk3{background:#dcfce7;color:#166534}
+  .actbar{margin:11px 0 0;padding:10px 14px;border-radius:9px;font-size:13px;line-height:1.55;
+          border:1px solid transparent}
+  .actbar b{font-weight:800}
+  .actbar.act1{background:#fee2e2;color:#7f1d1d;border-color:#fca5a5}
+  .actbar.act2{background:#fef3c7;color:#78350f;border-color:#fcd34d}
+  .actbar.act3{background:#dcfce7;color:#14532d;border-color:#86efac}
 </style></head><body>
 <header>
   <h1>${esc(post.title)}</h1>
   <div class="meta">
     <span class="bkbadge bk${risk.bucket}" title="${esc(risk.reasons.join('\n\n'))}">${esc(risk.label)}</span>
+    <span class="bkbadge bk${risk.bucket}">${esc(risk.action.who)}: ${esc(risk.action.short)}</span>
     <span><code>${esc(post.slug)}</code></span>
     <span>Published ${esc(post.publishedAt || '—')}</span>
     <span><code>${esc(post._id)}</code></span>
     <a href="https://www.granola.ai/blog/${esc(post.slug)}" target="_blank" rel="noopener">Live page ↗</a>
     <a href="${SANITY_STUDIO(post._id)}" target="_blank" rel="noopener">Sanity Studio ↗</a>
     <span>${countPills}</span>
+  </div>
+  <div class="actbar act${risk.bucket}">
+    <b>${esc(risk.action.who)} — ${esc(risk.action.short)}.</b> ${esc(risk.action.detail)}
   </div>
   <div class="nav">
     <a href="/seo-audit">All articles</a>

@@ -174,6 +174,34 @@ export const BUCKET_LABELS = {
   3: 'Bucket 3 · lowest risk',
 };
 
+// What the person opening the article should actually DO. The bucket is the
+// sensitivity signal; this is the instruction that follows from it, so an
+// outside reviewer never has to infer their own remit from a risk score.
+//
+// Everyone can see every article. The difference is who gets to decide:
+// bucket 3 the agency decides, bucket 2 the agency recommends and Granola
+// decides, bucket 1 Granola does both.
+export const BUCKET_ACTIONS = {
+  1: {
+    who: 'Granola in-house',
+    short: 'Do not review',
+    detail:
+      'Subject matter is consent, privacy, data storage, security posture, recording legality or direct competitor comparison. Claims here carry legal and brand exposure that needs someone who can speak for the company. Read it if useful for context, but leave the decisions to Granola.',
+  },
+  2: {
+    who: 'Agency',
+    short: 'Review & recommend',
+    detail:
+      'Review every finding and leave a note saying what you would do and why, but do not Accept or Delete. Granola makes the final call. Use the note field — it regenerates a rewrite from your direction.',
+  },
+  3: {
+    who: 'Agency',
+    short: 'Review & decide',
+    detail:
+      'Yours to complete. Accept, delete or dismiss each finding as you see fit. Flag anything that reads as a claim about what meeting participants can or cannot see, or about where notes are stored — those two are worth a second opinion even here.',
+  },
+};
+
 /**
  * Assign a review bucket.
  *
@@ -207,6 +235,7 @@ export function assignBucket({ slug = '', title = '', red = 0, amber = 0, review
     findingsTier: findings ? findings.tier : null,
     contentLabel: content.label,
     label: BUCKET_LABELS[bucket],
+    action: BUCKET_ACTIONS[bucket],
     reasons,
   };
 }
