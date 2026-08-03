@@ -288,6 +288,10 @@ export interface SlugStatus {
   total: number;
   red: number;
   amber: number;
+  /** Findings that actually need a call — red + amber. */
+  needing: number;
+  /** Of those, how many have any decision recorded. */
+  decided: number;
   accepted: number;
   dismissed: number;
   applied: number;
@@ -304,18 +308,25 @@ export async function getStatusBySlug(): Promise<Record<string, SlugStatus>> {
       total: bigint;
       red: bigint;
       amber: bigint;
+      needing: bigint;
+      decided: bigint;
       accepted: bigint;
       dismissed: bigint;
       applied: bigint;
     }[]
   >`
     SELECT slug,
-           count(*)                                             AS total,
-           count(*) FILTER (WHERE disposition = 'red')           AS red,
-           count(*) FILTER (WHERE disposition = 'amber')         AS amber,
-           count(*) FILTER (WHERE decision = 'accept')           AS accepted,
-           count(*) FILTER (WHERE decision = 'dismiss')          AS dismissed,
-           count(*) FILTER (WHERE applied_to_draft = true)       AS applied
+           count(*)                                       AS total,
+           count(*) FILTER (WHERE disposition = 'red')     AS red,
+           count(*) FILTER (WHERE disposition = 'amber')   AS amber,
+           count(*) FILTER (WHERE disposition IN ('red','amber'))                            AS needing,
+           count(*) FILTER (WHERE disposition IN ('red','amber') AND decision IS NOT NULL)    AS decided,
+           -- 'accept' is Rewrite and 'accept-delete' is Delete. Counting only
+           -- the former reported 0 accepted on articles reviewed by deleting,
+           -- which read as "not reviewed yet".
+           count(*) FILTER (WHERE decision IN ('accept','accept-delete'))                     AS accepted,
+           count(*) FILTER (WHERE decision IN ('dismiss','discard'))                          AS dismissed,
+           count(*) FILTER (WHERE applied_to_draft = true)                                    AS applied
     FROM seo_review_findings
     GROUP BY slug`;
   const out: Record<string, SlugStatus> = {};
@@ -325,6 +336,8 @@ export async function getStatusBySlug(): Promise<Record<string, SlugStatus>> {
       total: Number(r.total),
       red: Number(r.red),
       amber: Number(r.amber),
+      needing: Number(r.needing),
+      decided: Number(r.decided),
       accepted: Number(r.accepted),
       dismissed: Number(r.dismissed),
       applied: Number(r.applied),

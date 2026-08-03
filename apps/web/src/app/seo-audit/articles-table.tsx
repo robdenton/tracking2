@@ -8,7 +8,10 @@ export interface RowStatus {
   total: number;
   red: number;
   amber: number;
+  needing: number;
+  decided: number;
   accepted: number;
+  dismissed: number;
   applied: number;
 }
 
@@ -57,7 +60,9 @@ export function ArticlesTable({
   statuses: Record<string, RowStatus>;
 }) {
   const [q, setQ] = useState("");
-  const [filter, setFilter] = useState<"all" | "reviewed" | "unreviewed" | "red" | "applied">("all");
+  const [filter, setFilter] = useState<
+    "all" | "reviewed" | "unreviewed" | "red" | "applied" | "done"
+  >("all");
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -76,7 +81,9 @@ export function ArticlesTable({
               ? !st
               : filter === "red"
                 ? Boolean(st && st.red > 0)
-                : Boolean(st && st.applied > 0);
+                : filter === "done"
+                  ? Boolean(st && st.needing > 0 && st.decided >= st.needing)
+                  : Boolean(st && st.applied > 0);
       return matchText && matchFilter;
     });
   }, [posts, statuses, q, filter]);
@@ -87,6 +94,7 @@ export function ArticlesTable({
     { key: "unreviewed", label: "Not reviewed" },
     { key: "red", label: "Has red" },
     { key: "applied", label: "Has draft edits" },
+    { key: "done", label: "Fully decided" },
   ];
 
   return (
@@ -165,9 +173,33 @@ export function ArticlesTable({
                       </span>
                     )}
                     <div className="text-xs text-text-muted mt-0.5 font-mono">{p.slug}</div>
-                    {st && st.applied > 0 && (
-                      <div className="text-xs text-green-700 mt-1">
-                        {st.applied} change{st.applied === 1 ? "" : "s"} written to draft
+                    {st && st.needing > 0 && (
+                      <div className="text-xs mt-1">
+                        <span
+                          className={
+                            st.decided >= st.needing
+                              ? "text-green-700 font-medium"
+                              : st.decided > 0
+                                ? "text-amber-700"
+                                : "text-text-muted"
+                          }
+                        >
+                          {st.decided >= st.needing
+                            ? `✓ All ${st.needing} decided`
+                            : `${st.decided} of ${st.needing} decided`}
+                        </span>
+                        {st.applied > 0 && (
+                          <span className="text-text-muted">
+                            {" · "}
+                            {st.applied} written to draft
+                          </span>
+                        )}
+                        {st.decided > st.applied && (
+                          <span className="text-text-muted">
+                            {" · "}
+                            {st.decided - st.applied} no change
+                          </span>
+                        )}
                       </div>
                     )}
                   </td>
@@ -176,7 +208,6 @@ export function ArticlesTable({
                     {st && (
                       <div className="text-xs text-text-muted mt-1">
                         {st.total} finding{st.total === 1 ? "" : "s"}
-                        {st.accepted > 0 ? ` · ${st.accepted} accepted` : ""}
                       </div>
                     )}
                   </td>
