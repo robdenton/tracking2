@@ -228,7 +228,7 @@ async function planPatch(opts: {
     const i = base.indexOf(original);
     let end = i + original.length;
     if (/[.!?]$/.test(replacement) && /^[.!?]/.test(base.slice(end))) end += 1;
-    return (base.slice(0, i) + replacement + base.slice(end)).replace(/ {2,}/g, " ");
+    return tidySeam(base.slice(0, i) + replacement + base.slice(end));
   };
 
   // Plain string fields — ONLY when the finding actually came from that field.
@@ -293,6 +293,29 @@ async function planPatch(opts: {
   };
 }
 
+/**
+ * Repair punctuation left stranded where text was spliced out or replaced.
+ *
+ * Removing a mid-sentence clause such as ", uses device-level capture, keeps
+ * notes private by default," leaves ", , and builds…". Collapsing only spaces
+ * and terminal full stops is not enough — commas and semicolons strand too.
+ */
+function tidySeam(s: string): string {
+  return s
+    .replace(/ {2,}/g, " ")
+    // ", ," / ",," / "; ," and similar runs -> a single separator
+    .replace(/\s*([,;])\s*(?=[,;])/g, "")
+    // " ," -> "," and " ." -> "."
+    .replace(/\s+([,;.!?])/g, "$1")
+    // ",." -> "."   (clause removed just before a sentence end)
+    .replace(/,\s*([.!?])/g, "$1")
+    // a clause removed at the start of a sentence can leave ". , Foo"
+    .replace(/([.!?])\s*,\s*/g, "$1 ")
+    // duplicated sentence-ending punctuation
+    .replace(/([.!?])\1+/g, "$1")
+    .trim();
+}
+
 // Plan a deletion. Sentence scope removes the flagged text (and its trailing
 // space) from the span; paragraph scope removes the whole block. Body blocks
 // only — deleting a title, summary, slug or URL is never automatic.
@@ -339,8 +362,8 @@ async function planDeletion(opts: {
     if (start >= offset && stop <= offset + t.length) {
       const local = start - offset;
       let cut = t.slice(0, local) + t.slice(local + original.length);
-      // Tidy the seam: drop a stranded leading space and a doubled space.
-      cut = cut.replace(/ {2,}/g, " ").replace(/^\s+/, (m) => (local === 0 ? "" : m));
+      cut = tidySeam(cut);
+      if (local === 0) cut = cut.replace(/^\s+/, "");
       return { path: `body[_key=="${blockKey}"].children[${i}].text`, newValue: cut };
     }
     offset += t.length;
