@@ -67,8 +67,11 @@ export async function POST(request: NextRequest) {
 
   const { id, decision = null, note = null, finalText = null } = body;
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
-  if (decision !== null && decision !== "accept" && decision !== "dismiss") {
-    return NextResponse.json({ error: "decision must be accept, dismiss or null" }, { status: 400 });
+  if (decision !== null && !["accept", "dismiss", "discard"].includes(decision)) {
+    return NextResponse.json(
+      { error: "decision must be accept, dismiss, discard or null" },
+      { status: 400 },
+    );
   }
 
   const finding = await getFinding(id);
@@ -105,7 +108,16 @@ export async function POST(request: NextRequest) {
   }
 
   // Re-derive the patch server-side. We do NOT trust a client-supplied path.
-  const plan = await planPatch(finding.post_id, finding.segment_id, finding.original_text, replacement);
+  // Targeting uses the field/block recorded with the finding — searching all
+  // fields would let a short quote (e.g. "compliance") match the title and
+  // splice body copy into the headline.
+  const plan = await planPatch({
+    postId: finding.post_id,
+    fieldKind: finding.field_kind,
+    blockKey: finding.block_key,
+    original: finding.original_text,
+    replacement,
+  });
   if ("error" in plan) {
     return NextResponse.json(
       { ok: true, decision, appliedToDraft: false, warning: plan.error },
@@ -139,12 +151,20 @@ export async function POST(request: NextRequest) {
 
 // Locate the original text in the live document and compute the exact patch.
 // Mirrors review/draft.mjs: verbatim match only, single span only.
-async function planPatch(
-  postId: string,
-  segmentId: string,
-  original: string,
-  replacement: string,
-): Promise<{ path: string; newValue: string } | { error: string }> {
+async function planPatch(opts: {
+  postId: string;
+  fieldKind: string | null;
+  blockKey: string | null;
+  original: string;
+  replacement: string;
+}): Promise<{ path: string; newValue: string } | { error: string }> {
+  const { postId, fieldKind, blockKey, original, replacement } = opts;
+  if (!fieldKind) {
+    return {
+      error:
+        "This finding predates field-level targeting and cannot be applied safely. Re-run the review for this article, then try again.",
+    };
+  }
   const res = await fetch(
     `https://oy7f1h9b.api.sanity.io/v2021-06-07/data/query/production`,
     {
@@ -167,18 +187,32 @@ async function planPatch(
     return (base.slice(0, i) + replacement + base.slice(end)).replace(/ {2,}/g, " ");
   };
 
-  // Plain string fields.
-  for (const field of ["title", "summary"] as const) {
-    const val = doc[field];
-    if (typeof val === "string" && val.includes(original)) {
-      return { path: field, newValue: splice(val) };
+  // Plain string fields — ONLY when the finding actually came from that field.
+  if (fieldKind === "title" || fieldKind === "summary") {
+    const val = doc[fieldKind];
+    if (typeof val !== "string" || !val.includes(original)) {
+      return { error: `The flagged text is no longer present verbatim in the ${fieldKind}. Re-run the review for this article.` };
     }
+    return { path: fieldKind, newValue: splice(val) };
+  }
+  if (fieldKind === "slug") {
+    return { error: "Changing a slug would break the live URL — do this by hand." };
+  }
+  if (fieldKind === "linkHref") {
+    return {
+      error:
+        "This finding is on a link URL. Rewriting a URL automatically would break the link — review and change it by hand in the Studio.",
+    };
+  }
+  if (!blockKey) {
+    return { error: "This finding has no block reference and cannot be applied safely. Re-run the review for this article." };
   }
 
   // Portable-text blocks: the quote must sit inside exactly one span, or we
   // refuse — splicing across spans would corrupt marks and link annotations.
   for (const node of doc.body ?? []) {
     if (!node || !node._key) continue;
+    if (node._key !== blockKey) continue; // target exactly the recorded block
     if (node._type === "block" && Array.isArray(node.children)) {
       const full = node.children.map((c) => c.text ?? "").join("");
       const start = full.indexOf(original);
@@ -211,7 +245,7 @@ async function planPatch(
     }
   }
   return {
-    error: `Could not find the original text verbatim in the live document (segment ${segmentId}). It may have been edited since the review ran — re-run the review for this article.`,
+    error: `Could not find the original text verbatim in block ${blockKey}. The article may have been edited since the review ran — re-run the review for this article.`,
   };
 }
 

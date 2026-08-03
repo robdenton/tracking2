@@ -1,4 +1,4 @@
-import { getAppliedChanges, getPublishStatus } from "@/lib/seo-review";
+import { getAppliedChanges, getDiscardedChanges, getPublishStatus } from "@/lib/seo-review";
 import { SeoNav } from "../nav";
 
 // Audit log of every copy change written to a Sanity DRAFT from the consent &
@@ -25,6 +25,13 @@ export default async function SeoChangeLogPage() {
     rows = await getAppliedChanges();
   } catch (e) {
     loadError = e instanceof Error ? e.message : "Could not load the change log.";
+  }
+
+  let discarded: Awaited<ReturnType<typeof getDiscardedChanges>> = [];
+  try {
+    discarded = await getDiscardedChanges();
+  } catch {
+    /* the applied log still renders without this */
   }
 
   let status: Record<string, { draftExists: boolean; publishedUpdatedAt: string | null }> = {};
@@ -74,6 +81,10 @@ export default async function SeoChangeLogPage() {
         <div className="bg-surface border border-border-light rounded-lg px-4 py-3">
           <div className="text-xl font-semibold text-green-700">{publishedCount}</div>
           <div className="text-xs text-text-secondary">published — live</div>
+        </div>
+        <div className="bg-surface border border-border-light rounded-lg px-4 py-3">
+          <div className="text-xl font-semibold text-text-secondary">{discarded.length}</div>
+          <div className="text-xs text-text-secondary">discarded</div>
         </div>
         <div className="bg-surface border border-border-light rounded-lg px-4 py-3">
           <div className="text-xl font-semibold text-text-primary">
@@ -182,6 +193,56 @@ export default async function SeoChangeLogPage() {
             );
           })}
         </div>
+      )}
+
+      {discarded.length > 0 && (
+        <section className="mt-12">
+          <h2 className="text-lg font-semibold text-text-primary mb-1">
+            Discarded suggestions ({discarded.length})
+          </h2>
+          <p className="text-text-secondary text-sm mb-4">
+            Suggestions deliberately rejected. Kept on the record — a decision to reject a
+            flag is as auditable as a decision to apply one. Nothing was changed in Sanity.
+          </p>
+          <div className="space-y-3">
+            {discarded.map((r) => (
+              <div
+                key={r.id}
+                className="bg-surface border border-border-light rounded-lg p-4 opacity-80"
+              >
+                <div className="flex flex-wrap items-center gap-2 mb-2">
+                  <span className="text-xs font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-surface-sunken text-text-secondary">
+                    {r.disposition}
+                  </span>
+                  <span className="text-xs text-text-muted">
+                    Layer {r.layer}
+                    {r.term ? ` · \u201c${r.term}\u201d` : ""} · {r.field_label}
+                  </span>
+                  <span className="text-xs px-2 py-0.5 rounded ml-auto bg-surface-sunken text-text-secondary border border-border-light">
+                    Discarded — no change made
+                  </span>
+                </div>
+                <div className="font-medium text-text-primary text-sm mb-1">{r.slug}</div>
+                <div className="text-sm text-text-secondary italic mb-2">
+                  &ldquo;{r.original_text}&rdquo;
+                </div>
+                {r.note && (
+                  <div className="text-sm text-text-secondary mb-2">
+                    <span className="font-medium">Your note: </span>
+                    {r.note}
+                  </div>
+                )}
+                <div className="flex flex-wrap gap-4 text-xs text-text-muted">
+                  <span>Discarded {fmt(r.decided_at)}</span>
+                  {r.decided_by && <span>by {r.decided_by}</span>}
+                  <a href={`/review/${r.slug}.html`} className="text-accent-strong hover:underline">
+                    Review page
+                  </a>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
       )}
     </main>
   );

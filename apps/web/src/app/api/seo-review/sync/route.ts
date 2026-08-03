@@ -55,6 +55,8 @@ interface IncomingFinding {
   readerTakeaway?: string | null;
   rulesHash: string;
   model: string;
+  fieldKind?: string | null;
+  blockKey?: string | null;
 }
 
 // POST — upsert findings produced by the review runner.
@@ -78,12 +80,12 @@ export async function POST(request: NextRequest) {
       INSERT INTO seo_review_findings (
         id, post_id, slug, title, segment_id, field_label, layer, term,
         disposition, confidence, original_text, proposed_text, reader_takeaway,
-        rules_hash, model, applied_to_draft, created_at, updated_at
+        rules_hash, model, applied_to_draft, field_kind, block_key, created_at, updated_at
       ) VALUES (
         ${f.id}, ${f.postId}, ${f.slug}, ${f.title}, ${f.segmentId}, ${f.fieldLabel},
         ${f.layer}, ${f.term ?? null}, ${f.disposition}, ${f.confidence ?? null},
         ${f.originalText}, ${f.proposedText ?? null}, ${f.readerTakeaway ?? null},
-        ${f.rulesHash}, ${f.model}, false, NOW(), NOW()
+        ${f.rulesHash}, ${f.model}, false, ${f.fieldKind ?? null}, ${f.blockKey ?? null}, NOW(), NOW()
       )
       ON CONFLICT (id) DO UPDATE SET
         disposition = EXCLUDED.disposition,
@@ -92,6 +94,8 @@ export async function POST(request: NextRequest) {
         confidence = EXCLUDED.confidence,
         rules_hash = EXCLUDED.rules_hash,
         model = EXCLUDED.model,
+        field_kind = EXCLUDED.field_kind,
+        block_key = EXCLUDED.block_key,
         updated_at = NOW()`;
     inserted++;
   }

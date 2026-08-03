@@ -110,10 +110,12 @@ export function extractSegments(post) {
         } else {
           push('paragraph', text, prov);
         }
-        // Link anchor text + href as their own reviewable segments.
+        // Link anchor text + href as their own reviewable segments. These carry
+        // block provenance too — without it a finding on link text cannot be
+        // targeted back to a specific node and is unsafe to patch.
         for (const l of blockLinks(node)) {
-          push('linkText', l.text, { href: l.href });
-          if (l.href) push('linkHref', l.href, { href: l.href });
+          push('linkText', l.text, { ...prov, href: l.href });
+          if (l.href) push('linkHref', l.href, { ...prov, href: l.href });
         }
       } else if (node._type === 'rawHtml' && typeof node.html === 'string') {
         const prov = { blockKey: node._key || null, blockType: 'rawHtml' };
@@ -125,8 +127,8 @@ export function extractSegments(post) {
         let m;
         while ((m = re.exec(node.html)) !== null) {
           const t = stripTags(m[2]);
-          if (t) push('linkText', t, { href: m[1] });
-          push('linkHref', m[1], { href: m[1] });
+          if (t) push('linkText', t, { ...prov, href: m[1] });
+          push('linkHref', m[1], { ...prov, href: m[1] });
         }
       }
     }

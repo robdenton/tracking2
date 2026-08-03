@@ -39,6 +39,8 @@ export interface FindingRow {
   applied_to_draft: boolean;
   applied_at: Date | null;
   sanity_path: string | null;
+  field_kind: string | null;
+  block_key: string | null;
 }
 
 // --- Sanity reads (public dataset, no token needed) ------------------------
@@ -214,6 +216,15 @@ export async function getAppliedChanges(): Promise<FindingRow[]> {
     SELECT * FROM seo_review_findings
     WHERE applied_to_draft = true
     ORDER BY applied_at DESC`;
+}
+
+/** Suggestions deliberately rejected. Recorded, not deleted — the decision to
+ *  reject a flag is as auditable as the decision to apply one. */
+export async function getDiscardedChanges(): Promise<FindingRow[]> {
+  return prisma.$queryRaw<FindingRow[]>`
+    SELECT * FROM seo_review_findings
+    WHERE decision IN ('discard', 'dismiss')
+    ORDER BY decided_at DESC`;
 }
 
 export async function recordDecision(opts: {

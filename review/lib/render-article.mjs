@@ -117,7 +117,7 @@ function renderPanel(findings) {
       <div class="fdecide">
         <label><input type="radio" name="dec-${f.number}" value="accept" data-num="${f.number}"> Accept</label>
         <label><input type="radio" name="dec-${f.number}" value="dismiss" data-num="${f.number}"> Dismiss</label>
-        <button class="clearbtn" data-num="${f.number}" type="button">clear</button>
+        <button class="clearbtn" data-num="${f.number}" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
       </div>
       <div class="fstatus" data-num="${f.number}"></div>
       <textarea class="fnote" data-num="${f.number}" rows="2" placeholder="Note…"></textarea>
@@ -206,6 +206,11 @@ export function renderArticlePage({ post, segments, findings, counts, prev, next
         background:none;border:1px solid var(--line);border-radius:5px;padding:2px 7px;cursor:pointer}
   .fnote{width:100%;font:inherit;font-size:12.5px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;resize:vertical}
   .finding.decided-accept{background:#f0fdf4} .finding.decided-dismiss{opacity:.62}
+  .finding.discarded{display:none}
+  .panel.reveal-discarded .finding.discarded{display:block;opacity:.5;border-left-color:#c9c9c9}
+  mark.hl.hl-discarded{background:none!important;box-shadow:none!important;border-bottom:1px dotted #d0d0d0;color:inherit}
+  #outstanding{font-size:11px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);margin-left:6px}
+  #showdiscarded{font-size:11px;font-weight:400;text-transform:none;letter-spacing:0;margin-left:8px;color:var(--accent)}
   .fstatus{font-size:11.5px;margin:2px 0 6px;min-height:14px;color:var(--muted)}
   .fstatus.ok{color:#15803d;font-weight:600}
   .fstatus.warn{color:#b45309;font-weight:600}
@@ -247,7 +252,8 @@ export function renderArticlePage({ post, segments, findings, counts, prev, next
   </main>
   <aside class="panel">
     <div class="panelhead">
-      <h2>Findings (${findings.length})</h2>
+      <h2>Findings <span id="outstanding">${findings.length} of ${findings.length} outstanding</span>
+        <a href="#" id="showdiscarded" style="display:none">show discarded</a></h2>
       <button class="exportbtn" id="export">Export decisions to CSV</button>
     </div>
     ${renderPanel(findings)}
@@ -301,11 +307,13 @@ export function renderArticlePage({ post, segments, findings, counts, prev, next
             if (r) r.checked = true;
           }
           if (s.note) { var t = document.querySelector('.fnote[data-num="' + f.number + '"]'); if (t) t.value = s.note; }
-          if (s.appliedToDraft) setStatus(f.number, '✓ Written to the Sanity draft', 'ok');
+          if (s.decision === 'discard') { setStatus(f.number, 'Discarded', ''); hideFinding(f.number); }
+          else if (s.appliedToDraft) setStatus(f.number, '✓ Written to the Sanity draft', 'ok');
           else if (s.decision === 'accept') setStatus(f.number, '⚠ Accepted but not yet written to the draft — click Accept again to retry', 'warn');
           paint(f.number);
         });
         mirror();
+        updateOutstanding();
       })
       .catch(function(e){
         // Offline / not signed in: show local mirror but say it is unsaved.
@@ -373,15 +381,43 @@ export function renderArticlePage({ post, segments, findings, counts, prev, next
       }, 900);
     });
   });
+  // Discard: record the suggestion as deliberately rejected, then remove it from
+  // the panel so what remains is what is still outstanding. It is NOT deleted —
+  // it stays in the log as a discarded decision.
+  function hideFinding(n){
+    var el = document.getElementById('finding-' + n);
+    if (el) el.classList.add('discarded');
+    document.querySelectorAll('mark.hl').forEach(function(m){
+      var nums = m.getAttribute('data-findings').split(',');
+      if (nums.indexOf(String(n)) !== -1 && nums.length === 1) m.classList.add('hl-discarded');
+    });
+    updateOutstanding();
+  }
+  function updateOutstanding(){
+    var all = document.querySelectorAll('.finding').length;
+    var gone = document.querySelectorAll('.finding.discarded').length;
+    var el = document.getElementById('outstanding');
+    if (el) el.textContent = (all - gone) + ' of ' + all + ' outstanding';
+    var t = document.getElementById('showdiscarded');
+    if (t) t.style.display = gone ? 'inline' : 'none';
+  }
   document.querySelectorAll('.clearbtn').forEach(function(b){
     b.addEventListener('click', function(){
       var n = b.getAttribute('data-num');
-      delete state[n]; mirror();
+      state[n] = state[n] || {}; state[n].decision = 'discard'; mirror();
       document.querySelectorAll('input[name="dec-' + n + '"]').forEach(function(r){ r.checked = false; });
-      var t = document.querySelector('.fnote[data-num="' + n + '"]'); if (t) t.value = '';
-      paint(n);
-      send(n, null, null);
+      setStatus(n, 'Discarded — recorded in the log', '');
+      send(n, 'discard', (state[n] && state[n].note) || null);
+      hideFinding(n);
     });
+  });
+  // Toggle to bring discarded suggestions back into view.
+  var toggle = document.getElementById('showdiscarded');
+  if (toggle) toggle.addEventListener('click', function(e){
+    e.preventDefault();
+    document.querySelector('.panel').classList.toggle('reveal-discarded');
+    toggle.textContent = document.querySelector('.panel').classList.contains('reveal-discarded')
+      ? 'hide discarded' : 'show discarded';
   });
 
   // ---- highlight <-> panel linking ----
