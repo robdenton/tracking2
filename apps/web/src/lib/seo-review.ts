@@ -44,6 +44,7 @@ export interface FindingRow {
   rewrite_scope: string | null;
   deletion_scope: string | null;
   deletion_note: string | null;
+  category: string | null;
 }
 
 // --- Sanity reads (public dataset, no token needed) ------------------------
@@ -227,7 +228,7 @@ export async function getFindingsForSlug(slug: string): Promise<FindingRow[]> {
            disposition, confidence, original_text, proposed_text, final_text,
            reader_takeaway, decision, note, decided_by, decided_at,
            rules_hash, model, applied_to_draft, applied_at, sanity_path,
-           field_kind, block_key, rewrite_scope, deletion_scope, deletion_note
+           field_kind, block_key, rewrite_scope, deletion_scope, deletion_note, category
     FROM seo_review_findings WHERE slug = ${slug} ORDER BY id ASC`;
 }
 
@@ -237,7 +238,7 @@ export async function getFinding(id: string): Promise<FindingRow | null> {
            disposition, confidence, original_text, proposed_text, final_text,
            reader_takeaway, decision, note, decided_by, decided_at,
            rules_hash, model, applied_to_draft, applied_at, sanity_path,
-           field_kind, block_key, rewrite_scope, deletion_scope, deletion_note
+           field_kind, block_key, rewrite_scope, deletion_scope, deletion_note, category
     FROM seo_review_findings WHERE id = ${id} LIMIT 1`;
   return rows[0] ?? null;
 }
@@ -249,7 +250,7 @@ export async function getAppliedChanges(): Promise<FindingRow[]> {
            disposition, confidence, original_text, proposed_text, final_text,
            reader_takeaway, decision, note, decided_by, decided_at,
            rules_hash, model, applied_to_draft, applied_at, sanity_path,
-           field_kind, block_key, rewrite_scope, deletion_scope, deletion_note
+           field_kind, block_key, rewrite_scope, deletion_scope, deletion_note, category
     FROM seo_review_findings
     WHERE applied_to_draft = true
     ORDER BY applied_at DESC`;
@@ -263,7 +264,7 @@ export async function getDiscardedChanges(): Promise<FindingRow[]> {
            disposition, confidence, original_text, proposed_text, final_text,
            reader_takeaway, decision, note, decided_by, decided_at,
            rules_hash, model, applied_to_draft, applied_at, sanity_path,
-           field_kind, block_key, rewrite_scope, deletion_scope, deletion_note
+           field_kind, block_key, rewrite_scope, deletion_scope, deletion_note, category
     FROM seo_review_findings
     WHERE decision IN ('discard', 'dismiss')
     ORDER BY decided_at DESC`;

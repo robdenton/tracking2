@@ -112,6 +112,7 @@ interface IncomingFinding {
   rewriteScope?: string | null;
   deletionScope?: string | null;
   deletionNote?: string | null;
+  category?: string | null;
 }
 
 // POST — upsert findings produced by the review runner.
@@ -136,13 +137,14 @@ export async function POST(request: NextRequest) {
         id, post_id, slug, title, segment_id, field_label, layer, term,
         disposition, confidence, original_text, proposed_text, reader_takeaway,
         rules_hash, model, applied_to_draft, field_kind, block_key,
-        rewrite_scope, deletion_scope, deletion_note, created_at, updated_at
+        rewrite_scope, deletion_scope, deletion_note, category, created_at, updated_at
       ) VALUES (
         ${f.id}, ${f.postId}, ${f.slug}, ${f.title}, ${f.segmentId}, ${f.fieldLabel},
         ${f.layer}, ${f.term ?? null}, ${f.disposition}, ${f.confidence ?? null},
         ${f.originalText}, ${f.proposedText ?? null}, ${f.readerTakeaway ?? null},
         ${f.rulesHash}, ${f.model}, false, ${f.fieldKind ?? null}, ${f.blockKey ?? null},
-        ${f.rewriteScope ?? null}, ${f.deletionScope ?? null}, ${f.deletionNote ?? null}, NOW(), NOW()
+        ${f.rewriteScope ?? null}, ${f.deletionScope ?? null}, ${f.deletionNote ?? null},
+        ${f.category ?? "disclosure"}, NOW(), NOW()
       )
       ON CONFLICT (id) DO UPDATE SET
         disposition = EXCLUDED.disposition,
@@ -156,6 +158,7 @@ export async function POST(request: NextRequest) {
         rewrite_scope = EXCLUDED.rewrite_scope,
         deletion_scope = EXCLUDED.deletion_scope,
         deletion_note = EXCLUDED.deletion_note,
+        category = EXCLUDED.category,
         updated_at = NOW()`;
     inserted++;
   }
