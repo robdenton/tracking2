@@ -302,6 +302,7 @@ export function renderArticlePage({ post, segments, findings, counts, prev, next
           }
           if (s.note) { var t = document.querySelector('.fnote[data-num="' + f.number + '"]'); if (t) t.value = s.note; }
           if (s.appliedToDraft) setStatus(f.number, '✓ Written to the Sanity draft', 'ok');
+          else if (s.decision === 'accept') setStatus(f.number, '⚠ Accepted but not yet written to the draft — click Accept again to retry', 'warn');
           paint(f.number);
         });
         mirror();
@@ -351,8 +352,11 @@ export function renderArticlePage({ post, segments, findings, counts, prev, next
       .catch(function(e){ setStatus(num, '⚠ Save failed: ' + e.message, 'warn'); });
   }
 
+  // Use 'click' rather than 'change' so re-selecting an already-selected option
+  // retries. A previous attempt can fail (e.g. a bad token) leaving the choice
+  // selected but unapplied — with 'change' alone that is a dead end.
   document.querySelectorAll('.fdecide input[type=radio]').forEach(function(r){
-    r.addEventListener('change', function(){
+    r.addEventListener('click', function(){
       var n = r.getAttribute('data-num');
       state[n] = state[n] || {}; state[n].decision = r.value; mirror(); paint(n);
       send(n, r.value, (state[n] && state[n].note) || null);
