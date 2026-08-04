@@ -186,7 +186,13 @@ export default async function SeoChangeLogPage() {
 
                 <div className="flex flex-wrap gap-4 text-xs text-text-muted mt-3">
                   <span>Applied {fmt(r.applied_at)}</span>
-                  {r.decided_by && <span>by {r.decided_by}</span>}
+                  {r.decided_by && (
+                    <span className={r.decided_by === "auto-batch" ? "text-indigo-700 font-medium" : ""}>
+                      {r.decided_by === "auto-batch"
+                        ? "applied automatically by Claude"
+                        : `accepted by ${r.decided_by}`}
+                    </span>
+                  )}
                   {published && status[r.post_id]?.publishedUpdatedAt && (
                     <span>Published {fmt(status[r.post_id].publishedUpdatedAt)}</span>
                   )}
@@ -255,7 +261,13 @@ export default async function SeoChangeLogPage() {
                 )}
                 <div className="flex flex-wrap gap-4 text-xs text-text-muted">
                   <span>Discarded {fmt(r.decided_at)}</span>
-                  {r.decided_by && <span>by {r.decided_by}</span>}
+                  {r.decided_by && (
+                    <span>
+                      {r.decided_by === "auto-batch"
+                        ? "cleared automatically by Claude"
+                        : `decided by ${r.decided_by}`}
+                    </span>
+                  )}
                   <a href={`/review/${r.slug}.html`} className="text-accent-strong hover:underline">
                     Review page
                   </a>
