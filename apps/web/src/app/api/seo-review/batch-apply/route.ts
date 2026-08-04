@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
     const f = await getFinding(row.id);
     if (!f) continue;
 
-    const base: Omit<BatchChange, "action" | "scope" | "replacement" | "path" | "warning" | "appliedAt"> = {
+    const base: Omit<BatchChange, "action" | "scope" | "original" | "replacement" | "path" | "warning" | "appliedAt"> = {
       findingId: f.id,
       slug: f.slug,
       title: row.title,
