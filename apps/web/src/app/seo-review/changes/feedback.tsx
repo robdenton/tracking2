@@ -137,6 +137,11 @@ export function ChangesFilter() {
     });
     const counter = document.getElementById("changes-count");
     if (counter) counter.textContent = `Showing ${shown} of ${cards.length} edits`;
+    // The discarded section is not edits — hide it whenever a specific filter
+    // is active, so "Machine edits (0)" never shows a page full of rejected
+    // suggestions that look like uncounted edits.
+    const disc = document.getElementById("discarded-section");
+    if (disc) disc.style.display = key === "all" ? "" : "none";
   };
 
   useEffect(() => {

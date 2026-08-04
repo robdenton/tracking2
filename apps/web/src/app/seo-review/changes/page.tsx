@@ -97,6 +97,14 @@ export default async function SeoChangeLogPage() {
 
       <ChangesFilter />
 
+      <h2 className="text-lg font-semibold text-text-primary mb-1">
+        Edits applied to drafts ({rows.length})
+      </h2>
+      <p className="text-text-secondary text-sm mb-4">
+        Each of these changed an article&apos;s draft in Sanity. The filter above applies to
+        this list.
+      </p>
+
       {rows.length === 0 && !loadError ? (
         <p className="text-text-muted">
           No changes applied yet. Accepting a finding on a review page writes the rewrite to
@@ -223,9 +231,9 @@ export default async function SeoChangeLogPage() {
       )}
 
       {discarded.length > 0 && (
-        <section className="mt-12">
+        <section className="mt-12" id="discarded-section">
           <h2 className="text-lg font-semibold text-text-primary mb-1">
-            Discarded suggestions ({discarded.length})
+            Discarded suggestions ({discarded.length}) — no edit was made
           </h2>
           <p className="text-text-secondary text-sm mb-4">
             Suggestions deliberately rejected. Kept on the record — a decision to reject a
