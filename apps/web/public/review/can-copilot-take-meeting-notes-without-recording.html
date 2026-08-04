@@ -1,0 +1,1645 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Review — Can Copilot take meeting notes without recording? Yes, but here's where they go</title>
+<style>
+  :root{--bg:#fbfbfa;--card:#fff;--ink:#1a1a1a;--muted:#6b7280;--line:#e5e7eb;--accent:#4f46e5;
+        --red:#b91c1c;--redbg:#fee2e2;--amber:#b45309;--amberbg:#fef3c7;--comp:#7c3aed;--compbg:#ede9fe;--clr:#6b7280;--ok:#15803d}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  header{background:var(--card);border-bottom:1px solid var(--line);padding:16px 24px;position:sticky;top:0;z-index:20}
+  h1{font-size:19px;margin:0 0 6px;line-height:1.35}
+  .meta{color:var(--muted);font-size:13px;display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center}
+  .meta a{color:var(--accent)}
+  .nav{display:flex;gap:8px;margin-top:10px;align-items:center;flex-wrap:wrap}
+  .nav a,.nav span{font-size:13px;padding:5px 11px;border:1px solid var(--line);border-radius:7px;
+       background:var(--card);text-decoration:none;color:var(--ink)}
+  .nav a:hover{border-color:var(--accent);color:var(--accent)}
+  .nav .disabled{color:#c0c0c0}
+  .nav .sep{border:none;padding:0;width:10px}
+  .wrap{display:grid;grid-template-columns:minmax(0,1fr) 420px;gap:28px;max-width:1500px;margin:0 auto;padding:24px}
+  @media (max-width:1100px){.wrap{grid-template-columns:1fr}.panel{position:static!important;max-height:none!important}}
+  .prose{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:28px 32px;
+         max-width:72ch;line-height:1.75}
+  .fieldgroup{margin-bottom:28px}
+  .fieldlabel{font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);
+              font-weight:700;border-bottom:1px solid var(--line);padding-bottom:6px;margin:0 0 14px}
+  .metafield{margin-bottom:12px}
+  .metakey{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+  .metaval{font-size:15px}
+  .body-h{margin:26px 0 10px;line-height:1.35}
+  h2.body-h{font-size:22px} h3.body-h{font-size:18px} h4.body-h{font-size:16px}
+  .body-p{margin:0 0 15px}
+  .body-list{margin:0 0 15px 22px} .body-list li{margin-bottom:7px}
+  .body-quote{margin:0 0 16px;padding:10px 16px;border-left:3px solid var(--accent);background:#f8f7ff;font-style:italic}
+  .cell{margin:0 0 8px;padding:7px 10px;background:#f8f8f7;border-radius:6px;font-size:14px}
+  .cell.url{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;word-break:break-all}
+  .tag-inline{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:2px;font-style:normal}
+  mark.hl{padding:1px 0;border-radius:2px;cursor:pointer;background:none}
+  mark.hl.d-red{background:var(--redbg);box-shadow:0 1px 0 var(--red)}
+  mark.hl.d-amber{background:var(--amberbg);box-shadow:0 1px 0 var(--amber)}
+  mark.hl.d-competitor{background:var(--compbg);box-shadow:0 1px 0 var(--comp)}
+  mark.hl.d-cleared,mark.hl.d-notaudited{background:none;border-bottom:2px dotted #b6b6b6;color:#555}
+  mark.hl:focus{outline:2px solid var(--accent)}
+  mark.hl.pulse{animation:pulse 1.1s ease-out 2}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(79,70,229,.55)}50%{box-shadow:0 0 0 7px rgba(79,70,229,0)}}
+  .hlnum{font-size:10px;font-weight:700;color:var(--accent);vertical-align:super;margin-left:1px}
+  .panel{position:sticky;top:104px;max-height:calc(100vh - 128px);overflow:auto}
+  .panelhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px}
+  .panelhead h2{font-size:14px;margin:0;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+  .finding{background:var(--card);border:1px solid var(--line);border-left-width:4px;border-radius:9px;
+           padding:13px 15px;margin-bottom:11px;font-size:13.5px;scroll-margin-top:110px}
+  .finding.d-red{border-left-color:var(--red)} .finding.d-amber{border-left-color:var(--amber)}
+  .finding.d-competitor{border-left-color:var(--comp)} .finding.d-cleared,.finding.d-notaudited{border-left-color:#c9c9c9}
+  .finding.active{box-shadow:0 0 0 2px var(--accent)}
+  .fhead{display:flex;align-items:center;gap:8px;margin-bottom:5px;flex-wrap:wrap}
+  .fnum{background:var(--accent);color:#fff;border-radius:50%;width:21px;height:21px;display:inline-flex;
+        align-items:center;justify-content:center;font-size:11px;font-weight:700;flex:none}
+  .fdisp{font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+  .d-red .fdisp{color:var(--red)} .d-amber .fdisp{color:var(--amber)}
+  .d-competitor .fdisp{color:var(--comp)} .d-cleared .fdisp,.d-notaudited .fdisp{color:var(--clr)}
+  .flayer{font-size:11px;color:var(--muted);margin-left:auto}
+  .fcat{font-size:10px;font-weight:800;letter-spacing:.06em;padding:2px 7px;border-radius:5px}
+  .cat-accuracy{background:#1e1b4b;color:#fff}
+  .cat-bot-denigration{background:#7c2d12;color:#fff}
+  .ffield{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+  .fquote{margin:0 0 8px;padding:7px 11px;background:#f7f7f6;border-radius:6px;font-style:italic;font-size:13px}
+  .ftake,.frewrite{margin-bottom:7px;font-size:13px}
+  .frewrite{color:#065f46;background:#f0fdf4;padding:7px 10px;border-radius:6px;margin-bottom:7px}
+  .fdelete{color:#7c2d12;background:#fff7ed;padding:7px 10px;border-radius:6px;margin-bottom:7px}
+  .fdelete.muted-note{color:var(--muted);background:#f7f7f6}
+  .fdefer{font-size:12px;color:var(--muted);background:#f4f4ff;border-left:2px solid var(--accent);
+          padding:6px 9px;border-radius:5px;margin-bottom:7px}
+  .fdefer a{color:var(--accent);font-weight:600}
+  .fdecide{display:flex;gap:12px;align-items:center;font-size:12.5px;margin:9px 0 6px}
+  .fdecide label{cursor:pointer} .clearbtn{margin-left:auto;font-size:11px;color:var(--muted);
+        background:none;border:1px solid var(--line);border-radius:5px;padding:2px 7px;cursor:pointer}
+  .freprompt{margin:4px 0 7px}
+  .fdirect{width:100%;font:inherit;font-size:12.5px;padding:6px 8px;border:1px solid var(--line);
+           border-radius:6px;resize:vertical;background:#fcfcff}
+  .regenbtn{margin-top:5px;font-size:11.5px;padding:4px 10px;border:1px solid var(--accent);
+            color:var(--accent);background:var(--card);border-radius:6px;cursor:pointer;font-weight:600}
+  .regenbtn:hover:not(:disabled){background:var(--accent);color:#fff}
+  .regenbtn:disabled{opacity:.55;cursor:default}
+  .regenout{font-size:12.5px;margin-top:6px}
+  .newrw{background:#f0fdf4;border-left:3px solid #16a34a;padding:8px 10px;border-radius:6px;color:#065f46}
+  .newrw .why{color:#3f6212;font-size:11.5px;margin-top:4px}
+  .newrw .acts{margin-top:6px;display:flex;gap:8px}
+  .newrw button{font-size:11.5px;padding:3px 9px;border-radius:5px;cursor:pointer;border:1px solid var(--line);background:#fff}
+  .newrw button.use{border-color:#16a34a;color:#166534;font-weight:600}
+  .regenerr{background:#fef3c7;border-left:3px solid #d97706;padding:7px 10px;border-radius:6px;color:#78350f}
+  .fnote{width:100%;font:inherit;font-size:12.5px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;resize:vertical}
+  .finding.decided-accept{background:#f0fdf4} .finding.decided-dismiss{opacity:.62}
+  /* Once decided, a finding collapses to a single line so the panel shows what
+     is still outstanding at a glance. Click the header to reopen it. */
+  .finding.collapsed{padding:8px 13px;cursor:pointer}
+  .finding.collapsed .fbody{display:none}
+  .finding.collapsed .fhead{margin-bottom:0}
+  .finding.collapsed .fdone{display:block}
+  .fdone{display:none;font-size:11.5px;font-weight:600;margin-top:3px}
+  .finding.collapsed.decided-accept .fdone{color:#15803d}
+  .finding.collapsed.decided-dismiss .fdone{color:var(--muted)}
+  .finding.collapsed:hover{box-shadow:0 0 0 1px var(--accent)}
+  .finding.discarded{display:none}
+  /* Cleared items are listed for auditability but hidden by default — at ~70%
+     of findings they drown the ones that need a decision. */
+  .panel:not(.reveal-cleared) .finding.is-cleared{display:none}
+  .panel.reveal-cleared .finding.is-cleared{opacity:.62}
+  .panelfilters{display:flex;gap:14px;flex-wrap:wrap;margin:0 0 10px;font-size:12px;color:var(--muted)}
+  .tgl{display:inline-flex;align-items:center;gap:5px;cursor:pointer;user-select:none}
+  .tgl input{margin:0}
+  mark.hl.hl-cleared-hidden{background:none!important;box-shadow:none!important;
+    border-bottom:1px dotted #d4d4d4;color:inherit}
+  .panel.reveal-discarded .finding.discarded{display:block;opacity:.5;border-left-color:#c9c9c9}
+  mark.hl.hl-discarded{background:none!important;box-shadow:none!important;border-bottom:1px dotted #d0d0d0;color:inherit}
+  #outstanding{font-size:11px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);margin-left:6px}
+  #showdiscarded{font-size:11px;font-weight:400;text-transform:none;letter-spacing:0;margin-left:8px;color:var(--accent)}
+  .fstatus{font-size:11.5px;margin:2px 0 6px;min-height:14px;color:var(--muted)}
+  .fstatus.ok{color:#15803d;font-weight:600}
+  .fstatus.warn{color:#b45309;font-weight:600}
+  .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:700}
+  .pill.d-red{background:var(--redbg);color:var(--red)} .pill.d-amber{background:var(--amberbg);color:var(--amber)}
+  .pill.d-competitor{background:var(--compbg);color:var(--comp)}
+  .pill.d-cleared,.pill.d-notaudited{background:#f0f0f0;color:var(--clr)}
+  .pill.d-clean{background:#dcfce7;color:var(--ok)}
+  .manualbox{background:#fffbeb;border:1px solid #f0c674;border-radius:9px;padding:11px 13px;margin-bottom:11px}
+  .manualhead{font-weight:700;font-size:13px;color:#92400e;margin-bottom:7px}
+  .manualcount{font-weight:400;color:#a16207}
+  .manualitem{background:#fff;border-left:3px solid #d97706;padding:8px 10px;border-radius:6px;margin-bottom:7px;font-size:12.5px}
+  .manualitem .why{color:#78350f;margin-top:3px}
+  .manualitem .txt{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;
+                   background:#faf9f7;padding:5px 7px;border-radius:4px;margin-top:4px;display:block}
+  .verifybox{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:11px 13px;margin-bottom:11px}
+  .verifyhead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px;font-size:13px}
+  .verifybtn{font-size:12px;padding:5px 11px;border:1px solid var(--accent);color:var(--accent);
+             background:var(--card);border-radius:7px;cursor:pointer;font-weight:600}
+  .verifybtn:hover{background:var(--accent);color:#fff}
+  .verifyout{font-size:12.5px;color:var(--muted);line-height:1.5}
+  .vissue{background:#fef3c7;border-left:3px solid #d97706;padding:7px 10px;border-radius:6px;margin:6px 0;color:#78350f}
+  .vmanual{background:#eef2ff;border-left:3px solid var(--accent);padding:7px 10px;border-radius:6px;margin:6px 0;color:#312e81}
+  .vidle{background:#f7f7f6;border-left:3px solid #c9c9c9;padding:7px 10px;border-radius:6px;color:var(--muted)}
+  .vok{background:#f0fdf4;border-left:3px solid #16a34a;padding:7px 10px;border-radius:6px;color:#166534}
+  .vsnip{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;display:block;margin-top:3px;opacity:.85}
+  .loadwarn{background:#fef3c7;border:1px solid #f0c674;color:#92400e;padding:9px 12px;
+            border-radius:8px;font-size:12.5px;margin-bottom:10px;line-height:1.45}
+  .clean{background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;padding:14px;border-radius:9px;font-size:14px}
+  .exportbtn{font-size:12px;padding:5px 11px;border:1px solid var(--line);border-radius:7px;background:var(--card);cursor:pointer}
+  .exportbtn:hover{border-color:var(--accent);color:var(--accent)}
+  .builderr{background:#fee2e2;border:1px solid var(--red);color:var(--red);padding:12px 15px;border-radius:9px;margin-bottom:16px;font-size:13.5px}
+  code{background:#f0f0ef;padding:1px 5px;border-radius:4px;font-size:12.5px}
+  .bkbadge{padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700;cursor:help}
+  .bkbadge.bk1{background:#fee2e2;color:#991b1b}
+  .bkbadge.bk2{background:#fef3c7;color:#92400e}
+  .bkbadge.bk3{background:#dcfce7;color:#166534}
+  .actbar{margin:11px 0 0;padding:10px 14px;border-radius:9px;font-size:13px;line-height:1.55;
+          border:1px solid transparent}
+  .actbar b{font-weight:800}
+  .actbar.act1{background:#fee2e2;color:#7f1d1d;border-color:#fca5a5}
+  .actbar.act2{background:#fef3c7;color:#78350f;border-color:#fcd34d}
+  .actbar.act3{background:#dcfce7;color:#14532d;border-color:#86efac}
+</style></head><body>
+<header>
+  <h1>Can Copilot take meeting notes without recording? Yes, but here's where they go</h1>
+  <div class="meta">
+    <span class="bkbadge bk1" title="Content: recording legality &amp; avoidance — Frames capture around not recording, turning recording off, or whether recording is safe. High risk of reading as guidance on capturing people without their knowledge.
+
+Findings: 3 red and 5 amber findings.
+
+Held at the higher sensitivity by subject matter, despite a low finding count — the topic carries risk the count does not capture.">Bucket 1 · highest sensitivity</span>
+    <span class="bkbadge bk1">Granola in-house: Do not review</span>
+    <span><code>can-copilot-take-meeting-notes-without-recording</code></span>
+    <span>Published 2026-06-05</span>
+    <span><code>fa11444c-5a10-4ad7-bd07-d3afbdc12622</code></span>
+    <a href="https://www.granola.ai/blog/can-copilot-take-meeting-notes-without-recording" target="_blank" rel="noopener">Live page ↗</a>
+    <a href="https://www.granola.ai/studio/structure/seoPosts;fa11444c-5a10-4ad7-bd07-d3afbdc12622" target="_blank" rel="noopener">Sanity Studio ↗</a>
+    <span><span class="pill d-amber">amber 5</span> <span class="pill d-competitor">about-competitor 7</span> <span class="pill d-cleared">cleared-in-context 15</span> <span class="pill d-red">red 3</span></span>
+  </div>
+  <div class="actbar act1">
+    <b>Granola in-house — Do not review.</b> Subject matter is consent, privacy, data storage, security posture, recording legality or direct competitor comparison. Claims here carry legal and brand exposure that needs someone who can speak for the company. Read it if useful for context, but leave the decisions to Granola.
+  </div>
+  <div class="nav">
+    <a href="/seo-audit">All articles</a>
+    <a href="index.html">Review status</a>
+    <a href="/seo-review/changes">Change log</a>
+    <span class="sep"></span>
+    <a href="can-you-record-zoom-meetings-for-free-yes-and-heres-why-most-people-end-up-losing-them.html" id="prevlink">← Previous</a>
+    <a href="ai-note-taking-team-adoption.html" id="nextlink">Next →</a>
+    <span class="disabled" style="border:none">← / → arrow keys</span>
+  </div>
+</header>
+<div class="wrap">
+  <main class="prose">
+    
+    <section class="fieldgroup"><h3 class="fieldlabel">Title, slug &amp; meta/summary</h3>
+<div class="metafield"><span class="metakey">Title</span><div class="metaval">Can Copilot take meeting notes without recording? Yes, but here's where they go</div></div>
+<div class="metafield"><span class="metakey">Slug (URL)</span><div class="metaval">can-copilot-take-meeting-notes-without-recording</div></div>
+<div class="metafield"><span class="metakey">Meta / summary</span><div class="metaval">Copilot can take meeting notes without recording, but notes vanish when the call ends and data still processes through Microsoft 365.</div></div>
+</section>
+<section class="fieldgroup"><h3 class="fieldlabel">Article body</h3>
+<blockquote class="body-quote"><span class="tag-inline">Blockquote / testimonial</span>TL;DR Yes, Microsoft Copilot can take meeting notes without recording a Teams call. But three trade-offs matter: You need a Copilot add-on license, notes disappear the moment the meeting window closes, and your speech-to-text data still processes through Microsoft 365 infrastructure even without a saved recording. For professionals running confidential, back-to-back meetings where the record must outlast the call, these gaps are significant. <mark class="hl d-amber" data-findings="1" id="hl-1" tabindex="0">Granola captures device audio without any visible participant in your call, deletes the audio after transcription, and stores your notes in its own SOC 2 Type 2 certified cloud rather than your Microsoft 365 tenant.<sup class="hlnum">1</sup></mark></blockquote>
+<p class="body-p">Turning off your meeting recording does not mean turning off the cloud trail. <mark class="hl d-amber" data-findings="2" id="hl-2" tabindex="0">Professionals who need confidential meeting capture increasingly search for Copilot's &quot;no recording&quot; mode.<sup class="hlnum">2</sup></mark> What they find is something more limited than the feature name suggests, and the gap between expectation and reality shows up exactly when it matters most.</p>
+<h2 class="body-h">The short answer: Yes, Copilot can, but with three real catches</h2>
+<p class="body-p">Microsoft Copilot can assist during a Teams meeting without saving a recording. It listens via a non-persisted transcript, generates real-time notes and action items, and then deletes the temporary transcript when the call ends. According to Microsoft's Copilot documentation, this is the &quot;Only during the meeting&quot; mode. The capability is real, but three limitations define who it actually works for.</p>
+<div class="cell"><span class="tag-inline">Link text → https://learn.microsoft.com/en-us/microsoftteams/copilot-teams-transcription</span>Microsoft's Copilot documentation</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://learn.microsoft.com/en-us/microsoftteams/copilot-teams-transcription</div>
+<h3 class="body-h">You need a Copilot add-on license</h3>
+<p class="body-p">Microsoft 365 Copilot is an add-on license priced on top of a qualifying Microsoft 365 Business plan ($6 to $22 per user monthly depending on tier). Combined cost runs from roughly $24 per user monthly (M365 Business Basic + Copilot Business add-on) to $52+ per user monthly (M365 Business Premium + Copilot Enterprise add-on), depending on which base license and Copilot SKU your organization holds.</p>
+<h3 class="body-h">Notes disappear when the call ends</h3>
+<p class="body-p">When Copilot operates in &quot;Only during the meeting&quot; mode, Copilot is not available in the Recap tab after the meeting ends unless you turned on transcription or recording during the call. The moment you leave the call without transcription enabled, the temporary transcript is deleted, and no notes survive. If you close the window before copying anything, that content is gone.</p>
+<div class="cell"><span class="tag-inline">Link text → https://support.microsoft.com/en-us/office/use-copilot-without-recording-a-teams-meeting-a59cb88c-0f6b-4a20-a47a-3a1c9a818bd9</span>Copilot is not available</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://support.microsoft.com/en-us/office/use-copilot-without-recording-a-teams-meeting-a59cb88c-0f6b-4a20-a47a-3a1c9a818bd9</div>
+<h2 class="body-h">How Copilot's &quot;no recording&quot; mode actually works</h2>
+<p class="body-p">Copilot's meeting assistance relies on temporary speech-to-text data that Teams generates internally so Copilot can reference what participants have said and respond to queries. At no point is this transcript saved to OneDrive for Business. According to Microsoft's transcription documentation, this temporary speech-to-text data is deleted when the meeting finishes. The distinction between a saved transcript and one that isn't saved is central to understanding what the feature does and does not protect.</p>
+<div class="cell"><span class="tag-inline">Link text → https://learn.microsoft.com/en-us/microsoftteams/copilot-teams-transcription</span>Microsoft's transcription documentation</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://learn.microsoft.com/en-us/microsoftteams/copilot-teams-transcription</div>
+<h3 class="body-h">During-meeting assistance only</h3>
+<p class="body-p">During an active call, Copilot generates real-time notes, lists action items, recommends follow-up tasks, and answers questions like &quot;What did we agree on in the last five minutes?&quot; You interact with it through a sidebar panel in the Teams interface. <mark class="hl d-competitor" data-findings="3" id="hl-3" tabindex="0">According to Microsoft's support page, other participants cannot see your Copilot conversation or the outputs it generates.<sup class="hlnum">3</sup></mark> The assistance is <mark class="hl d-competitor" data-findings="4" id="hl-4" tabindex="0">private<sup class="hlnum">4</sup></mark> to the individual user who activated it, making it useful for quick in-the-moment queries during internal syncs.</p>
+<div class="cell"><span class="tag-inline">Link text → https://support.microsoft.com/en-us/office/use-copilot-without-recording-a-teams-meeting-a59cb88c-0f6b-4a20-a47a-3a1c9a818bd9</span>Microsoft's support page</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://support.microsoft.com/en-us/office/use-copilot-without-recording-a-teams-meeting-a59cb88c-0f6b-4a20-a47a-3a1c9a818bd9</div>
+<h3 class="body-h">Real-time summarization vs. persistent transcripts</h3>
+<p class="body-p">A meeting does not need to be recorded for Copilot to assist during it. That is the feature's core premise. But a recording or saved transcript is required for Copilot to appear in the meeting Recap tab after the call. Without one of those, post-meeting intelligence simply does not exist. The real-time mode and the persistent mode are two separate capabilities, and the distinction is not prominently surfaced in the Teams interface before a meeting starts.</p>
+<h3 class="body-h">What happens in the Teams interface</h3>
+<p class="body-p"><mark class="hl d-competitor" data-findings="5,6" id="hl-5" tabindex="0">No bot joins the meeting as a visible participant.<sup class="hlnum">5,6</sup></mark> Copilot operates through the Teams interface itself, not as an external attendee. Other participants do not see an additional entry in the participant list. <mark class="hl d-amber" data-findings="7" id="hl-7" tabindex="0">From every other participant's perspective, the meeting looks unchanged.<sup class="hlnum">7</sup></mark></p>
+<h2 class="body-h">What you need to use it</h2>
+<p class="body-p">Copilot in Teams is not a feature you can enable on a standard Microsoft 365 subscription. It requires a specific combination of licenses and an IT administrator to configure the policy before any individual user can access it.</p>
+<h3 class="body-h">Teams Premium or Copilot license required</h3>
+<p class="body-p">Teams Premium at $10 per user monthly adds some meeting intelligence features but does not include the full Copilot meeting assistant. Before purchasing either add-on, audit your existing subscriptions, since organizations on legacy plans may face an upgrade cost that exceeds the add-on itself.</p>
+<div class="cell"><span class="tag-inline">Link text → https://www.granola.ai/ai-meeting-assistant</span>meeting assistant</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://www.granola.ai/ai-meeting-assistant</div>
+<h3 class="body-h">Admin enablement and configuration</h3>
+<p class="body-p">Individual users cannot turn this on themselves. An IT administrator must open the Teams Admin Center, navigate to Meetings, select Meeting Policies, and configure the Copilot setting in the Recording &amp; transcription section. According to Microsoft's admin documentation, options include &quot;On,&quot; &quot;On with saved transcript required,&quot; &quot;On with transcript saved by default,&quot; and &quot;Off.&quot; For lean teams without a dedicated IT function, this admin dependency is a meaningful barrier.</p>
+<div class="cell"><span class="tag-inline">Link text → https://learn.microsoft.com/en-us/microsoftteams/copilot-teams-transcription</span>Microsoft's admin documentation</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://learn.microsoft.com/en-us/microsoftteams/copilot-teams-transcription</div>
+<h2 class="body-h">What happens to your notes after the call</h2>
+<p class="body-p">The moment you leave a Teams meeting where Copilot was running in &quot;Only during the meeting&quot; mode without transcription enabled, the temporary transcript is deleted and your notes become inaccessible. This is the intended behavior, and it catches most first-time users off guard.</p>
+<p class="body-p">The Copilot sidebar displays notes throughout the meeting, and while Microsoft surfaces the &quot;Only during the meeting&quot; mode as a configurable policy setting, users running Copilot in this mode must understand that these notes are temporary. On Microsoft's support forums, users describe discovering this after the fact: &quot;Most of the times we close the call, then proceed to make the notes to find that they are no longer available. As there is no warning whatsoever and the behavior is totally not intuitive most of the times the copilot minutes are lost, making the feature useless.&quot;</p>
+<div class="cell"><span class="tag-inline">Link text → https://learn.microsoft.com/en-us/answers/questions/4415653/after-a-microsoft-teams-call-has-ended-how-can-i-f</span>Microsoft's support forums</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://learn.microsoft.com/en-us/answers/questions/4415653/after-a-microsoft-teams-call-has-ended-how-can-i-f</div>
+<p class="body-p">If you want to retain any part of what Copilot generated in this mode, you must manually copy it into a separate document before the meeting ends. There is no auto-save, no grace period, and no recovery option once the window closes.</p>
+<h2 class="body-h">What happens to your data during a Copilot call</h2>
+<p class="body-p"><mark class="hl d-cleared" data-findings="8" id="hl-8" tabindex="0">Copilot's non-recording mode positions itself as a way to get AI assistance without the friction of a meeting recording.<sup class="hlnum">8</sup></mark> Microsoft's documentation for the non-recording mode focuses on what is not saved. The behavior of speech-to-text processing during the call is a separate question.</p>
+<h3 class="body-h">Transcript data still touches Microsoft 365</h3>
+<p class="body-p">Microsoft processes this temporary transcript in the cloud, not <mark class="hl d-competitor" data-findings="9" id="hl-9" tabindex="0">locally<sup class="hlnum">9</sup></mark>. Microsoft infrastructure converts your audio to speech-to-text during the call. According to Microsoft's documentation, Microsoft deletes this data when the meeting ends, but the processing itself happens in the cloud throughout the call. Additionally, your organization's Microsoft Purview retention policies may retain Copilot prompts and responses for compliance purposes even when recording and transcription are off. The absence of a saved recording does not mean the absence of a data trail for every organization.</p>
+<div class="cell"><span class="tag-inline">Link text → https://learn.microsoft.com/en-us/purview/retention-policies-copilot</span>Microsoft's documentation</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://learn.microsoft.com/en-us/purview/retention-policies-copilot</div>
+<p class="body-p">These behaviors can be configured independently through the Teams Admin Center. Administrators can set Copilot to &quot;Only during the meeting&quot; mode, which avoids saving transcripts or recordings, without disabling Copilot entirely.</p>
+<h3 class="body-h">Where your meeting content actually goes</h3>
+<p class="body-p">During the meeting, your speech-to-text data flows through Microsoft's cloud infrastructure to support real-time Copilot assistance. Microsoft governs this data handling through your organization's Microsoft 365 tenant configuration, the Purview retention policies your IT administrator has set, and Microsoft's standard data processing agreements. Microsoft does not uniformly disclose the specific retention duration for this temporary transcript data, which varies by tenant configuration. Anyone relying on this mode for confidential meetings should verify their Microsoft 365 configuration directly, particularly if their organization operates in a regulated industry.</p>
+<h2 class="body-h">When Copilot isn't the right answer</h2>
+<p class="body-p">Three specific scenarios describe when Copilot's non-recording mode does not serve the user's actual need. If any of these apply, the feature will disappoint you regardless of how well it works in the moment.</p>
+<h3 class="body-h">Your IT didn't license Copilot</h3>
+<p class="body-p">Microsoft 365 Copilot is an enterprise add-on that requires IT review, budget approval, and tenant configuration. If your organization has not licensed Copilot, you cannot access the non-recording mode at all. For lean teams without a dedicated IT function, this procurement dependency means the feature may be months away from being usable even if you want it today.</p>
+<h3 class="body-h">You need notes that survive after the meeting ends</h3>
+<p class="body-p">You need documentation that outlives the meeting to build institutional memory. A summary that exists only inside an active Teams window cannot be searched, shared, or referenced in a meeting update next quarter. <mark class="hl d-cleared" data-findings="10" id="hl-10" tabindex="0">For anyone who needs to query across months of board meetings, investor updates, or M&amp;A discussions to answer &quot;what did we agree on pricing strategy six months ago?&quot;, a note-taking approach that deletes everything at call-end actively works against organizational knowledge building.<sup class="hlnum">10</sup></mark></p>
+<h3 class="body-h">You can't have a Microsoft cloud trail</h3>
+<p class="body-p">For conversations where any cloud processing of audio creates regulatory or contractual risk, regardless of whether a recording is saved, Copilot's architecture creates a structural conflict. The speech-to-text processing, the Purview retention exposure, and the dependency on Microsoft's data handling policies remain present when using Copilot's &quot;Only during the meeting&quot; mode.</p>
+<h3 class="body-h">Quick checklist: When to look beyond Copilot's non-recording mode</h3>
+<p class="body-p">Licensing and access barriers:</p>
+<ul class="body-list">
+<li>Your Microsoft 365 tenant does not include the Copilot add-on license</li>
+<li>Your IT team has not configured the Copilot meeting policy in the Teams Admin Center</li>
+</ul>
+<p class="body-p">Note persistence and workflow needs:</p>
+<ul class="body-list">
+<li>You need notes searchable after the meeting ends</li>
+<li>You need to push notes to HubSpot, Notion, or Slack without manual copying</li>
+<li>You meet with external parties on platforms other than Teams (Zoom, Google Meet, Slack)</li>
+</ul>
+<h2 class="body-h">The alternative: Granola for persistent, searchable notes</h2>
+<p class="body-p">Granola is an AI notepad for people in back-to-back meetings: you are either present in the conversation or capturing it, and Granola lets you do both. You jot rough notes during the call, and when the meeting ends, Granola uses AI to <mark class="hl d-cleared" data-findings="11" id="hl-11" tabindex="0">automatically<sup class="hlnum">11</sup></mark> structure notes, extract action items, and organize decisions based on the call transcript. Or let Granola handle all of the note-taking <mark class="hl d-cleared" data-findings="12" id="hl-12" tabindex="0">automatically<sup class="hlnum">12</sup></mark>. Either way, the notes persist, are searchable, and require no enterprise license to access.</p>
+<blockquote class="body-quote"><span class="tag-inline">Blockquote / testimonial</span>&quot;Granola nails exactly what I need: clean, reliable meeting transcripts and smart follow-up summaries without any fluff. I use it for nearly every call to stay focused on the conversation instead of scribbling notes. The follow-up action items are especially useful. Huge time saver.&quot; - Verified user on G2</blockquote>
+<div class="cell"><span class="tag-inline">Link text → https://g2.com/products/granola/reviews/granola-review-11289286</span>Verified user on G2</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://g2.com/products/granola/reviews/granola-review-11289286</div>
+<h3 class="body-h"><mark class="hl d-amber" data-findings="13,14" id="hl-13" tabindex="0">No bot joins your meeting<sup class="hlnum">13,14</sup></mark></h3>
+<p class="body-p">Granola captures device audio directly, which means it works across any platform your call runs on: Zoom, Google Meet, Teams, Slack, WebEx, and others. <mark class="hl d-red" data-findings="15" id="hl-15" tabindex="0">No &quot;recording has started&quot; announcement triggers, and no additional participant appears in the list.<sup class="hlnum">15</sup></mark> Notes push <mark class="hl d-cleared" data-findings="16" id="hl-16" tabindex="0">automatically<sup class="hlnum">16</sup></mark> to HubSpot, Notion, Slack, Affinity, Attio, and Zapier on the Business plan, without manual copying.</p>
+<blockquote class="body-quote"><span class="tag-inline">Blockquote / testimonial</span>&quot;It listens directly from my device audio <mark class="hl d-cleared" data-findings="17" id="hl-17" tabindex="0">no bots<sup class="hlnum">17</sup></mark> joining calls and produces clean, structured summaries with decisions, action items, and key points. <mark class="hl d-red" data-findings="18" id="hl-18" tabindex="0">That alone makes it far more seamless than tools like Otter.ai or Fireflies, which often feel intrusive because they require a bot to join the meeting.<sup class="hlnum">18</sup></mark>&quot; - Brahmatheja Reddy M. on G2</blockquote>
+<div class="cell"><span class="tag-inline">Link text → http://Otter.ai</span>Otter.ai</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>http://Otter.ai</div>
+<div class="cell"><span class="tag-inline">Link text → https://www.g2.com/products/granola/reviews/granola-review-11932118</span>Brahmatheja Reddy M. on G2</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://www.g2.com/products/granola/reviews/granola-review-11932118</div>
+<h3 class="body-h">Audio deleted, notes stored in Granola's own cloud</h3>
+<p class="body-p">According to Granola's security and <mark class="hl d-cleared" data-findings="19" id="hl-19" tabindex="0">privacy<sup class="hlnum">19</sup></mark> documentation, Granola does not store audio from meetings. It transcribes in real time, then discards the audio file. <mark class="hl d-cleared" data-findings="20" id="hl-20" tabindex="0">The notes and transcript are stored in Granola's SOC 2 Type 2 certified cloud infrastructure, and the source audio that created them is deleted.<sup class="hlnum">20</sup></mark></p>
+<div class="cell"><span class="tag-inline">Link text → https://docs.granola.ai/help-center/consent-security-privacy/security-privacy-data-faqs</span>Granola's security and <mark class="hl d-cleared" data-findings="21" id="hl-21" tabindex="0">privacy<sup class="hlnum">21</sup></mark> documentation</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://docs.granola.ai/help-center/consent-security-<mark class="hl d-cleared" data-findings="22" id="hl-22" tabindex="0">privacy<sup class="hlnum">22</sup></mark>/security-<mark class="hl d-cleared" data-findings="23" id="hl-23" tabindex="0">privacy<sup class="hlnum">23</sup></mark>-data-faqs</div>
+<p class="body-p">Your notes are available as soon as the meeting ends and you click 'Enhance notes'. From there, they are searchable across all your meetings and accessible from the Granola app without IT involvement. You can delete parts of a transcript if specific sections contain information you do not want retained, or share notes selectively with collaborators.</p>
+<div class="cell"><span class="tag-inline">Link text → https://granola.ai/updates/delete-parts-of-transcript</span>delete parts of a transcript</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://granola.ai/updates/delete-parts-of-transcript</div>
+<div class="cell"><span class="tag-inline">Link text → https://docs.granola.ai/help-center/sharing/sharing-notes</span>share notes</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://docs.granola.ai/help-center/sharing/sharing-notes</div>
+<p class="body-p">Granola achieved SOC 2 Type 2 certification in three months, compared to the typical 12 to 18 months, because the architecture deletes audio immediately. Full details are on Granola's security page.</p>
+<div class="cell"><span class="tag-inline">Link text → https://www.granola.ai/security</span>Granola's security page</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://www.granola.ai/security</div>
+<h3 class="body-h">No enterprise license dependency</h3>
+<p class="body-p">Setup takes under 5 minutes: download the desktop app for Mac or Windows, or the iPhone app for iOS, connect your Google or Microsoft calendar, and capture your first meeting. The Free plan covers unlimited meetings and AI-enhanced notes with limited meeting history, no IT admin required, and no CRM or productivity integrations. The Business plan extends that to unlimited meeting history and adds integrations with HubSpot, Notion, Slack, Affinity, Attio, and Zapier.</p>
+<div class="cell"><span class="tag-inline">Link text → https://docs.granola.ai/help-center/ios/taking-notes</span>iPhone app for iOS</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://docs.granola.ai/help-center/ios/taking-notes</div>
+<div class="cell"><span class="tag-inline">Link text → https://docs.granola.ai/help-center/sharing/integrations/integrations-with-granola</span>adds integrations</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://docs.granola.ai/help-center/sharing/integrations/integrations-with-granola</div>
+<h2 class="body-h">Copilot vs. external tool: when each fits</h2>
+<p class="body-p">The choice between Copilot's non-recording mode and an external tool like Granola is not about which product is better in the abstract. It is about which one fits your meeting context, your data requirements, and your licensing reality.</p>
+<h3 class="body-h">When Copilot's mode is enough</h3>
+<p class="body-p">Copilot's &quot;Only during the meeting&quot; mode generates real-time notes and action items during a Teams call, with notes deleted when the meeting ends. If your organization has already deployed Microsoft 365 Copilot licenses and IT has configured the policy, and you do not need notes to persist after the call, the mode is available for that narrow use case.</p>
+<h3 class="body-h">When you need an external solution</h3>
+<p class="body-p">External capture tools become necessary when the meeting involves external parties not in your Teams tenant, when you need a persistent written record for institutional memory, when the conversation is sensitive enough that a Microsoft cloud data trail is a concern, or when Copilot simply is not licensed in your organization. For anyone building a searchable record of confidential discussions, board meetings, investor updates, or M&amp;A conversations, a tool that deletes notes when the call ends cannot meet that need.</p>
+<p class="body-p">Try Granola for free: Download the app for Mac, Windows, or iOS, connect your calendar, and <mark class="hl d-red" data-findings="24" id="hl-24" tabindex="0">capture your next confidential meeting with notes stored in Granola's own SOC 2 Type 2 cloud, no visible bot, and no Microsoft cloud trail.<sup class="hlnum">24</sup></mark></p>
+<div class="cell"><span class="tag-inline">Link text → https://granola.ai/download</span>Download the app</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://granola.ai/download</div>
+<h2 class="body-h">FAQs</h2>
+<p class="body-p"><mark class="hl d-competitor" data-findings="25" id="hl-25" tabindex="0">Does Copilot show up as a visible participant when taking notes without recording?<sup class="hlnum">25</sup></mark></p>
+<p class="body-p">No. When Copilot operates in &quot;Only during the meeting&quot; mode, it runs through the Teams interface itself rather than joining as an external attendee. <mark class="hl d-competitor" data-findings="26" id="hl-26" tabindex="0">Other attendees cannot see your Copilot conversation.<sup class="hlnum">26</sup></mark></p>
+<p class="body-p">Can I access Copilot meeting notes after the call ends?</p>
+<p class="body-p">Not in &quot;Only during the meeting&quot; mode without transcription. According to Microsoft's support documentation, Copilot is not available in the Recap tab after the meeting ends unless you turned on transcription or recording during the call. Notes generated in this mode are deleted when the session closes.</p>
+<p class="body-p">Does Copilot's non-recording mode completely avoid cloud data processing?</p>
+<p class="body-p">No. Even in &quot;Only during the meeting&quot; mode, Microsoft infrastructure processes your speech-to-text data in real time during the call. According to Microsoft's documentation, your organization's Purview retention policies may also retain Copilot prompts and responses separately, independent of whether a recording was saved.</p>
+<p class="body-p">Can I export Copilot's meeting notes from the non-recording mode?</p>
+<p class="body-p">No. In &quot;Only during the meeting&quot; mode without transcription, Copilot generates notes only inside the active Teams window. There is no <mark class="hl d-cleared" data-findings="27" id="hl-27" tabindex="0">automatic<sup class="hlnum">27</sup></mark> export, download, or copy function. You must manually copy any content you want to keep before the meeting ends.</p>
+<p class="body-p">Does Granola work with meeting platforms other than Microsoft Teams?</p>
+<p class="body-p">Yes. <mark class="hl d-cleared" data-findings="28" id="hl-28" tabindex="0">Because Granola captures device audio directly through your microphone and system audio rather than joining as a call participant, it works with any platform that plays audio on your computer: Zoom, Google Meet, Teams, Slack, WebEx, FaceTime, and others.<sup class="hlnum">28</sup></mark> Setup takes under five minutes and requires no admin configuration.</p>
+<p class="body-p">Is Granola compliant with enterprise security standards?</p>
+<p class="body-p">Granola is SOC 2 Type 2 compliant and GDPR compliant. <mark class="hl d-cleared" data-findings="29" id="hl-29" tabindex="0">Audio is discarded after real-time transcription, and third-party AI providers are contractually prohibited from training on your data.<sup class="hlnum">29</sup></mark> Full details are on Granola's security page.</p>
+<h2 class="body-h">Key terms</h2>
+<p class="body-p">Temporary speech-to-text data: Microsoft's term for the transcript Teams generates internally during a meeting to support Copilot real-time assistance. It is deleted when the meeting ends and is never saved to OneDrive or accessible after the call in &quot;Only during the meeting&quot; mode without transcription.</p>
+<p class="body-p">Device audio capture: The method Granola uses to transcribe meetings. Captures audio directly from your device's microphone (your voice) and system audio (other participants) and transcribes in real time, then deletes the audio. <mark class="hl d-amber" data-findings="30" id="hl-30" tabindex="0">Does not join the call as a visible participant.<sup class="hlnum">30</sup></mark></p>
+<p class="body-p">SOC 2 Type 2: An independent security audit certification covering how a software company manages customer data over time. Granola achieved this certification significantly faster than typical, which verifies its security controls meet the standard across a defined audit period.</p>
+</section>
+  </main>
+  <aside class="panel">
+    <div id="loadwarn" class="loadwarn" style="display:none"></div>
+    <div id="manualbox" class="manualbox" style="display:none">
+      <div class="manualhead">Manual Reviews <span id="manualcount" class="manualcount"></span></div>
+      <div id="manualout"></div>
+    </div>
+    <div class="verifybox">
+      <div class="verifyhead">
+        <b>Draft check</b>
+        <span>
+          <button type="button" id="repairbtn" class="verifybtn" style="display:none">Fix artifacts</button>
+          <button type="button" id="verifybtn" class="verifybtn">Re-check</button>
+        </span>
+      </div>
+      <div id="verifyout" class="verifyout">Checking the draft…</div>
+    </div>
+    <div class="panelhead">
+      <h2>Findings <span id="outstanding"></span></h2>
+      <div class="panelfilters">
+        <label class="tgl"><input type="checkbox" id="tglcleared"> Show cleared (<span id="nclr">0</span>)</label>
+        <label class="tgl"><input type="checkbox" id="tgldiscarded"> Show discarded (<span id="ndis">0</span>)</label>
+      </div>
+      <button class="exportbtn" id="export">Export decisions to CSV</button>
+    </div>
+    
+    <div class="finding d-amber" id="finding-1" data-num="1" data-disposition="amber">
+      <div class="fhead">
+        <span class="fnum">1</span>
+        <span class="fdisp">amber</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Blockquote / testimonial</div>
+      <blockquote class="fquote">Granola captures device audio without any visible participant in your call, deletes the audio after transcription, and stores your notes in its own SOC 2 Type 2 certified cloud rather than your Microsoft 365 tenant.</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> &quot;Without any visible participant in your call&quot; frames the no-bot fact around what other participants can and cannot see, implying the capture is imperceptible to them.</div>
+      
+      <div class="fdelete"><b>Option A — delete the sentence:</b> Deleting the sentence loses the Granola summary in the TL;DR but removes the visibility framing entirely; the rewrite keeps the persistence and storage points without referencing what participants can see.</div>
+      
+      <div class="frewrite" data-num="1"><b>Option B — rewrite the paragraph:</b> TL;DR Yes, Microsoft Copilot can take meeting notes without recording a Teams call. But three trade-offs matter: You need a Copilot add-on license, notes disappear the moment the meeting window closes, and your speech-to-text data still processes through Microsoft 365 infrastructure even without a saved recording. For professionals running confidential, back-to-back meetings where the record must outlast the call, these gaps are significant. Granola captures device audio, deletes the audio after transcription, and stores your notes in its own SOC 2 Type 2 certified cloud rather than your Microsoft 365 tenant, so the record is searchable long after the call.</div>
+      <div class="fdecide">
+        <label><input type="radio" name="dec-1" value="accept-delete" data-num="1"> Delete</label>
+        <label><input type="radio" name="dec-1" value="accept" data-num="1"> Rewrite</label>
+        <button class="clearbtn" data-num="1" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="1"></div>
+      
+      <div class="freprompt">
+        <textarea class="fdirect" data-num="1" rows="2"
+          placeholder="Not happy with the rewrite? Say what to change and generate a new one…"></textarea>
+        <button type="button" class="regenbtn" data-num="1">Generate new rewrite</button>
+        <div class="regenout" data-num="1"></div>
+      </div>
+      <textarea class="fnote" data-num="1" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-amber" id="finding-2" data-num="2" data-disposition="amber">
+      <div class="fhead">
+        <span class="fnum">2</span>
+        <span class="fdisp">amber</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">Professionals who need confidential meeting capture increasingly search for Copilot's &quot;no recording&quot; mode.</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> &quot;Confidential meeting capture&quot; positions the article's audience as people wanting to capture meetings without it being known, though here it is framed around data trails rather than participant awareness.</div>
+      
+      <div class="fdelete"><b>Option A — delete the sentence:</b> Deleting leaves the paragraph coherent (opening and closing sentences still work), but a light rewrite retains the search-intent framing without the ambiguous &quot;confidential capture&quot; phrasing.</div>
+      
+      <div class="frewrite" data-num="2"><b>Option B — rewrite the sentence:</b> Professionals handling sensitive discussions increasingly search for Copilot's &quot;no recording&quot; mode.</div>
+      <div class="fdecide">
+        <label><input type="radio" name="dec-2" value="accept-delete" data-num="2"> Delete</label>
+        <label><input type="radio" name="dec-2" value="accept" data-num="2"> Rewrite</label>
+        <button class="clearbtn" data-num="2" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="2"></div>
+      
+      <div class="freprompt">
+        <textarea class="fdirect" data-num="2" rows="2"
+          placeholder="Not happy with the rewrite? Say what to change and generate a new one…"></textarea>
+        <button type="button" class="regenbtn" data-num="2">Generate new rewrite</button>
+        <div class="regenout" data-num="2"></div>
+      </div>
+      <textarea class="fnote" data-num="2" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-competitor is-cleared" id="finding-3" data-num="3" data-disposition="about-competitor">
+      <div class="fhead">
+        <span class="fnum">3</span>
+        <span class="fdisp">about-competitor</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">According to Microsoft's support page, other participants cannot see your Copilot conversation or the outputs it generates.</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> This describes Microsoft Copilot's documented behaviour, not Granola's, and is framed as sourced fact about the sidebar being personal to the user.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="3" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="3"></div>
+      
+      <textarea class="fnote" data-num="3" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-competitor is-cleared" id="finding-4" data-num="4" data-disposition="about-competitor">
+      <div class="fhead">
+        <span class="fnum">4</span>
+        <span class="fdisp">about-competitor</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer A · "private"</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">private</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> Describes Microsoft Copilot's behaviour — the assistance being visible only to the user who invoked it. It is a description of a competitor product's scoping, not a Granola claim about other participants' awareness.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="4" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="4"></div>
+      
+      <textarea class="fnote" data-num="4" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-competitor is-cleared" id="finding-5" data-num="5" data-disposition="about-competitor">
+      <div class="fhead">
+        <span class="fnum">5</span>
+        <span class="fdisp">about-competitor</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer A · "no bot"</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">No bot</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> This sits in the explanation of how Copilot works within Teams — no separate bot participant appears. It describes a competitor/native platform behaviour rather than Granola's, and 'visible participant' is descriptive of the meeting roster rather than a concealment claim.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="5" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="5"></div>
+      
+      <textarea class="fnote" data-num="5" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-competitor is-cleared" id="finding-6" data-num="6" data-disposition="about-competitor">
+      <div class="fhead">
+        <span class="fnum">6</span>
+        <span class="fdisp">about-competitor</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">No bot joins the meeting as a visible participant.</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> Describes how Copilot appears inside Teams; factual account of a competitor's architecture rather than a Granola benefit claim.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="6" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="6"></div>
+      
+      <textarea class="fnote" data-num="6" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-amber" id="finding-7" data-num="7" data-disposition="amber">
+      <div class="fhead">
+        <span class="fnum">7</span>
+        <span class="fdisp">amber</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">From every other participant's perspective, the meeting looks unchanged.</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> Even though the subject is Copilot, this sentence dwells on other participants noticing nothing, which normalises imperceptibility as the point of interest for the reader.</div>
+      
+      <div class="fdelete"><b>Option A — delete the sentence:</b> The reader loses nothing substantive: the preceding sentences already explain the architecture, so deleting this closing line removes the participant-perception framing cleanly.</div>
+      
+      <div class="frewrite" data-num="7"><b>Option B — rewrite the paragraph:</b> Copilot operates through the Teams interface itself rather than as an external attendee, so it appears in the sidebar for the user who activated it and not as an additional entry in the participant list.</div>
+      <div class="fdecide">
+        <label><input type="radio" name="dec-7" value="accept-delete" data-num="7"> Delete</label>
+        <label><input type="radio" name="dec-7" value="accept" data-num="7"> Rewrite</label>
+        <button class="clearbtn" data-num="7" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="7"></div>
+      
+      <div class="freprompt">
+        <textarea class="fdirect" data-num="7" rows="2"
+          placeholder="Not happy with the rewrite? Say what to change and generate a new one…"></textarea>
+        <button type="button" class="regenbtn" data-num="7">Generate new rewrite</button>
+        <div class="regenout" data-num="7"></div>
+      </div>
+      <textarea class="fnote" data-num="7" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-8" data-num="8" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">8</span>
+        <span class="fdisp">cleared-in-context</span>
+        <span class="fcat cat-bot-denigration">BOT DENIGRATION</span>
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">Copilot's non-recording mode positions itself as a way to get AI assistance without the friction of a meeting recording.</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> &quot;Friction&quot; here refers to Microsoft's own recording feature, not to meeting bots, and is a neutral description of how Microsoft positions the mode.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="8" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="8"></div>
+      
+      <textarea class="fnote" data-num="8" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-competitor is-cleared" id="finding-9" data-num="9" data-disposition="about-competitor">
+      <div class="fhead">
+        <span class="fnum">9</span>
+        <span class="fdisp">about-competitor</span>
+        <span class="fcat cat-accuracy">FACTUAL ACCURACY</span>
+        <span class="flayer" title="Which layer caught it">Layer A · "local"</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">locally</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> An accurate description of Microsoft's cloud processing of the Copilot transcript. It is a claim about a competitor's data handling, and it says the opposite of a local-only claim.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="9" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="9"></div>
+      
+      <textarea class="fnote" data-num="9" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-10" data-num="10" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">10</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">For anyone who needs to query across months of board meetings, investor updates, or M&amp;A discussions to answer &quot;what did we agree on pricing strategy six months ago?&quot;, a note-taking approach that deletes everything at call-end actively works against organizational knowledge building.</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> A persistence argument about note retention; nothing about participant awareness or bots.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="10" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="10"></div>
+      
+      <textarea class="fnote" data-num="10" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-11" data-num="11" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">11</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer A · "automatic"</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">automatically</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> 'Automatically' here describes how notes are structured after the call — a product capability, not anything about what other participants perceive.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="11" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="11"></div>
+      
+      <textarea class="fnote" data-num="11" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-12" data-num="12" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">12</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer A · "automatic"</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">automatically</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> Refers to Granola handling note-taking for the user instead of the user typing. It is about the user's own workflow, not imperceptibility to others.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="12" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="12"></div>
+      
+      <textarea class="fnote" data-num="12" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-13" data-num="13" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">13</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer A · "no bot"</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Heading</div>
+      <blockquote class="fquote">No bot</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> The term &quot;no bot&quot; is legitimate here. The concern in this sentence is the surrounding framing, which is reported separately with the remedy attached to the right span.</div>
+      <div class="fdefer">Remedy handled by finding <a href="#finding-14" class="deferlink" data-goto="14">#14</a>, which is anchored to the full phrase.</div>
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="13" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="13"></div>
+      
+      <textarea class="fnote" data-num="13" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-amber" id="finding-14" data-num="14" data-disposition="amber">
+      <div class="fhead">
+        <span class="fnum">14</span>
+        <span class="fdisp">amber</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Heading</div>
+      <blockquote class="fquote">No bot joins your meeting</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> As a standalone heading the no-bot fact is presented as a headline benefit, and it sits directly above copy about no announcement and no participant entry, so the cumulative reading is about what others will not see.</div>
+      
+      
+      <div class="fdelete muted-note"><b>Deletion not advised:</b> Removing the heading would leave the following paragraph without a section label; retitling it around cross-platform capture keeps the structure while dropping the absence framing.</div>
+      <div class="frewrite" data-num="14"><b>Option B — rewrite the sentence:</b> Works across every meeting platform</div>
+      <div class="fdecide">
+        
+        <label><input type="radio" name="dec-14" value="accept" data-num="14"> Rewrite</label>
+        <button class="clearbtn" data-num="14" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="14"></div>
+      
+      <div class="freprompt">
+        <textarea class="fdirect" data-num="14" rows="2"
+          placeholder="Not happy with the rewrite? Say what to change and generate a new one…"></textarea>
+        <button type="button" class="regenbtn" data-num="14">Generate new rewrite</button>
+        <div class="regenout" data-num="14"></div>
+      </div>
+      <textarea class="fnote" data-num="14" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-red" id="finding-15" data-num="15" data-disposition="red">
+      <div class="fhead">
+        <span class="fnum">15</span>
+        <span class="fdisp">red</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">No &quot;recording has started&quot; announcement triggers, and no additional participant appears in the list.</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> A reader would conclude that with Granola no notification reaches other participants and nothing appears to them, i.e. they can take notes without others knowing.</div>
+      
+      <div class="fdelete"><b>Option A — delete the sentence:</b> Deleting this sentence leaves a grammatical paragraph about cross-platform capture and integrations, and removes the clearest suggestion that participants receive no notification — deletion is the better remedy here.</div>
+      
+      <div class="frewrite" data-num="15"><b>Option B — rewrite the paragraph:</b> Granola captures device audio directly, which means it works across any platform your call runs on: Zoom, Google Meet, Teams, Slack, WebEx, and others. Notes push automatically to HubSpot, Notion, Slack, Affinity, Attio, and Zapier on the Business plan, without manual copying.</div>
+      <div class="fdecide">
+        <label><input type="radio" name="dec-15" value="accept-delete" data-num="15"> Delete</label>
+        <label><input type="radio" name="dec-15" value="accept" data-num="15"> Rewrite</label>
+        <button class="clearbtn" data-num="15" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="15"></div>
+      
+      <div class="freprompt">
+        <textarea class="fdirect" data-num="15" rows="2"
+          placeholder="Not happy with the rewrite? Say what to change and generate a new one…"></textarea>
+        <button type="button" class="regenbtn" data-num="15">Generate new rewrite</button>
+        <div class="regenout" data-num="15"></div>
+      </div>
+      <textarea class="fnote" data-num="15" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-16" data-num="16" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">16</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer A · "automatic"</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">automatically</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> 'Automatically' describes CRM and workspace integrations pushing notes without manual copying — a genuine workflow claim with no bearing on participant awareness.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="16" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="16"></div>
+      
+      <textarea class="fnote" data-num="16" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-17" data-num="17" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">17</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer A · "no bot"</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Blockquote / testimonial</div>
+      <blockquote class="fquote">no bots</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> The term &quot;no bot&quot; is legitimate here. The concern in this sentence is the surrounding framing, which is reported separately with the remedy attached to the right span.</div>
+      <div class="fdefer">Remedy handled by finding <a href="#finding-18" class="deferlink" data-goto="18">#18</a>, which is anchored to the full phrase.</div>
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="17" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="17"></div>
+      
+      <textarea class="fnote" data-num="17" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-red" id="finding-18" data-num="18" data-disposition="red">
+      <div class="fhead">
+        <span class="fnum">18</span>
+        <span class="fdisp">red</span>
+        <span class="fcat cat-bot-denigration">BOT DENIGRATION</span>
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Blockquote / testimonial</div>
+      <blockquote class="fquote">That alone makes it far more seamless than tools like Otter.ai or Fireflies, which often feel intrusive because they require a bot to join the meeting.</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> A quoted user positions bot-based competitors as intrusive, making the absence of a visible bot the selling point — the imperceptibility argument by proxy.</div>
+      
+      <div class="fdelete"><b>Option A — delete the paragraph:</b> The reader loses one testimonial, which the article can spare given the G2 quote already in s70; deletion of the whole quote is the cleanest fix because the denigration is embedded in quoted speech that cannot be honestly trimmed.</div>
+      
+      <div class="frewrite" data-num="18"><b>Option B — rewrite the paragraph:</b> &quot;It listens directly from my device audio and produces clean, structured summaries with decisions, action items, and key points. The write-up is ready the moment the call ends, which saves me a lot of time.&quot; - Brahmatheja Reddy M. on G2</div>
+      <div class="fdecide">
+        <label><input type="radio" name="dec-18" value="accept-delete" data-num="18"> Delete</label>
+        <label><input type="radio" name="dec-18" value="accept" data-num="18"> Rewrite</label>
+        <button class="clearbtn" data-num="18" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="18"></div>
+      
+      <div class="freprompt">
+        <textarea class="fdirect" data-num="18" rows="2"
+          placeholder="Not happy with the rewrite? Say what to change and generate a new one…"></textarea>
+        <button type="button" class="regenbtn" data-num="18">Generate new rewrite</button>
+        <div class="regenout" data-num="18"></div>
+      </div>
+      <textarea class="fnote" data-num="18" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-19" data-num="19" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">19</span>
+        <span class="fdisp">cleared-in-context</span>
+        <span class="fcat cat-accuracy">FACTUAL ACCURACY</span>
+        <span class="flayer" title="Which layer caught it">Layer A · "private"</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">privacy</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> 'Privacy' appears as part of the name of Granola's security and privacy documentation, supporting an accurate statement that audio is not stored. Audio-retention statements are confirmed accurate and out of scope.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="19" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="19"></div>
+      
+      <textarea class="fnote" data-num="19" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-20" data-num="20" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">20</span>
+        <span class="fdisp">cleared-in-context</span>
+        <span class="fcat cat-accuracy">FACTUAL ACCURACY</span>
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">The notes and transcript are stored in Granola's SOC 2 Type 2 certified cloud infrastructure, and the source audio that created them is deleted.</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> Accurately states that notes and transcripts are cloud-stored and that audio is deleted; consistent with ground truth.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="20" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="20"></div>
+      
+      <textarea class="fnote" data-num="20" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-21" data-num="21" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">21</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer A · "private"</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Link anchor text</div>
+      <blockquote class="fquote">privacy</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> Link anchor text naming Granola's own security and privacy documentation. Purely referential.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="21" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="21"></div>
+      
+      <textarea class="fnote" data-num="21" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-22" data-num="22" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">22</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer A · "private"</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Link URL</div>
+      <blockquote class="fquote">privacy</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> A URL path segment on Granola's own help centre. Not reader-facing copy and makes no claim.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="22" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="22"></div>
+      
+      <textarea class="fnote" data-num="22" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-23" data-num="23" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">23</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer A · "private"</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Link URL</div>
+      <blockquote class="fquote">privacy</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> Duplicate URL path match on the same help centre link. Not reader-facing copy and makes no claim.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="23" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="23"></div>
+      
+      <textarea class="fnote" data-num="23" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-red" id="finding-24" data-num="24" data-disposition="red">
+      <div class="fhead">
+        <span class="fnum">24</span>
+        <span class="fdisp">red</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">capture your next confidential meeting with notes stored in Granola's own SOC 2 Type 2 cloud, no visible bot, and no Microsoft cloud trail.</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> &quot;Your next confidential meeting&quot; plus &quot;no visible bot&quot; reads as an invitation to capture a sensitive conversation without others seeing anything.</div>
+      
+      <div class="fdelete"><b>Option A — delete the paragraph:</b> Deleting the CTA loses a conversion prompt, so the rewrite is preferable; it keeps the download instruction while dropping the &quot;no visible bot&quot; and confidential-capture framing.</div>
+      
+      <div class="frewrite" data-num="24"><b>Option B — rewrite the paragraph:</b> Try Granola for free: Download the app for Mac, Windows, or iOS, connect your calendar, and get structured, searchable notes stored in Granola's own SOC 2 Type 2 certified cloud.</div>
+      <div class="fdecide">
+        <label><input type="radio" name="dec-24" value="accept-delete" data-num="24"> Delete</label>
+        <label><input type="radio" name="dec-24" value="accept" data-num="24"> Rewrite</label>
+        <button class="clearbtn" data-num="24" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="24"></div>
+      
+      <div class="freprompt">
+        <textarea class="fdirect" data-num="24" rows="2"
+          placeholder="Not happy with the rewrite? Say what to change and generate a new one…"></textarea>
+        <button type="button" class="regenbtn" data-num="24">Generate new rewrite</button>
+        <div class="regenout" data-num="24"></div>
+      </div>
+      <textarea class="fnote" data-num="24" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-competitor is-cleared" id="finding-25" data-num="25" data-disposition="about-competitor">
+      <div class="fhead">
+        <span class="fnum">25</span>
+        <span class="fdisp">about-competitor</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">Does Copilot show up as a visible participant when taking notes without recording?</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> Frames participant visibility as a user question, but is answered about Copilot's architecture rather than presented as a Granola advantage.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="25" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="25"></div>
+      
+      <textarea class="fnote" data-num="25" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-competitor is-cleared" id="finding-26" data-num="26" data-disposition="about-competitor">
+      <div class="fhead">
+        <span class="fnum">26</span>
+        <span class="fdisp">about-competitor</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">Other attendees cannot see your Copilot conversation.</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> FAQ answer about Copilot's sidebar visibility; a factual statement about Microsoft's product, not a Granola benefit.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="26" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="26"></div>
+      
+      <textarea class="fnote" data-num="26" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-27" data-num="27" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">27</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer A · "automatic"</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">automatic</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> Describes a limitation of Copilot's in-meeting output — there is no automatic export or download. A factual competitor feature description with no disclosure or storage implication for Granola.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="27" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="27"></div>
+      
+      <textarea class="fnote" data-num="27" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-28" data-num="28" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">28</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">Because Granola captures device audio directly through your microphone and system audio rather than joining as a call participant, it works with any platform that plays audio on your computer: Zoom, Google Meet, Teams, Slack, WebEx, FaceTime, and others.</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> The no-bot fact is stated plainly and tied only to platform compatibility, matching the approved framing, with no reference to what participants notice.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="28" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="28"></div>
+      
+      <textarea class="fnote" data-num="28" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-29" data-num="29" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">29</span>
+        <span class="fdisp">cleared-in-context</span>
+        <span class="fcat cat-accuracy">FACTUAL ACCURACY</span>
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">Audio is discarded after real-time transcription, and third-party AI providers are contractually prohibited from training on your data.</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> Audio retention and a contractual training claim; both explicitly out of scope under Addendum 2.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="29" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="29"></div>
+      
+      <textarea class="fnote" data-num="29" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-amber" id="finding-30" data-num="30" data-disposition="amber">
+      <div class="fhead">
+        <span class="fnum">30</span>
+        <span class="fdisp">amber</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">Does not join the call as a visible participant.</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> In a glossary entry about Granola's capture method, the closing line emphasises invisibility to the call rather than platform coverage or note quality.</div>
+      
+      <div class="fdelete"><b>Option A — delete the sentence:</b> Deleting this final sentence leaves a complete, accurate glossary definition of the capture method and removes the visibility emphasis; deletion is the cleaner remedy.</div>
+      
+      <div class="frewrite" data-num="30"><b>Option B — rewrite the paragraph:</b> Device audio capture: The method Granola uses to transcribe meetings. Captures audio directly from your device's microphone (your voice) and system audio (other participants) and transcribes in real time, then deletes the audio. Granola runs on your computer to generate notes during and after the meeting.</div>
+      <div class="fdecide">
+        <label><input type="radio" name="dec-30" value="accept-delete" data-num="30"> Delete</label>
+        <label><input type="radio" name="dec-30" value="accept" data-num="30"> Rewrite</label>
+        <button class="clearbtn" data-num="30" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="30"></div>
+      
+      <div class="freprompt">
+        <textarea class="fdirect" data-num="30" rows="2"
+          placeholder="Not happy with the rewrite? Say what to change and generate a new one…"></textarea>
+        <button type="button" class="regenbtn" data-num="30">Generate new rewrite</button>
+        <div class="regenout" data-num="30"></div>
+      </div>
+      <textarea class="fnote" data-num="30" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+  </aside>
+</div>
+<script>
+(function(){
+  var SLUG = "can-copilot-take-meeting-notes-without-recording";
+  var KEY = 'granola-review-decisions:' + SLUG;
+  var FINDINGS = [{"number":1,"id":"1604d3f945f1c55c0205c64a3eaf7767","disposition":"amber","layer":"B","term":"","field":"Blockquote / testimonial","quote":"Granola captures device audio without any visible participant in your call, deletes the audio after transcription, and stores your notes in its own SOC 2 Type 2 certified cloud rather than your Microsoft 365 tenant.","takeaway":"\"Without any visible participant in your call\" frames the no-bot fact around what other participants can and cannot see, implying the capture is imperceptible to them.","rewrite":"TL;DR Yes, Microsoft Copilot can take meeting notes without recording a Teams call. But three trade-offs matter: You need a Copilot add-on license, notes disappear the moment the meeting window closes, and your speech-to-text data still processes through Microsoft 365 infrastructure even without a saved recording. For professionals running confidential, back-to-back meetings where the record must outlast the call, these gaps are significant. Granola captures device audio, deletes the audio after transcription, and stores your notes in its own SOC 2 Type 2 certified cloud rather than your Microsoft 365 tenant, so the record is searchable long after the call."},{"number":2,"id":"270438197ec7e0a3a6791094ca2d2306","disposition":"amber","layer":"B","term":"","field":"Body paragraph","quote":"Professionals who need confidential meeting capture increasingly search for Copilot's \"no recording\" mode.","takeaway":"\"Confidential meeting capture\" positions the article's audience as people wanting to capture meetings without it being known, though here it is framed around data trails rather than participant awareness.","rewrite":"Professionals handling sensitive discussions increasingly search for Copilot's \"no recording\" mode."},{"number":3,"id":"ed27dabaad061b9b96b07a419614b411","disposition":"about-competitor","layer":"B","term":"","field":"Body paragraph","quote":"According to Microsoft's support page, other participants cannot see your Copilot conversation or the outputs it generates.","takeaway":"This describes Microsoft Copilot's documented behaviour, not Granola's, and is framed as sourced fact about the sidebar being personal to the user.","rewrite":""},{"number":4,"id":"2264a12fe74be81179ddd004a54e1bfe","disposition":"about-competitor","layer":"A","term":"private","field":"Body paragraph","quote":"private","takeaway":"Describes Microsoft Copilot's behaviour — the assistance being visible only to the user who invoked it. It is a description of a competitor product's scoping, not a Granola claim about other participants' awareness.","rewrite":""},{"number":5,"id":"8c23231120bbd1a16bbb95b453e9b97f","disposition":"about-competitor","layer":"A","term":"no bot","field":"Body paragraph","quote":"No bot","takeaway":"This sits in the explanation of how Copilot works within Teams — no separate bot participant appears. It describes a competitor/native platform behaviour rather than Granola's, and 'visible participant' is descriptive of the meeting roster rather than a concealment claim.","rewrite":""},{"number":6,"id":"51c4e9bdbf87a7d35edcdb888b2884a8","disposition":"about-competitor","layer":"B","term":"","field":"Body paragraph","quote":"No bot joins the meeting as a visible participant.","takeaway":"Describes how Copilot appears inside Teams; factual account of a competitor's architecture rather than a Granola benefit claim.","rewrite":""},{"number":7,"id":"0daf38e7cdc14c1d48e24b6e499f169f","disposition":"amber","layer":"B","term":"","field":"Body paragraph","quote":"From every other participant's perspective, the meeting looks unchanged.","takeaway":"Even though the subject is Copilot, this sentence dwells on other participants noticing nothing, which normalises imperceptibility as the point of interest for the reader.","rewrite":"Copilot operates through the Teams interface itself rather than as an external attendee, so it appears in the sidebar for the user who activated it and not as an additional entry in the participant list."},{"number":8,"id":"c3f8b45186bb26f6c3a34f80c7fac1be","disposition":"cleared-in-context","layer":"B","term":"","field":"Body paragraph","quote":"Copilot's non-recording mode positions itself as a way to get AI assistance without the friction of a meeting recording.","takeaway":"\"Friction\" here refers to Microsoft's own recording feature, not to meeting bots, and is a neutral description of how Microsoft positions the mode.","rewrite":""},{"number":9,"id":"dffe9e762f066dfd36dd9852ffcfc093","disposition":"about-competitor","layer":"A","term":"local","field":"Body paragraph","quote":"locally","takeaway":"An accurate description of Microsoft's cloud processing of the Copilot transcript. It is a claim about a competitor's data handling, and it says the opposite of a local-only claim.","rewrite":""},{"number":10,"id":"ec73c43f92957addaeaff0d9f7b7fd6c","disposition":"cleared-in-context","layer":"B","term":"","field":"Body paragraph","quote":"For anyone who needs to query across months of board meetings, investor updates, or M&A discussions to answer \"what did we agree on pricing strategy six months ago?\", a note-taking approach that deletes everything at call-end actively works against organizational knowledge building.","takeaway":"A persistence argument about note retention; nothing about participant awareness or bots.","rewrite":""},{"number":11,"id":"dc2b2fbe19ae6f0819e103024cb13e04","disposition":"cleared-in-context","layer":"A","term":"automatic","field":"Body paragraph","quote":"automatically","takeaway":"'Automatically' here describes how notes are structured after the call — a product capability, not anything about what other participants perceive.","rewrite":""},{"number":12,"id":"b2a5ee18ff7b9cfa1c3b3df840b81f48","disposition":"cleared-in-context","layer":"A","term":"automatic","field":"Body paragraph","quote":"automatically","takeaway":"Refers to Granola handling note-taking for the user instead of the user typing. It is about the user's own workflow, not imperceptibility to others.","rewrite":""},{"number":13,"id":"940d40156958b96f253dcfcdc8b46ce0","disposition":"cleared-in-context","layer":"A","term":"no bot","field":"Heading","quote":"No bot","takeaway":"The term \"no bot\" is legitimate here. The concern in this sentence is the surrounding framing, which is reported separately with the remedy attached to the right span.","rewrite":""},{"number":14,"id":"6a22a0e68f8bde7a3281d6cb198f4c1a","disposition":"amber","layer":"B","term":"","field":"Heading","quote":"No bot joins your meeting","takeaway":"As a standalone heading the no-bot fact is presented as a headline benefit, and it sits directly above copy about no announcement and no participant entry, so the cumulative reading is about what others will not see.","rewrite":"Works across every meeting platform"},{"number":15,"id":"aa7041544c88f17b10b2311a25536861","disposition":"red","layer":"B","term":"","field":"Body paragraph","quote":"No \"recording has started\" announcement triggers, and no additional participant appears in the list.","takeaway":"A reader would conclude that with Granola no notification reaches other participants and nothing appears to them, i.e. they can take notes without others knowing.","rewrite":"Granola captures device audio directly, which means it works across any platform your call runs on: Zoom, Google Meet, Teams, Slack, WebEx, and others. Notes push automatically to HubSpot, Notion, Slack, Affinity, Attio, and Zapier on the Business plan, without manual copying."},{"number":16,"id":"65d282f6f9e5ceba1c4f38b41dc3ca32","disposition":"cleared-in-context","layer":"A","term":"automatic","field":"Body paragraph","quote":"automatically","takeaway":"'Automatically' describes CRM and workspace integrations pushing notes without manual copying — a genuine workflow claim with no bearing on participant awareness.","rewrite":""},{"number":17,"id":"6e78e9992e3a3219608cc78ca9a6a550","disposition":"cleared-in-context","layer":"A","term":"no bot","field":"Blockquote / testimonial","quote":"no bots","takeaway":"The term \"no bot\" is legitimate here. The concern in this sentence is the surrounding framing, which is reported separately with the remedy attached to the right span.","rewrite":""},{"number":18,"id":"511a76b9719a98abd5e66ee8dfa2416d","disposition":"red","layer":"B","term":"","field":"Blockquote / testimonial","quote":"That alone makes it far more seamless than tools like Otter.ai or Fireflies, which often feel intrusive because they require a bot to join the meeting.","takeaway":"A quoted user positions bot-based competitors as intrusive, making the absence of a visible bot the selling point — the imperceptibility argument by proxy.","rewrite":"\"It listens directly from my device audio and produces clean, structured summaries with decisions, action items, and key points. The write-up is ready the moment the call ends, which saves me a lot of time.\" - Brahmatheja Reddy M. on G2"},{"number":19,"id":"c53e9074daddd3c160e942eda6085fe9","disposition":"cleared-in-context","layer":"A","term":"private","field":"Body paragraph","quote":"privacy","takeaway":"'Privacy' appears as part of the name of Granola's security and privacy documentation, supporting an accurate statement that audio is not stored. Audio-retention statements are confirmed accurate and out of scope.","rewrite":""},{"number":20,"id":"04e334f3c7a20e742ae8863d5d07f9b8","disposition":"cleared-in-context","layer":"B","term":"","field":"Body paragraph","quote":"The notes and transcript are stored in Granola's SOC 2 Type 2 certified cloud infrastructure, and the source audio that created them is deleted.","takeaway":"Accurately states that notes and transcripts are cloud-stored and that audio is deleted; consistent with ground truth.","rewrite":""},{"number":21,"id":"638003a1430201938a75b9f665218fa5","disposition":"cleared-in-context","layer":"A","term":"private","field":"Link anchor text","quote":"privacy","takeaway":"Link anchor text naming Granola's own security and privacy documentation. Purely referential.","rewrite":""},{"number":22,"id":"76193204f9cb4d82416725813051caa1","disposition":"cleared-in-context","layer":"A","term":"private","field":"Link URL","quote":"privacy","takeaway":"A URL path segment on Granola's own help centre. Not reader-facing copy and makes no claim.","rewrite":""},{"number":23,"id":"75b65480bdd3057fa0b683632e70515e","disposition":"cleared-in-context","layer":"A","term":"private","field":"Link URL","quote":"privacy","takeaway":"Duplicate URL path match on the same help centre link. Not reader-facing copy and makes no claim.","rewrite":""},{"number":24,"id":"607ff9bdbbec965f9100ac209115b298","disposition":"red","layer":"B","term":"","field":"Body paragraph","quote":"capture your next confidential meeting with notes stored in Granola's own SOC 2 Type 2 cloud, no visible bot, and no Microsoft cloud trail.","takeaway":"\"Your next confidential meeting\" plus \"no visible bot\" reads as an invitation to capture a sensitive conversation without others seeing anything.","rewrite":"Try Granola for free: Download the app for Mac, Windows, or iOS, connect your calendar, and get structured, searchable notes stored in Granola's own SOC 2 Type 2 certified cloud."},{"number":25,"id":"3c17adbb36b8c73fe3a700373bdd7f9a","disposition":"about-competitor","layer":"B","term":"","field":"Body paragraph","quote":"Does Copilot show up as a visible participant when taking notes without recording?","takeaway":"Frames participant visibility as a user question, but is answered about Copilot's architecture rather than presented as a Granola advantage.","rewrite":""},{"number":26,"id":"8cd81954b5e77976a96002d601052ad6","disposition":"about-competitor","layer":"B","term":"","field":"Body paragraph","quote":"Other attendees cannot see your Copilot conversation.","takeaway":"FAQ answer about Copilot's sidebar visibility; a factual statement about Microsoft's product, not a Granola benefit.","rewrite":""},{"number":27,"id":"7af300e97dcb8259ab15fafc44491cd1","disposition":"cleared-in-context","layer":"A","term":"automatic","field":"Body paragraph","quote":"automatic","takeaway":"Describes a limitation of Copilot's in-meeting output — there is no automatic export or download. A factual competitor feature description with no disclosure or storage implication for Granola.","rewrite":""},{"number":28,"id":"7871a369469ac7afafe6b7f773648fb6","disposition":"cleared-in-context","layer":"B","term":"","field":"Body paragraph","quote":"Because Granola captures device audio directly through your microphone and system audio rather than joining as a call participant, it works with any platform that plays audio on your computer: Zoom, Google Meet, Teams, Slack, WebEx, FaceTime, and others.","takeaway":"The no-bot fact is stated plainly and tied only to platform compatibility, matching the approved framing, with no reference to what participants notice.","rewrite":""},{"number":29,"id":"ba22d239180a94c4285bc2b14e9a1327","disposition":"cleared-in-context","layer":"B","term":"","field":"Body paragraph","quote":"Audio is discarded after real-time transcription, and third-party AI providers are contractually prohibited from training on your data.","takeaway":"Audio retention and a contractual training claim; both explicitly out of scope under Addendum 2.","rewrite":""},{"number":30,"id":"5b13be1d4a2ed43e6f666e0335321e41","disposition":"amber","layer":"B","term":"","field":"Body paragraph","quote":"Does not join the call as a visible participant.","takeaway":"In a glossary entry about Granola's capture method, the closing line emphasises invisibility to the call rather than platform coverage or note quality.","rewrite":"Device audio capture: The method Granola uses to transcribe meetings. Captures audio directly from your device's microphone (your voice) and system audio (other participants) and transcribes in real time, then deletes the audio. Granola runs on your computer to generate notes during and after the meeting."}];
+  var API = '/api/seo-review/decisions';
+  var idOf = {}; FINDINGS.forEach(function(f){ idOf[f.number] = f.id; });
+
+  // ---- decisions persisted SERVER-SIDE ----
+  // Accepting writes the rewrite to the article's Sanity draft. localStorage is
+  // kept only as an offline mirror so a failed request is visibly unsaved
+  // rather than silently lost.
+  var state = {};
+  try { state = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch(e) { state = {}; }
+  function mirror(){ try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e){} }
+  function paint(num){
+    var el = document.getElementById('finding-' + num);
+    if (!el) return;
+    var d = state[num] || {};
+    var isAccept = d.decision === 'accept' || d.decision === 'accept-delete';
+    el.classList.toggle('decided-accept', isAccept);
+    el.classList.toggle('decided-dismiss', d.decision === 'dismiss');
+    // Collapse anything decided, unless the reviewer has reopened it.
+    if (d.decision && !el.dataset.reopened) el.classList.add('collapsed');
+    if (!d.decision) el.classList.remove('collapsed');
+  }
+  function setDone(num, text){
+    var el = document.getElementById('finding-' + num);
+    if (!el) return;
+    var d = el.querySelector('.fdone');
+    if (d) d.textContent = text;
+  }
+  // Clicking a collapsed card reopens it for review.
+  document.addEventListener('click', function(e){
+    var card = e.target.closest('.finding.collapsed');
+    if (!card) return;
+    if (e.target.closest('.fdecide') || e.target.closest('.fnote')) return;
+    card.dataset.reopened = '1';
+    card.classList.remove('collapsed');
+  });
+  function setStatus(num, text, cls){
+    var el = document.querySelector('.fstatus[data-num="' + num + '"]');
+    if (!el) return;
+    el.textContent = text || '';
+    el.className = 'fstatus' + (cls ? ' ' + cls : '');
+    el.setAttribute('data-num', num);
+  }
+
+  // Restore decisions from the server (authoritative), falling back to the
+  // local mirror if the API is unreachable.
+  function restore(){
+    fetch(API + '?slug=' + encodeURIComponent(SLUG), {credentials:'same-origin'})
+      .then(function(r){
+        if (!r.ok) {
+          return r.text().then(function(t){
+            throw new Error('HTTP ' + r.status + (t ? ' — ' + t.slice(0, 160) : ''));
+          });
+        }
+        return r.json();
+      })
+      .then(function(j){
+        var byId = {}; (j.findings||[]).forEach(function(x){ byId[x.id] = x; });
+        FINDINGS.forEach(function(f){
+          var s = byId[f.id]; if (!s) return;
+          state[f.number] = { decision: s.decision, note: s.note || '' };
+          if (s.decision) {
+            var r = document.querySelector('input[name="dec-' + f.number + '"][value="' + s.decision + '"]');
+            if (r) r.checked = true;
+          }
+          if (s.note) { var t = document.querySelector('.fnote[data-num="' + f.number + '"]'); if (t) t.value = s.note; }
+          if (s.decision === 'discard') { setStatus(f.number, 'Discarded', ''); hideFinding(f.number); }
+          else if (s.appliedToDraft) { setStatus(f.number, '✓ Written to the Sanity draft', 'ok'); setDone(f.number, '✓ Written to the Sanity draft'); }
+          else if (s.decision === 'dismiss') setDone(f.number, 'Dismissed — no change made');
+          else if (s.decision === 'accept') setStatus(f.number, '⚠ Accepted but not yet written to the draft — click Accept again to retry', 'warn');
+          paint(f.number);
+        });
+        mirror();
+        updateOutstanding();
+      })
+      .catch(function(e){
+        // Offline / not signed in: show local mirror but say it is unsaved.
+        // Say WHY, not just that it failed — a bare "not saved" gives no way to
+        // diagnose. Shown once at the top rather than on every finding.
+        var banner = document.getElementById('loadwarn');
+        if (banner) {
+          banner.style.display = 'block';
+          banner.textContent = '⚠ Could not load saved decisions: ' + e.message +
+            '  — anything you change now is stored in this browser only. Reload once you are signed in.';
+        }
+        FINDINGS.forEach(function(f){
+          var d = state[f.number]; if (!d) return;
+          if (d.decision) {
+            var r = document.querySelector('input[name="dec-' + f.number + '"][value="' + d.decision + '"]');
+            if (r) r.checked = true;
+          }
+          if (d.note) { var t = document.querySelector('.fnote[data-num="' + f.number + '"]'); if (t) t.value = d.note; }
+          paint(f.number);
+        });
+      });
+  }
+  restore();
+
+  function send(num, decision, note){
+    var id = idOf[num];
+    if (!id) { setStatus(num, '⚠ No server id for this finding', 'warn'); return; }
+    setStatus(num, 'Saving…', '');
+    fetch(API, {
+      method:'POST', credentials:'same-origin',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ id: id, decision: decision, note: note || null }),
+    })
+      .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
+      .then(function(res){
+        if (!res.ok) { setStatus(num, '⚠ ' + (res.j.error || 'save failed'), 'warn'); return; }
+        if (decision === 'accept' || decision === 'accept-delete') {
+          if (res.j.appliedToDraft) {
+            var msg = res.j.alreadyApplied
+              ? '✓ Already in the Sanity draft'
+              : (res.j.deleted
+                  ? '✓ ' + (res.j.scope === 'paragraph' ? 'Paragraph' : 'Sentence') + ' removed in the Sanity draft — not published'
+                  : '✓ Written to the Sanity draft — not published');
+            setStatus(num, msg, 'ok');
+            setDone(num, msg);
+          } else {
+            var w = '⚠ Saved, but NOT applied: ' + (res.j.warning || 'unknown reason');
+            setStatus(num, w, 'warn');
+            setDone(num, w);
+            // A failure must stay open — collapsing it would hide the problem.
+            var el = document.getElementById('finding-' + num);
+            if (el) { el.dataset.reopened = '1'; el.classList.remove('collapsed'); }
+          }
+        } else if (decision === 'dismiss') {
+          setStatus(num, res.j.warning ? '⚠ ' + res.j.warning : 'Dismissed', res.j.warning ? 'warn' : '');
+          setDone(num, res.j.warning ? '⚠ ' + res.j.warning : 'Dismissed — no change made');
+        } else {
+          setStatus(num, res.j.warning ? '⚠ ' + res.j.warning : '', res.j.warning ? 'warn' : '');
+        }
+      })
+      .catch(function(e){ setStatus(num, '⚠ Save failed: ' + e.message, 'warn'); });
+  }
+
+  // Use 'click' rather than 'change' so re-selecting an already-selected option
+  // retries. A previous attempt can fail (e.g. a bad token) leaving the choice
+  // selected but unapplied — with 'change' alone that is a dead end.
+  document.querySelectorAll('.fdecide input[type=radio]').forEach(function(r){
+    r.addEventListener('click', function(){
+      var n = r.getAttribute('data-num');
+      state[n] = state[n] || {}; state[n].decision = r.value; mirror(); paint(n);
+      send(n, r.value, (state[n] && state[n].note) || null);
+      updateOutstanding();
+    });
+  });
+  var noteTimer = {};
+  document.querySelectorAll('.fnote').forEach(function(t){
+    t.addEventListener('input', function(){
+      var n = t.getAttribute('data-num');
+      state[n] = state[n] || {}; state[n].note = t.value; mirror();
+      clearTimeout(noteTimer[n]);
+      noteTimer[n] = setTimeout(function(){
+        if (state[n] && state[n].decision) send(n, state[n].decision, t.value);
+      }, 900);
+    });
+  });
+  // Discard: record the suggestion as deliberately rejected, then remove it from
+  // the panel so what remains is what is still outstanding. It is NOT deleted —
+  // it stays in the log as a discarded decision.
+  function hideFinding(n){
+    var el = document.getElementById('finding-' + n);
+    if (el) el.classList.add('discarded');
+    document.querySelectorAll('mark.hl').forEach(function(m){
+      var nums = m.getAttribute('data-findings').split(',');
+      if (nums.indexOf(String(n)) !== -1 && nums.length === 1) m.classList.add('hl-discarded');
+    });
+    updateOutstanding();
+  }
+  function updateOutstanding(){
+    var needing = document.querySelectorAll('.finding:not(.is-cleared):not(.discarded)').length;
+    var decided = document.querySelectorAll(
+      '.finding:not(.is-cleared):not(.discarded).decided-accept, ' +
+      '.finding:not(.is-cleared):not(.discarded).decided-dismiss').length;
+    var el = document.getElementById('outstanding');
+    if (el) el.textContent = (needing - decided) + ' of ' + needing + ' needing a decision';
+    var c = document.getElementById('nclr');
+    if (c) c.textContent = document.querySelectorAll('.finding.is-cleared').length;
+    var d = document.getElementById('ndis');
+    if (d) d.textContent = document.querySelectorAll('.finding.discarded').length;
+  }
+  updateOutstanding();
+  document.querySelectorAll('.clearbtn').forEach(function(b){
+    b.addEventListener('click', function(){
+      var n = b.getAttribute('data-num');
+      state[n] = state[n] || {}; state[n].decision = 'discard'; mirror();
+      document.querySelectorAll('input[name="dec-' + n + '"]').forEach(function(r){ r.checked = false; });
+      setStatus(n, 'Discarded — recorded in the log', '');
+      send(n, 'discard', (state[n] && state[n].note) || null);
+      hideFinding(n);
+    });
+  });
+  // Cleared and discarded items stay in the DOM (and in the log) but are hidden
+  // by default so the panel shows only what still needs a decision.
+  var panel = document.querySelector('.panel');
+  var tglC = document.getElementById('tglcleared');
+  var tglD = document.getElementById('tgldiscarded');
+  function applyToggles(){
+    panel.classList.toggle('reveal-cleared', tglC && tglC.checked);
+    panel.classList.toggle('reveal-discarded', tglD && tglD.checked);
+    // Mute highlights whose only finding is hidden, so the prose matches.
+    document.querySelectorAll('mark.hl').forEach(function(m){
+      var nums = m.getAttribute('data-findings').split(',');
+      var anyVisible = nums.some(function(n){
+        var el = document.getElementById('finding-' + n);
+        return el && el.offsetParent !== null;
+      });
+      m.classList.toggle('hl-cleared-hidden', !anyVisible);
+    });
+    updateOutstanding();
+  }
+  if (tglC) tglC.addEventListener('change', applyToggles);
+  if (tglD) tglD.addEventListener('change', applyToggles);
+
+  // ---- highlight <-> panel linking ----
+  function activate(num){
+    document.querySelectorAll('.finding.active').forEach(function(e){ e.classList.remove('active'); });
+    var f = document.getElementById('finding-' + num);
+    if (f) { f.classList.add('active'); f.scrollIntoView({behavior:'smooth', block:'center'}); }
+  }
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    m.addEventListener('click', function(){ activate(m.getAttribute('data-findings').split(',')[0]); });
+  });
+  document.querySelectorAll('.finding').forEach(function(el){
+    el.addEventListener('click', function(e){
+      if (e.target.closest('.fdecide') || e.target.closest('.fnote')) return;
+      var num = el.getAttribute('data-num');
+      var hl = document.querySelector('mark.hl[data-findings~="' + num + '"]')
+            || document.getElementById('hl-' + num)
+            || Array.prototype.find.call(document.querySelectorAll('mark.hl'), function(m){
+                 return m.getAttribute('data-findings').split(',').indexOf(num) !== -1; });
+      if (hl) {
+        hl.scrollIntoView({behavior:'smooth', block:'center'});
+        hl.classList.remove('pulse'); void hl.offsetWidth; hl.classList.add('pulse');
+      }
+    });
+  });
+
+  // ---- re-prompt a rewrite ----
+  // The reviewer disagrees with the proposal but does not want a deletion.
+  // Their direction goes back to the model, which returns a revised rewrite.
+  // Nothing reaches Sanity until they then click Rewrite.
+  document.querySelectorAll('.regenbtn').forEach(function(b){
+    b.addEventListener('click', function(){
+      var n = b.getAttribute('data-num');
+      var ta = document.querySelector('.fdirect[data-num="' + n + '"]');
+      var out = document.querySelector('.regenout[data-num="' + n + '"]');
+      var feedback = (ta && ta.value || '').trim();
+      if (!feedback) {
+        out.innerHTML = '<div class="regenerr">Say what you want changed first.</div>';
+        return;
+      }
+      b.disabled = true; b.textContent = 'Generating…';
+      out.innerHTML = '';
+      fetch('/api/seo-review/regenerate', {
+        method:'POST', credentials:'same-origin',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ id: idOf[n], feedback: feedback }),
+      })
+        .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
+        .then(function(res){
+          b.disabled = false; b.textContent = 'Generate new rewrite';
+          if (!res.ok) {
+            out.innerHTML = '<div class="regenerr">' + esc2(res.j.error || 'Could not generate a rewrite.') + '</div>';
+            return;
+          }
+          out.innerHTML =
+            '<div class="newrw"><b>New rewrite (' + esc2(res.j.scope) + ' scope):</b> ' + esc2(res.j.rewrite) +
+            (res.j.explanation ? '<div class="why">' + esc2(res.j.explanation) + '</div>' : '') +
+            '<div class="acts">' +
+              '<button type="button" class="use" data-num="' + n + '">Use this rewrite</button>' +
+              '<button type="button" class="again" data-num="' + n + '">Try again</button>' +
+            '</div></div>';
+          out.querySelector('.use').addEventListener('click', function(){
+            // Store it as the proposal, then apply via the normal Rewrite path
+            // so there is still exactly one route into Sanity.
+            fetch('/api/seo-review/regenerate', {
+              method:'POST', credentials:'same-origin',
+              headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({ id: idOf[n], feedback: feedback, keep: true }),
+            }).then(function(){
+              var rw = document.querySelector('.frewrite[data-num="' + n + '"]');
+              if (rw) rw.innerHTML = '<b>Option B — rewrite (updated by you):</b> ' + esc2(res.j.rewrite);
+              out.innerHTML = '<div class="newrw">Saved as the proposed rewrite. Click <b>Rewrite</b> above to write it to the Sanity draft.</div>';
+            });
+          });
+          out.querySelector('.again').addEventListener('click', function(){
+            out.innerHTML = ''; if (ta) ta.focus();
+          });
+        })
+        .catch(function(e){
+          b.disabled = false; b.textContent = 'Generate new rewrite';
+          out.innerHTML = '<div class="regenerr">' + esc2(e.message) + '</div>';
+        });
+    });
+  });
+
+  // ---- draft verification ----
+  var vbtn = document.getElementById('verifybtn');
+  var vout = document.getElementById('verifyout');
+  var rbtn = document.getElementById('repairbtn');
+  var mbox = document.getElementById('manualbox');
+  var mout = document.getElementById('manualout');
+  var mcount = document.getElementById('manualcount');
+  function esc2(t){ return String(t == null ? '' : t)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function runVerify(){
+    vbtn.disabled = true;
+    vout.textContent = 'Reading the Sanity draft…';
+    fetch('/api/seo-review/verify?slug=' + encodeURIComponent(SLUG), {credentials:'same-origin'})
+      .then(function(r){
+        if (!r.ok) return r.text().then(function(t){ throw new Error('HTTP ' + r.status + ' — ' + t.slice(0,140)); });
+        return r.json();
+      })
+      .then(function(j){
+        var out = [];
+        if (!j.draftExists) {
+          out.push('<div class="vidle">Nothing applied yet. This check runs against the Sanity draft, ' +
+                   'which is created the first time you accept a change. Not a problem — there is just nothing to check so far.</div>');
+        } else {
+          out.push('<div style="margin-bottom:6px">Draft has <b>' + j.draftBlocks + '</b> blocks (published has ' + j.publishedBlocks + ').</div>');
+          if (j.issues.length === 0) {
+            out.push('<div class="vok">✓ No artifacts found — no stranded punctuation, duplicated sentences, empty blocks or fragments.</div>');
+          } else {
+            out.push('<div style="margin:8px 0 4px"><b>' + j.issues.length + ' issue(s) to fix in the Studio:</b></div>');
+            j.issues.forEach(function(i){
+              out.push('<div class="vissue"><b>' + esc2(i.where) + '</b> — ' + esc2(i.detail) +
+                       '<span class="vsnip">' + esc2(i.text) + '</span></div>');
+            });
+          }
+        }
+        if (j.manualActions.length) {
+          out.push('<div style="margin:10px 0 4px"><b>' + j.manualActions.length + ' edit(s) you accepted that must be made by hand:</b></div>');
+          j.manualActions.forEach(function(a){
+            out.push('<div class="vmanual"><b>' + esc2(a.fieldLabel) + '</b> — ' + esc2(a.reason) +
+                     '<span class="vsnip">' + esc2(a.text) + '</span></div>');
+          });
+        } else if (j.draftExists) {
+          out.push('<div class="vok" style="margin-top:8px">✓ Nothing left to do by hand.</div>');
+        }
+        if (j.draftExists) {
+          out.push('<div style="margin-top:8px"><a href="https://www.granola.ai/studio/structure/seoPosts;' +
+                   encodeURIComponent(j.postId) + '" target="_blank" rel="noopener">Open the draft in Sanity Studio ↗</a></div>');
+        }
+        vout.innerHTML = out.join('');
+        vbtn.disabled = false;
+
+        // Offer the automatic fix only when there is something it can fix.
+        var fixable = j.issues.filter(function(i){
+          return i.kind === 'duplication' || i.kind === 'punctuation';
+        }).length;
+        if (rbtn) rbtn.style.display = fixable ? 'inline-block' : 'none';
+
+        // ---- Manual Reviews ----
+        var manual = (j.manualActions || []).slice();
+        if (manual.length) {
+          mbox.style.display = 'block';
+          mcount.textContent = '(' + manual.length + ' item' + (manual.length === 1 ? '' : 's') + ' you must do by hand in Sanity)';
+          mout.innerHTML = manual.map(function(a){
+            return '<div class="manualitem"><b>' + esc2(a.fieldLabel) + '</b> — you chose ' +
+              (a.decision === 'accept-delete' ? 'delete' : 'rewrite') +
+              '<div class="why">' + esc2(a.reason) + '</div>' +
+              '<span class="txt">' + esc2(a.text) + '</span></div>';
+          }).join('') +
+          '<div style="font-size:12px"><a href="https://www.granola.ai/studio/structure/seoPosts;' +
+          encodeURIComponent(j.postId) + '" target="_blank" rel="noopener">Open in Sanity Studio to make these ↗</a></div>';
+        } else {
+          mbox.style.display = 'none';
+        }
+      })
+      .catch(function(e){
+        vout.innerHTML = '<div class="vissue">Check failed: ' + esc2(e.message) + '</div>';
+        vbtn.disabled = false;
+      });
+  }
+  if (vbtn) vbtn.addEventListener('click', runVerify);
+  // Run on load so Manual Reviews is visible without having to ask for it.
+  runVerify();
+
+  if (rbtn) rbtn.addEventListener('click', function(){
+    rbtn.disabled = true;
+    rbtn.textContent = 'Fixing…';
+    fetch('/api/seo-review/repair', {
+      method:'POST', credentials:'same-origin',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ slug: SLUG, apply: true }),
+    })
+      .then(function(r){ return r.json(); })
+      .then(function(j){
+        rbtn.textContent = 'Fix artifacts';
+        rbtn.disabled = false;
+        if (j.error) { vout.innerHTML = '<div class="vissue">Repair failed: ' + esc2(j.error) + '</div>'; return; }
+        runVerify();
+      })
+      .catch(function(e){
+        rbtn.textContent = 'Fix artifacts';
+        rbtn.disabled = false;
+        vout.innerHTML = '<div class="vissue">Repair failed: ' + esc2(e.message) + '</div>';
+      });
+  });
+
+  // ---- CSV export ----
+  function csv(v){ v = v == null ? '' : String(v); return /[",\n\r]/.test(v) ? '"' + v.replace(/"/g,'""') + '"' : v; }
+  document.getElementById('export').addEventListener('click', function(){
+    var head = ['slug','finding_number','disposition','layer','term','field','verbatim_quote','reader_takeaway','suggested_rewrite','decision','note'];
+    var lines = [head.join(',')];
+    FINDINGS.forEach(function(f){
+      var d = state[f.number] || {};
+      lines.push([SLUG,f.number,f.disposition,f.layer,f.term,f.field,f.quote,f.takeaway,f.rewrite,d.decision||'',d.note||''].map(csv).join(','));
+    });
+    var blob = new Blob([lines.join('\n')], {type:'text/csv'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'decisions-' + SLUG + '.csv';
+    a.click(); URL.revokeObjectURL(a.href);
+  });
+
+  // ---- arrow-key navigation ----
+  document.addEventListener('keydown', function(e){
+    var t = e.target.tagName;
+    if (t === 'TEXTAREA' || t === 'INPUT' || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.key === 'ArrowLeft')  { var p = document.getElementById('prevlink'); if (p) location.href = p.getAttribute('href'); }
+    if (e.key === 'ArrowRight') { var n = document.getElementById('nextlink'); if (n) location.href = n.getAttribute('href'); }
+  });
+})();
+</script>
+<footer style="max-width:1500px;margin:0 auto;padding:0 24px 40px;color:#6b7280;font-size:12px">
+  Generated 2026-08-04T09:03:45.032Z · RULES.md sha256 <code>4f158f1eb915653ca6d1348764792f68f4c89bc8cb9df6742985add6517e0f3c</code> · model claude-opus-5
+</footer>
+</body></html>

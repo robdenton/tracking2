@@ -1,0 +1,1454 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Review — Granola troubleshooting: Fix sync, audio, and meeting issues</title>
+<style>
+  :root{--bg:#fbfbfa;--card:#fff;--ink:#1a1a1a;--muted:#6b7280;--line:#e5e7eb;--accent:#4f46e5;
+        --red:#b91c1c;--redbg:#fee2e2;--amber:#b45309;--amberbg:#fef3c7;--comp:#7c3aed;--compbg:#ede9fe;--clr:#6b7280;--ok:#15803d}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  header{background:var(--card);border-bottom:1px solid var(--line);padding:16px 24px;position:sticky;top:0;z-index:20}
+  h1{font-size:19px;margin:0 0 6px;line-height:1.35}
+  .meta{color:var(--muted);font-size:13px;display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center}
+  .meta a{color:var(--accent)}
+  .nav{display:flex;gap:8px;margin-top:10px;align-items:center;flex-wrap:wrap}
+  .nav a,.nav span{font-size:13px;padding:5px 11px;border:1px solid var(--line);border-radius:7px;
+       background:var(--card);text-decoration:none;color:var(--ink)}
+  .nav a:hover{border-color:var(--accent);color:var(--accent)}
+  .nav .disabled{color:#c0c0c0}
+  .nav .sep{border:none;padding:0;width:10px}
+  .wrap{display:grid;grid-template-columns:minmax(0,1fr) 420px;gap:28px;max-width:1500px;margin:0 auto;padding:24px}
+  @media (max-width:1100px){.wrap{grid-template-columns:1fr}.panel{position:static!important;max-height:none!important}}
+  .prose{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:28px 32px;
+         max-width:72ch;line-height:1.75}
+  .fieldgroup{margin-bottom:28px}
+  .fieldlabel{font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);
+              font-weight:700;border-bottom:1px solid var(--line);padding-bottom:6px;margin:0 0 14px}
+  .metafield{margin-bottom:12px}
+  .metakey{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+  .metaval{font-size:15px}
+  .body-h{margin:26px 0 10px;line-height:1.35}
+  h2.body-h{font-size:22px} h3.body-h{font-size:18px} h4.body-h{font-size:16px}
+  .body-p{margin:0 0 15px}
+  .body-list{margin:0 0 15px 22px} .body-list li{margin-bottom:7px}
+  .body-quote{margin:0 0 16px;padding:10px 16px;border-left:3px solid var(--accent);background:#f8f7ff;font-style:italic}
+  .cell{margin:0 0 8px;padding:7px 10px;background:#f8f8f7;border-radius:6px;font-size:14px}
+  .cell.url{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;word-break:break-all}
+  .tag-inline{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:2px;font-style:normal}
+  mark.hl{padding:1px 0;border-radius:2px;cursor:pointer;background:none}
+  mark.hl.d-red{background:var(--redbg);box-shadow:0 1px 0 var(--red)}
+  mark.hl.d-amber{background:var(--amberbg);box-shadow:0 1px 0 var(--amber)}
+  mark.hl.d-competitor{background:var(--compbg);box-shadow:0 1px 0 var(--comp)}
+  mark.hl.d-cleared,mark.hl.d-notaudited{background:none;border-bottom:2px dotted #b6b6b6;color:#555}
+  mark.hl:focus{outline:2px solid var(--accent)}
+  mark.hl.pulse{animation:pulse 1.1s ease-out 2}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(79,70,229,.55)}50%{box-shadow:0 0 0 7px rgba(79,70,229,0)}}
+  .hlnum{font-size:10px;font-weight:700;color:var(--accent);vertical-align:super;margin-left:1px}
+  .panel{position:sticky;top:104px;max-height:calc(100vh - 128px);overflow:auto}
+  .panelhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px}
+  .panelhead h2{font-size:14px;margin:0;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+  .finding{background:var(--card);border:1px solid var(--line);border-left-width:4px;border-radius:9px;
+           padding:13px 15px;margin-bottom:11px;font-size:13.5px;scroll-margin-top:110px}
+  .finding.d-red{border-left-color:var(--red)} .finding.d-amber{border-left-color:var(--amber)}
+  .finding.d-competitor{border-left-color:var(--comp)} .finding.d-cleared,.finding.d-notaudited{border-left-color:#c9c9c9}
+  .finding.active{box-shadow:0 0 0 2px var(--accent)}
+  .fhead{display:flex;align-items:center;gap:8px;margin-bottom:5px;flex-wrap:wrap}
+  .fnum{background:var(--accent);color:#fff;border-radius:50%;width:21px;height:21px;display:inline-flex;
+        align-items:center;justify-content:center;font-size:11px;font-weight:700;flex:none}
+  .fdisp{font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+  .d-red .fdisp{color:var(--red)} .d-amber .fdisp{color:var(--amber)}
+  .d-competitor .fdisp{color:var(--comp)} .d-cleared .fdisp,.d-notaudited .fdisp{color:var(--clr)}
+  .flayer{font-size:11px;color:var(--muted);margin-left:auto}
+  .fcat{font-size:10px;font-weight:800;letter-spacing:.06em;padding:2px 7px;border-radius:5px}
+  .cat-accuracy{background:#1e1b4b;color:#fff}
+  .cat-bot-denigration{background:#7c2d12;color:#fff}
+  .ffield{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+  .fquote{margin:0 0 8px;padding:7px 11px;background:#f7f7f6;border-radius:6px;font-style:italic;font-size:13px}
+  .ftake,.frewrite{margin-bottom:7px;font-size:13px}
+  .frewrite{color:#065f46;background:#f0fdf4;padding:7px 10px;border-radius:6px;margin-bottom:7px}
+  .fdelete{color:#7c2d12;background:#fff7ed;padding:7px 10px;border-radius:6px;margin-bottom:7px}
+  .fdelete.muted-note{color:var(--muted);background:#f7f7f6}
+  .fdefer{font-size:12px;color:var(--muted);background:#f4f4ff;border-left:2px solid var(--accent);
+          padding:6px 9px;border-radius:5px;margin-bottom:7px}
+  .fdefer a{color:var(--accent);font-weight:600}
+  .fdecide{display:flex;gap:12px;align-items:center;font-size:12.5px;margin:9px 0 6px}
+  .fdecide label{cursor:pointer} .clearbtn{margin-left:auto;font-size:11px;color:var(--muted);
+        background:none;border:1px solid var(--line);border-radius:5px;padding:2px 7px;cursor:pointer}
+  .freprompt{margin:4px 0 7px}
+  .fdirect{width:100%;font:inherit;font-size:12.5px;padding:6px 8px;border:1px solid var(--line);
+           border-radius:6px;resize:vertical;background:#fcfcff}
+  .regenbtn{margin-top:5px;font-size:11.5px;padding:4px 10px;border:1px solid var(--accent);
+            color:var(--accent);background:var(--card);border-radius:6px;cursor:pointer;font-weight:600}
+  .regenbtn:hover:not(:disabled){background:var(--accent);color:#fff}
+  .regenbtn:disabled{opacity:.55;cursor:default}
+  .regenout{font-size:12.5px;margin-top:6px}
+  .newrw{background:#f0fdf4;border-left:3px solid #16a34a;padding:8px 10px;border-radius:6px;color:#065f46}
+  .newrw .why{color:#3f6212;font-size:11.5px;margin-top:4px}
+  .newrw .acts{margin-top:6px;display:flex;gap:8px}
+  .newrw button{font-size:11.5px;padding:3px 9px;border-radius:5px;cursor:pointer;border:1px solid var(--line);background:#fff}
+  .newrw button.use{border-color:#16a34a;color:#166534;font-weight:600}
+  .regenerr{background:#fef3c7;border-left:3px solid #d97706;padding:7px 10px;border-radius:6px;color:#78350f}
+  .fnote{width:100%;font:inherit;font-size:12.5px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;resize:vertical}
+  .finding.decided-accept{background:#f0fdf4} .finding.decided-dismiss{opacity:.62}
+  /* Once decided, a finding collapses to a single line so the panel shows what
+     is still outstanding at a glance. Click the header to reopen it. */
+  .finding.collapsed{padding:8px 13px;cursor:pointer}
+  .finding.collapsed .fbody{display:none}
+  .finding.collapsed .fhead{margin-bottom:0}
+  .finding.collapsed .fdone{display:block}
+  .fdone{display:none;font-size:11.5px;font-weight:600;margin-top:3px}
+  .finding.collapsed.decided-accept .fdone{color:#15803d}
+  .finding.collapsed.decided-dismiss .fdone{color:var(--muted)}
+  .finding.collapsed:hover{box-shadow:0 0 0 1px var(--accent)}
+  .finding.discarded{display:none}
+  /* Cleared items are listed for auditability but hidden by default — at ~70%
+     of findings they drown the ones that need a decision. */
+  .panel:not(.reveal-cleared) .finding.is-cleared{display:none}
+  .panel.reveal-cleared .finding.is-cleared{opacity:.62}
+  .panelfilters{display:flex;gap:14px;flex-wrap:wrap;margin:0 0 10px;font-size:12px;color:var(--muted)}
+  .tgl{display:inline-flex;align-items:center;gap:5px;cursor:pointer;user-select:none}
+  .tgl input{margin:0}
+  mark.hl.hl-cleared-hidden{background:none!important;box-shadow:none!important;
+    border-bottom:1px dotted #d4d4d4;color:inherit}
+  .panel.reveal-discarded .finding.discarded{display:block;opacity:.5;border-left-color:#c9c9c9}
+  mark.hl.hl-discarded{background:none!important;box-shadow:none!important;border-bottom:1px dotted #d0d0d0;color:inherit}
+  #outstanding{font-size:11px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);margin-left:6px}
+  #showdiscarded{font-size:11px;font-weight:400;text-transform:none;letter-spacing:0;margin-left:8px;color:var(--accent)}
+  .fstatus{font-size:11.5px;margin:2px 0 6px;min-height:14px;color:var(--muted)}
+  .fstatus.ok{color:#15803d;font-weight:600}
+  .fstatus.warn{color:#b45309;font-weight:600}
+  .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:700}
+  .pill.d-red{background:var(--redbg);color:var(--red)} .pill.d-amber{background:var(--amberbg);color:var(--amber)}
+  .pill.d-competitor{background:var(--compbg);color:var(--comp)}
+  .pill.d-cleared,.pill.d-notaudited{background:#f0f0f0;color:var(--clr)}
+  .pill.d-clean{background:#dcfce7;color:var(--ok)}
+  .manualbox{background:#fffbeb;border:1px solid #f0c674;border-radius:9px;padding:11px 13px;margin-bottom:11px}
+  .manualhead{font-weight:700;font-size:13px;color:#92400e;margin-bottom:7px}
+  .manualcount{font-weight:400;color:#a16207}
+  .manualitem{background:#fff;border-left:3px solid #d97706;padding:8px 10px;border-radius:6px;margin-bottom:7px;font-size:12.5px}
+  .manualitem .why{color:#78350f;margin-top:3px}
+  .manualitem .txt{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;
+                   background:#faf9f7;padding:5px 7px;border-radius:4px;margin-top:4px;display:block}
+  .verifybox{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:11px 13px;margin-bottom:11px}
+  .verifyhead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px;font-size:13px}
+  .verifybtn{font-size:12px;padding:5px 11px;border:1px solid var(--accent);color:var(--accent);
+             background:var(--card);border-radius:7px;cursor:pointer;font-weight:600}
+  .verifybtn:hover{background:var(--accent);color:#fff}
+  .verifyout{font-size:12.5px;color:var(--muted);line-height:1.5}
+  .vissue{background:#fef3c7;border-left:3px solid #d97706;padding:7px 10px;border-radius:6px;margin:6px 0;color:#78350f}
+  .vmanual{background:#eef2ff;border-left:3px solid var(--accent);padding:7px 10px;border-radius:6px;margin:6px 0;color:#312e81}
+  .vidle{background:#f7f7f6;border-left:3px solid #c9c9c9;padding:7px 10px;border-radius:6px;color:var(--muted)}
+  .vok{background:#f0fdf4;border-left:3px solid #16a34a;padding:7px 10px;border-radius:6px;color:#166534}
+  .vsnip{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;display:block;margin-top:3px;opacity:.85}
+  .loadwarn{background:#fef3c7;border:1px solid #f0c674;color:#92400e;padding:9px 12px;
+            border-radius:8px;font-size:12.5px;margin-bottom:10px;line-height:1.45}
+  .clean{background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;padding:14px;border-radius:9px;font-size:14px}
+  .exportbtn{font-size:12px;padding:5px 11px;border:1px solid var(--line);border-radius:7px;background:var(--card);cursor:pointer}
+  .exportbtn:hover{border-color:var(--accent);color:var(--accent)}
+  .builderr{background:#fee2e2;border:1px solid var(--red);color:var(--red);padding:12px 15px;border-radius:9px;margin-bottom:16px;font-size:13.5px}
+  code{background:#f0f0ef;padding:1px 5px;border-radius:4px;font-size:12.5px}
+  .bkbadge{padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700;cursor:help}
+  .bkbadge.bk1{background:#fee2e2;color:#991b1b}
+  .bkbadge.bk2{background:#fef3c7;color:#92400e}
+  .bkbadge.bk3{background:#dcfce7;color:#166534}
+  .actbar{margin:11px 0 0;padding:10px 14px;border-radius:9px;font-size:13px;line-height:1.55;
+          border:1px solid transparent}
+  .actbar b{font-weight:800}
+  .actbar.act1{background:#fee2e2;color:#7f1d1d;border-color:#fca5a5}
+  .actbar.act2{background:#fef3c7;color:#78350f;border-color:#fcd34d}
+  .actbar.act3{background:#dcfce7;color:#14532d;border-color:#86efac}
+</style></head><body>
+<header>
+  <h1>Granola troubleshooting: Fix sync, audio, and meeting issues</h1>
+  <div class="meta">
+    <span class="bkbadge bk2" title="Content: integrations &amp; CRM capture — Describes meeting content flowing into other systems, which is a data-movement claim.
+
+Findings: 0 red and 1 amber findings — low volume.
+
+Held at the higher sensitivity by subject matter, despite a low finding count — the topic carries risk the count does not capture.">Bucket 2 · medium</span>
+    <span class="bkbadge bk2">Agency: Review &amp; recommend</span>
+    <span><code>granola-integration-troubleshooting-common-issues-solutions</code></span>
+    <span>Published 2026-03-20</span>
+    <span><code>post-granola-integration-troubleshooting-common-issues-solutions</code></span>
+    <a href="https://www.granola.ai/blog/granola-integration-troubleshooting-common-issues-solutions" target="_blank" rel="noopener">Live page ↗</a>
+    <a href="https://www.granola.ai/studio/structure/seoPosts;post-granola-integration-troubleshooting-common-issues-solutions" target="_blank" rel="noopener">Sanity Studio ↗</a>
+    <span><span class="pill d-cleared">cleared-in-context 21</span> <span class="pill d-amber">amber 1</span></span>
+  </div>
+  <div class="actbar act2">
+    <b>Agency — Review &amp; recommend.</b> Review every finding and leave a note saying what you would do and why, but do not Accept or Delete. Granola makes the final call. Use the note field — it regenerates a rewrite from your direction.
+  </div>
+  <div class="nav">
+    <a href="/seo-audit">All articles</a>
+    <a href="index.html">Review status</a>
+    <a href="/seo-review/changes">Change log</a>
+    <span class="sep"></span>
+    <a href="granola-google-meet-integration-recording-transcription.html" id="prevlink">← Previous</a>
+    <a href="granola-integrations-complete-guide-connecting-meeting-tools.html" id="nextlink">Next →</a>
+    <span class="disabled" style="border:none">← / → arrow keys</span>
+  </div>
+</header>
+<div class="wrap">
+  <main class="prose">
+    
+    <section class="fieldgroup"><h3 class="fieldlabel">Title, slug &amp; meta/summary</h3>
+<div class="metafield"><span class="metakey">Title</span><div class="metaval">Granola troubleshooting: Fix sync, audio, and meeting issues</div></div>
+<div class="metafield"><span class="metakey">Slug (URL)</span><div class="metaval">granola-integration-troubleshooting-common-issues-solutions</div></div>
+<div class="metafield"><span class="metakey">Meta / summary</span><div class="metaval">Granola not transcribing, syncing, or detecting meetings? Work through the common fixes for audio, Slack, Notion, calendar, and Zapier issues, step by step.</div></div>
+</section>
+<section class="fieldgroup"><h3 class="fieldlabel">Article body</h3>
+<blockquote class="body-quote"><span class="tag-inline">Blockquote / testimonial</span>TL;DR: Common Granola integration failures often trace back to expired authentication tokens or OS-level permissions that need to be re-granted. For sync issues with Slack or Notion, open Settings and disconnect, then reconnect the integration. For &quot;no audio&quot; problems on Mac, check System Settings &gt; <mark class="hl d-cleared" data-findings="1" id="hl-1" tabindex="0">Privacy<sup class="hlnum">1</sup></mark> &amp; Security &gt; Microphone and Screen &amp; System Audio Recording. If an issue persists after these steps, check the Granola Status Page and email hey@granola.so with a screenshot.
+</blockquote>
+<div class="cell"><span class="tag-inline">Link text → https://status.granola.ai/</span>Granola Status Page</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://status.granola.ai/</div>
+<div class="cell"><span class="tag-inline">Link text → mailto:hey@granola.so</span>hey@granola.so</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>mailto:hey@granola.so</div>
+<p class="body-p">We designed Granola to connect into your existing stack, pushing notes to Notion, posting summaries to Slack, and syncing with CRMs like HubSpot and Attio. <mark class="hl d-cleared" data-findings="2" id="hl-2" tabindex="0">When those connections break, your research repository breaks with them, and the context from your last customer interview risks staying locked inside the app.<sup class="hlnum">2</sup></mark> Common issues often trace to permission changes, token expiry, or audio device conflicts, and these typically resolve quickly.</p>
+<p class="body-p">This guide walks through every common failure category, step by step. If Granola is not working, not transcribing, or not detecting your meetings, start with the quick-diagnosis index below, then jump to the section for your specific integration.</p>
+<p class="body-p">Quick diagnosis: match your symptom to the first fix.</p>
+<ul class="body-list">
+<li>Granola not transcribing or no audio: Grant both Microphone and Screen &amp; System Audio Recording permissions under System Settings &gt; <mark class="hl d-cleared" data-findings="3" id="hl-3" tabindex="0">Privacy<sup class="hlnum">3</sup></mark> &amp; Security, then restart Granola.</li>
+<li>Notes not syncing to Slack or Notion: The email on the connected account usually doesn't match your Granola email. Disconnect and reconnect the integration in Settings.</li>
+<li>Meeting not detected: The event's calendar isn't synced or the invite has no video link. Toggle the calendar on under Settings &gt; Calendar.</li>
+<li>Granola not working or not running: A stale process. Restart Granola completely, then sign out and back in to refresh your tokens.</li>
+<li><mark class="hl d-cleared" data-findings="4,5" id="hl-4" tabindex="0">Zapier trigger failing silently: An older Zap is missing the workspace selector.<sup class="hlnum">4,5</sup></mark> Update the Granola trigger and choose a workspace.</li>
+</ul>
+<h2 class="body-h">Quick fixes for common sync issues</h2>
+<p class="body-p">Before diagnosing a specific integration, run through this checklist. You'll resolve most one-off failures in under two minutes.</p>
+<ul class="body-list">
+<li>Check the status page: Visit status.granola.ai to rule out a service-level incident. If there's an active incident affecting the Desktop App or iOS App, the fix is waiting, not debugging.</li>
+</ul>
+<div class="cell"><span class="tag-inline">Link text → https://status.granola.ai/</span>status.granola.ai</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://status.granola.ai/</div>
+<ul class="body-list">
+<li>Verify Granola is running on macOS: Open Terminal and run `pgrep -l Granola`. If nothing returns, Granola isn't running. Relaunch it from your Applications folder. On Windows, click the `^` icon in the bottom-right of your taskbar and look for the `g` icon in the System Tray.</li>
+<li>Restart Granola completely: On Mac, right-click the app icon in the Dock and choose &quot;Restart Granola completely.&quot; On Windows, right-click the `g` System Tray icon and choose the same option. This clears stale processes (<mark class="hl d-cleared" data-findings="6" id="hl-6" tabindex="0">background<sup class="hlnum">6</sup></mark> tasks that haven't closed properly) that can block audio or sync.</li>
+<li>Sign out and sign back in: Go to your workspace name (bottom-left) &gt; Settings &gt; Sign out, then relaunch and re-authenticate. Signing out and back in refreshes your OAuth tokens for Google or Microsoft and often resolves auth failures in connected integrations.</li>
+<li>Check your internet connection: Granola transcribes in real time on macOS and Windows. A dropped or throttled connection during a meeting can interrupt transcription before it reaches your Notion or Slack destination.</li>
+</ul>
+<p class="body-p">If the problem persists after these five steps, move to the section specific to your integration.</p>
+<h2 class="body-h">Troubleshooting specific integrations</h2>
+<p class="body-p">Note: Check your plan before troubleshooting. Slack, Notion, CRM (HubSpot, Affinity, Attio), and Zapier integrations are only available on Business or Enterprise plans, the steps below will not work if you're on a Basic plan. If you're on Basic, upgrade your plan first, then return to this guide.</p>
+<div class="cell"><span class="tag-inline">Link text → https://granola.ai/pricing</span>upgrade your plan</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://granola.ai/pricing</div>
+<h3 class="body-h">Slack and Notion sync failures</h3>
+<p class="body-p">Slack</p>
+<p class="body-p">The most common Slack sync failure happens when your email address in Slack doesn't match the one registered in Granola. <mark class="hl d-cleared" data-findings="7,8" id="hl-7" tabindex="0">If you've recently changed your Slack email or your workspace admin updated your account, Slack will break the connection silently.<sup class="hlnum">7,8</sup></mark></p>
+<p class="body-p">Fix it by disconnecting and reconnecting:</p>
+<ul class="body-list">
+<li>Open Granola and click your avatar (bottom-left) to open Settings.</li>
+<li>Navigate to Settings &gt; Slack.</li>
+<li>Click &quot;Disconnect.&quot;</li>
+<li>Click to reconnect. Granola will open your browser to re-authorize your Slack workspace.</li>
+</ul>
+<p class="body-p">The Slack integration help article also notes that the Slack integration isn't available for personal Gmail or Outlook.com accounts. If you're on a personal account, check whether using a workspace email address resolves the issue. If you previously posted to <mark class="hl d-cleared" data-findings="9" id="hl-9" tabindex="0">private<sup class="hlnum">9</sup></mark> Slack channels and those stopped working, confirm the email addresses on both accounts match before reconnecting. Full documentation is in the Granola Slack integration guide.</p>
+<div class="cell"><span class="tag-inline">Link text → https://help.granola.ai/article/slack</span>Slack integration help article</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://help.granola.ai/article/slack</div>
+<div class="cell"><span class="tag-inline">Link text → https://docs.granola.ai/help-center/sharing/integrations/slack</span>Granola Slack integration guide</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://docs.granola.ai/help-center/sharing/integrations/slack</div>
+<p class="body-p">Notion</p>
+<p class="body-p">Notion failures almost always trace back to a mismatched account. If you signed into Notion with a different email than your Granola account, authorization will succeed but permissions won't carry through.</p>
+<ul class="body-list">
+<li>Confirm you're signed into Notion in your browser with the same email as your Granola account.</li>
+<li>Open Granola &gt; Settings &gt; Integrations &gt; Notion.</li>
+<li>Click &quot;Disconnect,&quot; then &quot;Connect&quot; again.</li>
+<li>Re-authorize when prompted and select the correct parent page.</li>
+</ul>
+<p class="body-p">If you're still seeing errors after reconnecting, note the specific error message and email it to hey@granola.so. The Notion integration documentation has step-by-step screenshots for the re-authorization flow.</p>
+<div class="cell"><span class="tag-inline">Link text → mailto:hey@granola.so</span>hey@granola.so</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>mailto:hey@granola.so</div>
+<div class="cell"><span class="tag-inline">Link text → https://docs.granola.ai/help-center/sharing/notion</span>Notion integration documentation</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://docs.granola.ai/help-center/sharing/notion</div>
+<h3 class="body-h">Zapier automation errors</h3>
+<p class="body-p">Zapier is available on paid plans for Desktop app users. The most common failure pattern affects users who are members of multiple Granola workspaces: <mark class="hl d-cleared" data-findings="10,11" id="hl-10" tabindex="0">older Zap configurations lack the workspace selector field, causing triggers to fail silently<sup class="hlnum">10,11</sup></mark>.</p>
+<p class="body-p">Here's how to repair it:</p>
+<ul class="body-list">
+<li>Open the affected Zap in the Zapier workflow editor at zapier.com.</li>
+<li>Select the Granola trigger step. You'll see a notice prompting you to update to the latest version of the Granola Zapier integration.</li>
+<li>Accept the update and proceed to the next screen.</li>
+<li>A new required field appears: select which Granola workspace your Zap will pull from.</li>
+<li>Save and test the Zap.</li>
+</ul>
+<p class="body-p">The Zapier integration help article covers this workspace-selection requirement in detail, with full technical documentation in the Granola Zapier integration docs.</p>
+<div class="cell"><span class="tag-inline">Link text → https://help.granola.ai/article/zapier</span>Zapier integration help article</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://help.granola.ai/article/zapier</div>
+<p class="body-p"><mark class="hl d-cleared" data-findings="12" id="hl-12" tabindex="0">One practical note: we built native integrations (Slack, Notion, HubSpot) to be more stable than Zapier workflows by using direct API connections rather than polling intermediaries.<sup class="hlnum">12</sup></mark> Use Zapier when a direct connection isn't available, but if you're routing critical research notes through a Zap, check whether a native integration covers the same destination first.</p>
+<h3 class="body-h">CRM connections (HubSpot, Affinity, Attio)</h3>
+<p class="body-p">Granola connects with Attio, HubSpot, and Affinity, matching your notes to the right people, companies, or deals in your CRM. Each uses a different authentication model, which is the most common source of failures.</p>
+<div class="cell"><span class="tag-inline">Link text → https://docs.granola.ai/help-center/sharing/integrations/integrations-with-granola</span>connects with Attio, HubSpot, and Affinity</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://docs.granola.ai/help-center/sharing/integrations/integrations-with-granola</div>
+<div class="cell"><span class="tag-inline">Table header cell</span>CRM</div>
+<div class="cell"><span class="tag-inline">Table header cell</span>Authentication</div>
+<div class="cell"><span class="tag-inline">Table header cell</span>Possible issue</div>
+<div class="cell"><span class="tag-inline">Table header cell</span>Fix</div>
+<div class="cell"><span class="tag-inline">Table cell</span>HubSpot</div>
+<div class="cell"><span class="tag-inline">Table cell</span>OAuth</div>
+<div class="cell"><span class="tag-inline">Table cell</span>Token expiry after account changes</div>
+<div class="cell"><span class="tag-inline">Table cell</span>Settings &gt; Integrations &gt; HubSpot &gt; Disconnect, then reconnect</div>
+<div class="cell"><span class="tag-inline">Table cell</span>Affinity</div>
+<div class="cell"><span class="tag-inline">Table cell</span>API key</div>
+<div class="cell"><span class="tag-inline">Table cell</span>Key rotated by account owner</div>
+<div class="cell"><span class="tag-inline">Table cell</span>Settings &gt; Integrations &gt; paste new API key, saves <mark class="hl d-cleared" data-findings="13" id="hl-13" tabindex="0">automatically<sup class="hlnum">13</sup></mark></div>
+<div class="cell"><span class="tag-inline">Table cell</span>Attio</div>
+<div class="cell"><span class="tag-inline">Table cell</span>OAuth (Attio login)</div>
+<div class="cell"><span class="tag-inline">Table cell</span>Session expired or permissions changed</div>
+<div class="cell"><span class="tag-inline">Table cell</span>Settings &gt; Integrations &gt; Attio &gt; Disconnect, then reconnect with Attio login</div>
+<p class="body-p">For Affinity specifically, the Granola Affinity integration guide walks through where to find your API key in Affinity's account settings. The Attio integration page has additional context on which data Granola passes to Attio records.</p>
+<div class="cell"><span class="tag-inline">Link text → https://www.granola.ai/docs/docs/integrations/Affinity-Integration</span>Granola Affinity integration guide</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://www.granola.ai/docs/docs/integrations/Affinity-Integration</div>
+<h2 class="body-h">Resolving calendar and meeting detection problems</h2>
+<h3 class="body-h">Meeting not detected or transcription won't start</h3>
+<p class="body-p">When Granola doesn't detect a meeting, check these three things first:</p>
+<ul class="body-list">
+<li>Check which calendars are synced. In Granola, click the cog next to &quot;Coming Up&quot; to see the calendars visible from your connected account. If your event is on a secondary or shared team calendar, toggle it on.</li>
+<li>Confirm the event has a video link. Granola detects meetings from calendar invites broadly, and a conferencing URL (Zoom, Meet, Teams) is one of the stronger detection signals. <mark class="hl d-amber" data-findings="14" id="hl-14" tabindex="0">Granola also monitors for microphone activation and browser tab URLs, so ad-hoc calls without a calendar event can be detected too, but a missing or malformed conferencing link can reduce detection reliability for scheduled meetings.<sup class="hlnum">14</sup></mark></li>
+<li>Check Settings &gt; Calendar. Confirm the right calendars are toggled on under your account. The calendar sync troubleshooting guide covers every toggle and setting in this view.</li>
+</ul>
+<div class="cell"><span class="tag-inline">Link text → https://docs.granola.ai/help-center/troubleshooting/calendar-sync</span>calendar sync troubleshooting guide</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://docs.granola.ai/help-center/troubleshooting/calendar-sync</div>
+<p class="body-p">If Granola detected the meeting but didn't generate notes, see the notes not generating help article for common causes including connectivity issues.</p>
+<div class="cell"><span class="tag-inline">Link text → https://docs.granola.ai/help-center/troubleshooting/notes-not-generating</span>notes not generating help article</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://docs.granola.ai/help-center/troubleshooting/notes-not-generating</div>
+<h3 class="body-h">Calendar sync delays</h3>
+<p class="body-p">Calendar sync isn't instant, so after adding or editing an event it can take a couple of minutes for the change to appear in Granola. This is normal behavior.</p>
+<p class="body-p">If an event is still missing after a few minutes, force a refresh:</p>
+<ul class="body-list">
+<li>Sign out: workspace name (bottom-left) &gt; Settings &gt; Sign out.</li>
+<li>Sign back in and re-authenticate your Google or Microsoft account.</li>
+<li>Open Settings &gt; Calendar and confirm the right calendars are toggled on.</li>
+<li>Wait a few minutes for the sync to catch up.</li>
+</ul>
+<p class="body-p">The sign-out and sign-in cycle re-authenticates the calendar connection and clears any stale sync state. The getting started setup guide has full calendar authorization steps if you need to re-grant permissions from scratch.</p>
+<div class="cell"><span class="tag-inline">Link text → https://docs.granola.ai/help-center/getting-started/setting-up-granola-for-the-first-time</span>getting started setup guide</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://docs.granola.ai/help-center/getting-started/setting-up-granola-for-the-first-time</div>
+<h2 class="body-h">Fixing audio and transcription failures</h2>
+<h3 class="body-h">No audio captured</h3>
+<p class="body-p">Finishing a customer interview and seeing no transcript is the worst feeling. If Granola is not transcribing, the cause is almost always an audio permission or device conflict. Here's what matters most:</p>
+<p class="body-p">Desktop (macOS and Windows): We transcribe in real time, so if Granola was running during your meeting, you won't lose the transcript mid-session even if your connection drops briefly. Sustained network failures can still prevent notes from generating, see the network troubleshooting section below.</p>
+<p class="body-p"><mark class="hl d-cleared" data-findings="15" id="hl-15" tabindex="0">iOS: Granola temporarily caches audio after your meeting before processing, as documented in the Granola security overview.<sup class="hlnum">15</sup></mark></p>
+<div class="cell"><span class="tag-inline">Link text → https://www.granola.ai/security</span>Granola security overview</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://www.granola.ai/security</div>
+<p class="body-p">For &quot;no audio&quot; on desktop, work through these steps:</p>
+<p class="body-p">Step 1: Check macOS microphone and system audio permissions</p>
+<p class="body-p">On Mac, you need to enable both Microphone and Screen &amp; System Audio Recording for Granola.</p>
+<ul class="body-list">
+<li><mark class="hl d-cleared" data-findings="16,17" id="hl-16" tabindex="0">Go to System Settings &gt; Privacy &amp; Security &gt; Microphone and confirm Granola is toggled on. (This lets Granola capture your voice and other microphone input.)<sup class="hlnum">16,17</sup></mark></li>
+<li>Go to System Settings &gt; <mark class="hl d-cleared" data-findings="18" id="hl-18" tabindex="0">Privacy<sup class="hlnum">18</sup></mark> &amp; Security &gt; Screen &amp; System Audio Recording and confirm Granola appears and is enabled. (This lets Granola capture system audio from conferencing apps like Zoom or Meet.)</li>
+</ul>
+<p class="body-p">If Granola doesn't appear in either list, the app hasn't requested permission yet. Start a test meeting to trigger the OS permission prompt.</p>
+<p class="body-p">Step 2: Verify your default audio device</p>
+<p class="body-p">Granola uses your macOS or Windows default sound device to capture audio, so confirm the same microphone is selected in both your System Settings and your meeting software (Zoom, Meet, Teams). On Mac, check System Settings &gt; Sound &gt; Input. The transcription issues help article covers device-matching in detail.</p>
+<div class="cell"><span class="tag-inline">Link text → https://docs.granola.ai/help-center/troubleshooting/transcription-issues</span>transcription issues help article</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://docs.granola.ai/help-center/troubleshooting/transcription-issues</div>
+<p class="body-p">Step 3: Check for virtual audio conflicts</p>
+<p class="body-p">USB microphone amplifiers, audio mixing software, and &quot;pass-through&quot; configurations can interfere with Granola's audio capture. If you use any of these, try disabling them temporarily. For stereo inputs or outputs, confirm your audio is routed to the Left channel (or both Left and Right). If disabling the external audio software resolves the issue, you've found the conflict and should keep that software off during meetings, or contact the software vendor for a compatible configuration.</p>
+<p class="body-p">Step 4: Restart your computer</p>
+<p class="body-p">Occasionally the processes Granola uses to transcribe system audio crash in a way that restarting Granola won't fix. For OS-level audio crashes, try restarting the `coreaudiod` daemon first: open Activity Monitor, search for &quot;coreaudiod&quot;, select it, and click the Force Quit (×) button, macOS will restart the process <mark class="hl d-cleared" data-findings="19" id="hl-19" tabindex="0">automatically<sup class="hlnum">19</sup></mark>. If that doesn't resolve it, a full machine restart is the reliable fallback.</p>
+<h3 class="body-h">Poor transcription quality</h3>
+<p class="body-p">Poor output quality usually comes from one of two sources: bad audio input, or a network issue blocking the transcription API.</p>
+<p class="body-p">Audio quality issues</p>
+<p class="body-p"><mark class="hl d-cleared" data-findings="20" id="hl-20" tabindex="0">Background<sup class="hlnum">20</sup></mark> noise, distance from the microphone, and echo from speakers all degrade transcription accuracy. If another participant's audio is low quality, that portion of the transcript reflects it. This is an audio input problem, not an AI problem. Using a headset or moving closer to the microphone resolves most of these cases.</p>
+<p class="body-p">Network issues affecting transcription</p>
+<p class="body-p">If Granola can't reach its transcription API, notes won't generate even if we captured audio. Two common network-level causes:</p>
+<ul class="body-list">
+<li>DNS resolution failure: For some users, Granola can't resolve the domain name for the transcription API. Try switching your DNS server to `8.8.8.8` (Google Public DNS) in your network settings.</li>
+<li>TLS connection failure: If your network applies deep packet inspection or TLS interception (common on corporate VPNs), it can block the secure connection to our transcription APIs, but this is a resolvable network configuration issue. Contact your IT team and request a network exception for Granola's transcription endpoints, they can whitelist the relevant domains to allow the connection through.</li>
+</ul>
+<p class="body-p">Both scenarios are covered in the transcription troubleshooting guide. The notes not generating article covers platform-specific steps for notes that didn't generate on iOS.</p>
+<div class="cell"><span class="tag-inline">Link text → https://granola.ai/docs/docs/transcription-troubleshooting</span>transcription troubleshooting guide</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://granola.ai/docs/docs/transcription-troubleshooting</div>
+<div class="cell"><span class="tag-inline">Link text → https://docs.granola.ai/help-center/ios/notes-not-generating</span>notes not generating article</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://docs.granola.ai/help-center/ios/notes-not-generating</div>
+<h2 class="body-h">When to contact support</h2>
+<p class="body-p">Escalate to the support team when you've disconnected and reconnected an integration and the sync still fails, notes from a specific meeting are missing despite Granola running with audio permissions granted, you're seeing a specific error message not covered above, or you're on a corporate network and suspect a TLS or firewall issue requiring IT involvement.</p>
+<p class="body-p">Email hey@granola.so with your Granola app version (visible in Settings), your operating system and version, the name of the integration that failed, the time the issue occurred, and screenshots of any error messages. The faster you can share the specific error message, the faster support can identify the root cause.</p>
+<div class="cell"><span class="tag-inline">Link text → mailto:hey@granola.so</span>hey@granola.so</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>mailto:hey@granola.so</div>
+<blockquote class="body-quote"><span class="tag-inline">Blockquote / testimonial</span>&quot;Granola nails exactly what I need: clean, reliable meeting transcripts and smart follow-up summaries without any fluff. <mark class="hl d-cleared" data-findings="21" id="hl-21" tabindex="0">I use it for nearly every call to stay focused on the conversation instead of scribbling notes.<sup class="hlnum">21</sup></mark>&quot; - Verified user review of Granola
+</blockquote>
+<div class="cell"><span class="tag-inline">Link text → https://g2.com/products/granola/reviews/granola-review-11289286</span>Verified user review of Granola</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://g2.com/products/granola/reviews/granola-review-11289286</div>
+<p class="body-p">If you're still troubleshooting, work through the diagnostic steps above to restore your workflow.</p>
+<p class="body-p">Download the Granola app for Mac, Windows, or iOS, connect your calendar, and run your next meeting to confirm everything is working end to end.</p>
+<div class="cell"><span class="tag-inline">Link text → https://www.granola.ai/docs/docs/101/gettingstarted/quickstart</span>Download the Granola app for Mac, Windows, or iOS</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://www.granola.ai/docs/docs/101/gettingstarted/quickstart</div>
+<h2 class="body-h">FAQs</h2>
+<p class="body-p">Why is Granola not transcribing?</p>
+<p class="body-p">Granola not transcribing is almost always a permission or audio-device issue. On Mac, enable both Microphone and Screen &amp; System Audio Recording under System Settings &gt; <mark class="hl d-cleared" data-findings="22" id="hl-22" tabindex="0">Privacy<sup class="hlnum">22</sup></mark> &amp; Security, then restart Granola. If permissions are already granted, check that the same microphone is selected in both System Settings and your meeting app, and disable any virtual-audio or pass-through software during calls.</p>
+<p class="body-p">Why is Granola not working at all?</p>
+<p class="body-p">First confirm Granola is actually running: on Mac run pgrep -l Granola in Terminal, or on Windows check the System Tray for the g icon. Then restart Granola completely and sign out and back in to refresh your authentication tokens. If it still fails, check the status page at status.granola.ai to rule out a service incident.</p>
+<div class="cell"><span class="tag-inline">Link text → http://status.granola.ai</span>status.granola.ai</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>http://status.granola.ai</div>
+<p class="body-p">Does Granola work with a personal Gmail account?</p>
+<p class="body-p">The core app supports personal Gmail and Outlook.com accounts, but the Slack, Notion, and CRM integrations are not available on personal accounts. If a sync fails on a personal Gmail, switching to your workspace email address on both the Granola and the connected account usually resolves it.</p>
+<div class="cell"><span class="tag-inline">Link text → http://Outlook.com</span>Outlook.com</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>http://Outlook.com</div>
+<p class="body-p">Why isn't Granola detecting my meeting?</p>
+<p class="body-p">Granola misses a meeting when its calendar isn't synced or the invite has no video link. Click the cog next to &quot;Coming Up&quot; and confirm the right calendars are toggled on, including any secondary or shared team calendars, and check that the event has a Zoom, Meet, or Teams link. Calendar changes can take a couple of minutes to appear.</p>
+<p class="body-p">Where do I check if Granola is down?</p>
+<p class="body-p">Check the Granola status page at status.granola.ai. If there's an active incident affecting the Desktop or iOS app, the fix is to wait for it to clear rather than to keep debugging your own setup.</p>
+<div class="cell"><span class="tag-inline">Link text → http://status.granola.ai</span>status.granola.ai</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>http://status.granola.ai</div>
+</section>
+  </main>
+  <aside class="panel">
+    <div id="loadwarn" class="loadwarn" style="display:none"></div>
+    <div id="manualbox" class="manualbox" style="display:none">
+      <div class="manualhead">Manual Reviews <span id="manualcount" class="manualcount"></span></div>
+      <div id="manualout"></div>
+    </div>
+    <div class="verifybox">
+      <div class="verifyhead">
+        <b>Draft check</b>
+        <span>
+          <button type="button" id="repairbtn" class="verifybtn" style="display:none">Fix artifacts</button>
+          <button type="button" id="verifybtn" class="verifybtn">Re-check</button>
+        </span>
+      </div>
+      <div id="verifyout" class="verifyout">Checking the draft…</div>
+    </div>
+    <div class="panelhead">
+      <h2>Findings <span id="outstanding"></span></h2>
+      <div class="panelfilters">
+        <label class="tgl"><input type="checkbox" id="tglcleared"> Show cleared (<span id="nclr">0</span>)</label>
+        <label class="tgl"><input type="checkbox" id="tgldiscarded"> Show discarded (<span id="ndis">0</span>)</label>
+      </div>
+      <button class="exportbtn" id="export">Export decisions to CSV</button>
+    </div>
+    
+    <div class="finding d-cleared is-cleared" id="finding-1" data-num="1" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">1</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer A · "private"</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Blockquote / testimonial</div>
+      <blockquote class="fquote">Privacy</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> &quot;Privacy&quot; here is the name of a macOS System Settings pane, not a claim about privacy, data handling or what other participants know.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="1" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="1"></div>
+      
+      <textarea class="fnote" data-num="1" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-2" data-num="2" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">2</span>
+        <span class="fdisp">cleared-in-context</span>
+        <span class="fcat cat-accuracy">FACTUAL ACCURACY</span>
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">When those connections break, your research repository breaks with them, and the context from your last customer interview risks staying locked inside the app.</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> Describes notes not reaching downstream tools; not a storage-location claim and not a consent claim.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="2" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="2"></div>
+      
+      <textarea class="fnote" data-num="2" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-3" data-num="3" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">3</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer A · "private"</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">List item</div>
+      <blockquote class="fquote">Privacy</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> Reader learns which macOS permission pane to open. &quot;Privacy &amp; Security&quot; is an operating-system menu label, carrying no consent or concealment implication.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="3" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="3"></div>
+      
+      <textarea class="fnote" data-num="3" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-4" data-num="4" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">4</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">List item</div>
+      <blockquote class="fquote">Zapier trigger failing silently: An older Zap is missing the workspace selector.</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> &quot;Failing silently&quot; is a technical description of an automation error with no user-facing notification; nothing to do with participant awareness.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="4" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="4"></div>
+      
+      <textarea class="fnote" data-num="4" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-5" data-num="5" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">5</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer A · "silent"</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">List item</div>
+      <blockquote class="fquote">silently</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> &quot;Failing silently&quot; describes a Zapier trigger that produces no error message. It is a software failure-mode description, not a claim about imperceptibility to meeting participants.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="5" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="5"></div>
+      
+      <textarea class="fnote" data-num="5" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-6" data-num="6" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">6</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer A · "in the background"</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">List item</div>
+      <blockquote class="fquote">background</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> &quot;Background tasks&quot; refers to unclosed OS processes blocking audio or sync. It is technical troubleshooting vocabulary about the user's own machine, not about what others notice.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="6" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="6"></div>
+      
+      <textarea class="fnote" data-num="6" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-7" data-num="7" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">7</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">If you've recently changed your Slack email or your workspace admin updated your account, Slack will break the connection silently.</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> &quot;Silently&quot; here describes an integration failing without an error message, not concealment from meeting participants; no reader would infer anything about disclosure.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="7" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="7"></div>
+      
+      <textarea class="fnote" data-num="7" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-8" data-num="8" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">8</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer A · "silent"</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">silently</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> The subject is Slack breaking a connection without notifying the user — an integration failure mode. Nothing here bears on meeting disclosure.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="8" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="8"></div>
+      
+      <textarea class="fnote" data-num="8" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-9" data-num="9" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">9</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer A · "private"</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">private</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> &quot;Private Slack channels&quot; is Slack's own channel-type terminology. No claim about data handling or participant awareness.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="9" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="9"></div>
+      
+      <textarea class="fnote" data-num="9" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-10" data-num="10" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">10</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">older Zap configurations lack the workspace selector field, causing triggers to fail silently</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> Purely a description of an automation error mode; no consent implication.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="10" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="10"></div>
+      
+      <textarea class="fnote" data-num="10" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-11" data-num="11" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">11</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer A · "silent"</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">silently</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> &quot;Fail silently&quot; describes Zap triggers that error without surfacing a message. Technical failure vocabulary, unrelated to concealment from participants.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="11" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="11"></div>
+      
+      <textarea class="fnote" data-num="11" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-12" data-num="12" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">12</span>
+        <span class="fdisp">cleared-in-context</span>
+        <span class="fcat cat-bot-denigration">BOT DENIGRATION</span>
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">One practical note: we built native integrations (Slack, Notion, HubSpot) to be more stable than Zapier workflows by using direct API connections rather than polling intermediaries.</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> A comparison between Granola's own integration paths and a third-party automation tool's architecture; it is not about meeting bots and does not denigrate a competing note-taker's presence in meetings.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="12" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="12"></div>
+      
+      <textarea class="fnote" data-num="12" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-13" data-num="13" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">13</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer A · "automatic"</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Table cell</div>
+      <blockquote class="fquote">automatically</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> &quot;Saves automatically&quot; describes the settings UI persisting an API key without a save button. A UX detail about the user's own workflow.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="13" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="13"></div>
+      
+      <textarea class="fnote" data-num="13" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-amber" id="finding-14" data-num="14" data-disposition="amber">
+      <div class="fhead">
+        <span class="fnum">14</span>
+        <span class="fdisp">amber</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">List item</div>
+      <blockquote class="fquote">Granola also monitors for microphone activation and browser tab URLs, so ad-hoc calls without a calendar event can be detected too, but a missing or malformed conferencing link can reduce detection reliability for scheduled meetings.</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> A reader could read automatic detection of unscheduled calls via microphone activity and browser URLs as Granola starting to take notes on conversations with nothing announced or set up, which shades toward capture the other participants wouldn't be prompted to learn about.</div>
+      
+      <div class="fdelete"><b>Option A — delete the sentence:</b> Deleting the sentence loses only the incidental detail that ad-hoc calls can be auto-detected; the list item's actual troubleshooting advice about conferencing links survives, so deletion is clean, but note the remaining sentence ends with &quot;detection signals.&quot; and still reads grammatically.</div>
+      
+      <div class="frewrite" data-num="14"><b>Option B — rewrite the sentence:</b> Confirm the event has a video link. Granola detects meetings from calendar invites, and a conferencing URL (Zoom, Meet, Teams) is one of the stronger detection signals, so a missing or malformed link can reduce detection reliability for scheduled meetings. For an ad-hoc call, you can start Granola yourself from the app and it will begin building notes for that conversation.</div>
+      <div class="fdecide">
+        <label><input type="radio" name="dec-14" value="accept-delete" data-num="14"> Delete</label>
+        <label><input type="radio" name="dec-14" value="accept" data-num="14"> Rewrite</label>
+        <button class="clearbtn" data-num="14" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="14"></div>
+      
+      <div class="freprompt">
+        <textarea class="fdirect" data-num="14" rows="2"
+          placeholder="Not happy with the rewrite? Say what to change and generate a new one…"></textarea>
+        <button type="button" class="regenbtn" data-num="14">Generate new rewrite</button>
+        <div class="regenout" data-num="14"></div>
+      </div>
+      <textarea class="fnote" data-num="14" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-15" data-num="15" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">15</span>
+        <span class="fdisp">cleared-in-context</span>
+        <span class="fcat cat-accuracy">FACTUAL ACCURACY</span>
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">iOS: Granola temporarily caches audio after your meeting before processing, as documented in the Granola security overview.</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> This is an audio-handling/retention description, which Addendum 2 places out of scope; it makes no claim that notes stay off Granola's servers.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="15" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="15"></div>
+      
+      <textarea class="fnote" data-num="15" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-16" data-num="16" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">16</span>
+        <span class="fdisp">cleared-in-context</span>
+        <span class="fcat cat-accuracy">FACTUAL ACCURACY</span>
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">List item</div>
+      <blockquote class="fquote">Go to System Settings &gt; Privacy &amp; Security &gt; Microphone and confirm Granola is toggled on. (This lets Granola capture your voice and other microphone input.)</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> A capture-method and OS-permission instruction; accurate and out of scope for both tests.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="16" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="16"></div>
+      
+      <textarea class="fnote" data-num="16" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-17" data-num="17" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">17</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer A · "private"</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">List item</div>
+      <blockquote class="fquote">Privacy</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> macOS menu path for enabling microphone permission. Not a privacy or data-handling claim.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="17" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="17"></div>
+      
+      <textarea class="fnote" data-num="17" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-18" data-num="18" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">18</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer A · "private"</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">List item</div>
+      <blockquote class="fquote">Privacy</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> macOS menu path for enabling screen and system audio recording permission. Not a privacy or data-handling claim.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="18" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="18"></div>
+      
+      <textarea class="fnote" data-num="18" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-19" data-num="19" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">19</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer A · "automatic"</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">automatically</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> &quot;Automatically&quot; describes macOS relaunching the coreaudiod daemon after a force quit. Operating-system behaviour, no consent implication.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="19" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="19"></div>
+      
+      <textarea class="fnote" data-num="19" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-20" data-num="20" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">20</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer A · "in the background"</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">Background</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> &quot;Background noise&quot; is ambient sound degrading transcription quality — an audio-quality troubleshooting point, not the &quot;runs in the background&quot; framing the rule targets.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="20" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="20"></div>
+      
+      <textarea class="fnote" data-num="20" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-21" data-num="21" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">21</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Blockquote / testimonial</div>
+      <blockquote class="fquote">I use it for nearly every call to stay focused on the conversation instead of scribbling notes.</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> The testimonial praises staying present and note quality — the sanctioned framing — and says nothing about other participants' awareness.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="21" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="21"></div>
+      
+      <textarea class="fnote" data-num="21" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-22" data-num="22" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">22</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer A · "private"</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">Privacy</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> macOS System Settings menu path for granting permissions. Not a privacy or storage claim.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="22" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="22"></div>
+      
+      <textarea class="fnote" data-num="22" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+  </aside>
+</div>
+<script>
+(function(){
+  var SLUG = "granola-integration-troubleshooting-common-issues-solutions";
+  var KEY = 'granola-review-decisions:' + SLUG;
+  var FINDINGS = [{"number":1,"id":"16e33e654a59bd1a37256a0f8e63f0bb","disposition":"cleared-in-context","layer":"A","term":"private","field":"Blockquote / testimonial","quote":"Privacy","takeaway":"\"Privacy\" here is the name of a macOS System Settings pane, not a claim about privacy, data handling or what other participants know.","rewrite":""},{"number":2,"id":"c88f03a3dff5e2f29d5346dc8b899f27","disposition":"cleared-in-context","layer":"B","term":"","field":"Body paragraph","quote":"When those connections break, your research repository breaks with them, and the context from your last customer interview risks staying locked inside the app.","takeaway":"Describes notes not reaching downstream tools; not a storage-location claim and not a consent claim.","rewrite":""},{"number":3,"id":"0c6688f1c8b867bdfc3fe6d4b0598bdc","disposition":"cleared-in-context","layer":"A","term":"private","field":"List item","quote":"Privacy","takeaway":"Reader learns which macOS permission pane to open. \"Privacy & Security\" is an operating-system menu label, carrying no consent or concealment implication.","rewrite":""},{"number":4,"id":"077098e2aed576490fe485e0a29a4963","disposition":"cleared-in-context","layer":"B","term":"","field":"List item","quote":"Zapier trigger failing silently: An older Zap is missing the workspace selector.","takeaway":"\"Failing silently\" is a technical description of an automation error with no user-facing notification; nothing to do with participant awareness.","rewrite":""},{"number":5,"id":"9123380814016eb929a2d65e6badf0ec","disposition":"cleared-in-context","layer":"A","term":"silent","field":"List item","quote":"silently","takeaway":"\"Failing silently\" describes a Zapier trigger that produces no error message. It is a software failure-mode description, not a claim about imperceptibility to meeting participants.","rewrite":""},{"number":6,"id":"82a8adbe0f2e59ad18d63b283be01ae2","disposition":"cleared-in-context","layer":"A","term":"in the background","field":"List item","quote":"background","takeaway":"\"Background tasks\" refers to unclosed OS processes blocking audio or sync. It is technical troubleshooting vocabulary about the user's own machine, not about what others notice.","rewrite":""},{"number":7,"id":"5b23ec8eca6dc0b65f772dd323d9bd17","disposition":"cleared-in-context","layer":"B","term":"","field":"Body paragraph","quote":"If you've recently changed your Slack email or your workspace admin updated your account, Slack will break the connection silently.","takeaway":"\"Silently\" here describes an integration failing without an error message, not concealment from meeting participants; no reader would infer anything about disclosure.","rewrite":""},{"number":8,"id":"c2213161d5ff287fb366a59f9090bb1e","disposition":"cleared-in-context","layer":"A","term":"silent","field":"Body paragraph","quote":"silently","takeaway":"The subject is Slack breaking a connection without notifying the user — an integration failure mode. Nothing here bears on meeting disclosure.","rewrite":""},{"number":9,"id":"032b7b9ae1fc41a1a2f5979e1925da07","disposition":"cleared-in-context","layer":"A","term":"private","field":"Body paragraph","quote":"private","takeaway":"\"Private Slack channels\" is Slack's own channel-type terminology. No claim about data handling or participant awareness.","rewrite":""},{"number":10,"id":"f806e7fbf6323fad39699a167a28ea05","disposition":"cleared-in-context","layer":"B","term":"","field":"Body paragraph","quote":"older Zap configurations lack the workspace selector field, causing triggers to fail silently","takeaway":"Purely a description of an automation error mode; no consent implication.","rewrite":""},{"number":11,"id":"fef2f3995c4fcdd32a12be9be614e3d6","disposition":"cleared-in-context","layer":"A","term":"silent","field":"Body paragraph","quote":"silently","takeaway":"\"Fail silently\" describes Zap triggers that error without surfacing a message. Technical failure vocabulary, unrelated to concealment from participants.","rewrite":""},{"number":12,"id":"5fc6806b28d9f3ef4bc9c98d66afbd82","disposition":"cleared-in-context","layer":"B","term":"","field":"Body paragraph","quote":"One practical note: we built native integrations (Slack, Notion, HubSpot) to be more stable than Zapier workflows by using direct API connections rather than polling intermediaries.","takeaway":"A comparison between Granola's own integration paths and a third-party automation tool's architecture; it is not about meeting bots and does not denigrate a competing note-taker's presence in meetings.","rewrite":""},{"number":13,"id":"9160a6c521edf50f12aac71614e28371","disposition":"cleared-in-context","layer":"A","term":"automatic","field":"Table cell","quote":"automatically","takeaway":"\"Saves automatically\" describes the settings UI persisting an API key without a save button. A UX detail about the user's own workflow.","rewrite":""},{"number":14,"id":"2da12ff2a1bbf50a6808efd3139003ca","disposition":"amber","layer":"B","term":"","field":"List item","quote":"Granola also monitors for microphone activation and browser tab URLs, so ad-hoc calls without a calendar event can be detected too, but a missing or malformed conferencing link can reduce detection reliability for scheduled meetings.","takeaway":"A reader could read automatic detection of unscheduled calls via microphone activity and browser URLs as Granola starting to take notes on conversations with nothing announced or set up, which shades toward capture the other participants wouldn't be prompted to learn about.","rewrite":"Confirm the event has a video link. Granola detects meetings from calendar invites, and a conferencing URL (Zoom, Meet, Teams) is one of the stronger detection signals, so a missing or malformed link can reduce detection reliability for scheduled meetings. For an ad-hoc call, you can start Granola yourself from the app and it will begin building notes for that conversation."},{"number":15,"id":"173961e563b3eb4048e928507626f82b","disposition":"cleared-in-context","layer":"B","term":"","field":"Body paragraph","quote":"iOS: Granola temporarily caches audio after your meeting before processing, as documented in the Granola security overview.","takeaway":"This is an audio-handling/retention description, which Addendum 2 places out of scope; it makes no claim that notes stay off Granola's servers.","rewrite":""},{"number":16,"id":"58a229983c67904031000457a254b396","disposition":"cleared-in-context","layer":"B","term":"","field":"List item","quote":"Go to System Settings > Privacy & Security > Microphone and confirm Granola is toggled on. (This lets Granola capture your voice and other microphone input.)","takeaway":"A capture-method and OS-permission instruction; accurate and out of scope for both tests.","rewrite":""},{"number":17,"id":"5da39303fc3dec8373c064d7902bec0e","disposition":"cleared-in-context","layer":"A","term":"private","field":"List item","quote":"Privacy","takeaway":"macOS menu path for enabling microphone permission. Not a privacy or data-handling claim.","rewrite":""},{"number":18,"id":"fefb431cd2ccc45e9ee63f4d60976fd7","disposition":"cleared-in-context","layer":"A","term":"private","field":"List item","quote":"Privacy","takeaway":"macOS menu path for enabling screen and system audio recording permission. Not a privacy or data-handling claim.","rewrite":""},{"number":19,"id":"63bdcd0e4de447d0e11d8de2705ae406","disposition":"cleared-in-context","layer":"A","term":"automatic","field":"Body paragraph","quote":"automatically","takeaway":"\"Automatically\" describes macOS relaunching the coreaudiod daemon after a force quit. Operating-system behaviour, no consent implication.","rewrite":""},{"number":20,"id":"0cce5a7b0640b8df3ec3328a3c22c312","disposition":"cleared-in-context","layer":"A","term":"in the background","field":"Body paragraph","quote":"Background","takeaway":"\"Background noise\" is ambient sound degrading transcription quality — an audio-quality troubleshooting point, not the \"runs in the background\" framing the rule targets.","rewrite":""},{"number":21,"id":"3400e0ac6f7b82716880c6a0aedf5894","disposition":"cleared-in-context","layer":"B","term":"","field":"Blockquote / testimonial","quote":"I use it for nearly every call to stay focused on the conversation instead of scribbling notes.","takeaway":"The testimonial praises staying present and note quality — the sanctioned framing — and says nothing about other participants' awareness.","rewrite":""},{"number":22,"id":"dba6d35d5f4cf08cbde838f0b9449ddd","disposition":"cleared-in-context","layer":"A","term":"private","field":"Body paragraph","quote":"Privacy","takeaway":"macOS System Settings menu path for granting permissions. Not a privacy or storage claim.","rewrite":""}];
+  var API = '/api/seo-review/decisions';
+  var idOf = {}; FINDINGS.forEach(function(f){ idOf[f.number] = f.id; });
+
+  // ---- decisions persisted SERVER-SIDE ----
+  // Accepting writes the rewrite to the article's Sanity draft. localStorage is
+  // kept only as an offline mirror so a failed request is visibly unsaved
+  // rather than silently lost.
+  var state = {};
+  try { state = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch(e) { state = {}; }
+  function mirror(){ try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e){} }
+  function paint(num){
+    var el = document.getElementById('finding-' + num);
+    if (!el) return;
+    var d = state[num] || {};
+    var isAccept = d.decision === 'accept' || d.decision === 'accept-delete';
+    el.classList.toggle('decided-accept', isAccept);
+    el.classList.toggle('decided-dismiss', d.decision === 'dismiss');
+    // Collapse anything decided, unless the reviewer has reopened it.
+    if (d.decision && !el.dataset.reopened) el.classList.add('collapsed');
+    if (!d.decision) el.classList.remove('collapsed');
+  }
+  function setDone(num, text){
+    var el = document.getElementById('finding-' + num);
+    if (!el) return;
+    var d = el.querySelector('.fdone');
+    if (d) d.textContent = text;
+  }
+  // Clicking a collapsed card reopens it for review.
+  document.addEventListener('click', function(e){
+    var card = e.target.closest('.finding.collapsed');
+    if (!card) return;
+    if (e.target.closest('.fdecide') || e.target.closest('.fnote')) return;
+    card.dataset.reopened = '1';
+    card.classList.remove('collapsed');
+  });
+  function setStatus(num, text, cls){
+    var el = document.querySelector('.fstatus[data-num="' + num + '"]');
+    if (!el) return;
+    el.textContent = text || '';
+    el.className = 'fstatus' + (cls ? ' ' + cls : '');
+    el.setAttribute('data-num', num);
+  }
+
+  // Restore decisions from the server (authoritative), falling back to the
+  // local mirror if the API is unreachable.
+  function restore(){
+    fetch(API + '?slug=' + encodeURIComponent(SLUG), {credentials:'same-origin'})
+      .then(function(r){
+        if (!r.ok) {
+          return r.text().then(function(t){
+            throw new Error('HTTP ' + r.status + (t ? ' — ' + t.slice(0, 160) : ''));
+          });
+        }
+        return r.json();
+      })
+      .then(function(j){
+        var byId = {}; (j.findings||[]).forEach(function(x){ byId[x.id] = x; });
+        FINDINGS.forEach(function(f){
+          var s = byId[f.id]; if (!s) return;
+          state[f.number] = { decision: s.decision, note: s.note || '' };
+          if (s.decision) {
+            var r = document.querySelector('input[name="dec-' + f.number + '"][value="' + s.decision + '"]');
+            if (r) r.checked = true;
+          }
+          if (s.note) { var t = document.querySelector('.fnote[data-num="' + f.number + '"]'); if (t) t.value = s.note; }
+          if (s.decision === 'discard') { setStatus(f.number, 'Discarded', ''); hideFinding(f.number); }
+          else if (s.appliedToDraft) { setStatus(f.number, '✓ Written to the Sanity draft', 'ok'); setDone(f.number, '✓ Written to the Sanity draft'); }
+          else if (s.decision === 'dismiss') setDone(f.number, 'Dismissed — no change made');
+          else if (s.decision === 'accept') setStatus(f.number, '⚠ Accepted but not yet written to the draft — click Accept again to retry', 'warn');
+          paint(f.number);
+        });
+        mirror();
+        updateOutstanding();
+      })
+      .catch(function(e){
+        // Offline / not signed in: show local mirror but say it is unsaved.
+        // Say WHY, not just that it failed — a bare "not saved" gives no way to
+        // diagnose. Shown once at the top rather than on every finding.
+        var banner = document.getElementById('loadwarn');
+        if (banner) {
+          banner.style.display = 'block';
+          banner.textContent = '⚠ Could not load saved decisions: ' + e.message +
+            '  — anything you change now is stored in this browser only. Reload once you are signed in.';
+        }
+        FINDINGS.forEach(function(f){
+          var d = state[f.number]; if (!d) return;
+          if (d.decision) {
+            var r = document.querySelector('input[name="dec-' + f.number + '"][value="' + d.decision + '"]');
+            if (r) r.checked = true;
+          }
+          if (d.note) { var t = document.querySelector('.fnote[data-num="' + f.number + '"]'); if (t) t.value = d.note; }
+          paint(f.number);
+        });
+      });
+  }
+  restore();
+
+  function send(num, decision, note){
+    var id = idOf[num];
+    if (!id) { setStatus(num, '⚠ No server id for this finding', 'warn'); return; }
+    setStatus(num, 'Saving…', '');
+    fetch(API, {
+      method:'POST', credentials:'same-origin',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ id: id, decision: decision, note: note || null }),
+    })
+      .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
+      .then(function(res){
+        if (!res.ok) { setStatus(num, '⚠ ' + (res.j.error || 'save failed'), 'warn'); return; }
+        if (decision === 'accept' || decision === 'accept-delete') {
+          if (res.j.appliedToDraft) {
+            var msg = res.j.alreadyApplied
+              ? '✓ Already in the Sanity draft'
+              : (res.j.deleted
+                  ? '✓ ' + (res.j.scope === 'paragraph' ? 'Paragraph' : 'Sentence') + ' removed in the Sanity draft — not published'
+                  : '✓ Written to the Sanity draft — not published');
+            setStatus(num, msg, 'ok');
+            setDone(num, msg);
+          } else {
+            var w = '⚠ Saved, but NOT applied: ' + (res.j.warning || 'unknown reason');
+            setStatus(num, w, 'warn');
+            setDone(num, w);
+            // A failure must stay open — collapsing it would hide the problem.
+            var el = document.getElementById('finding-' + num);
+            if (el) { el.dataset.reopened = '1'; el.classList.remove('collapsed'); }
+          }
+        } else if (decision === 'dismiss') {
+          setStatus(num, res.j.warning ? '⚠ ' + res.j.warning : 'Dismissed', res.j.warning ? 'warn' : '');
+          setDone(num, res.j.warning ? '⚠ ' + res.j.warning : 'Dismissed — no change made');
+        } else {
+          setStatus(num, res.j.warning ? '⚠ ' + res.j.warning : '', res.j.warning ? 'warn' : '');
+        }
+      })
+      .catch(function(e){ setStatus(num, '⚠ Save failed: ' + e.message, 'warn'); });
+  }
+
+  // Use 'click' rather than 'change' so re-selecting an already-selected option
+  // retries. A previous attempt can fail (e.g. a bad token) leaving the choice
+  // selected but unapplied — with 'change' alone that is a dead end.
+  document.querySelectorAll('.fdecide input[type=radio]').forEach(function(r){
+    r.addEventListener('click', function(){
+      var n = r.getAttribute('data-num');
+      state[n] = state[n] || {}; state[n].decision = r.value; mirror(); paint(n);
+      send(n, r.value, (state[n] && state[n].note) || null);
+      updateOutstanding();
+    });
+  });
+  var noteTimer = {};
+  document.querySelectorAll('.fnote').forEach(function(t){
+    t.addEventListener('input', function(){
+      var n = t.getAttribute('data-num');
+      state[n] = state[n] || {}; state[n].note = t.value; mirror();
+      clearTimeout(noteTimer[n]);
+      noteTimer[n] = setTimeout(function(){
+        if (state[n] && state[n].decision) send(n, state[n].decision, t.value);
+      }, 900);
+    });
+  });
+  // Discard: record the suggestion as deliberately rejected, then remove it from
+  // the panel so what remains is what is still outstanding. It is NOT deleted —
+  // it stays in the log as a discarded decision.
+  function hideFinding(n){
+    var el = document.getElementById('finding-' + n);
+    if (el) el.classList.add('discarded');
+    document.querySelectorAll('mark.hl').forEach(function(m){
+      var nums = m.getAttribute('data-findings').split(',');
+      if (nums.indexOf(String(n)) !== -1 && nums.length === 1) m.classList.add('hl-discarded');
+    });
+    updateOutstanding();
+  }
+  function updateOutstanding(){
+    var needing = document.querySelectorAll('.finding:not(.is-cleared):not(.discarded)').length;
+    var decided = document.querySelectorAll(
+      '.finding:not(.is-cleared):not(.discarded).decided-accept, ' +
+      '.finding:not(.is-cleared):not(.discarded).decided-dismiss').length;
+    var el = document.getElementById('outstanding');
+    if (el) el.textContent = (needing - decided) + ' of ' + needing + ' needing a decision';
+    var c = document.getElementById('nclr');
+    if (c) c.textContent = document.querySelectorAll('.finding.is-cleared').length;
+    var d = document.getElementById('ndis');
+    if (d) d.textContent = document.querySelectorAll('.finding.discarded').length;
+  }
+  updateOutstanding();
+  document.querySelectorAll('.clearbtn').forEach(function(b){
+    b.addEventListener('click', function(){
+      var n = b.getAttribute('data-num');
+      state[n] = state[n] || {}; state[n].decision = 'discard'; mirror();
+      document.querySelectorAll('input[name="dec-' + n + '"]').forEach(function(r){ r.checked = false; });
+      setStatus(n, 'Discarded — recorded in the log', '');
+      send(n, 'discard', (state[n] && state[n].note) || null);
+      hideFinding(n);
+    });
+  });
+  // Cleared and discarded items stay in the DOM (and in the log) but are hidden
+  // by default so the panel shows only what still needs a decision.
+  var panel = document.querySelector('.panel');
+  var tglC = document.getElementById('tglcleared');
+  var tglD = document.getElementById('tgldiscarded');
+  function applyToggles(){
+    panel.classList.toggle('reveal-cleared', tglC && tglC.checked);
+    panel.classList.toggle('reveal-discarded', tglD && tglD.checked);
+    // Mute highlights whose only finding is hidden, so the prose matches.
+    document.querySelectorAll('mark.hl').forEach(function(m){
+      var nums = m.getAttribute('data-findings').split(',');
+      var anyVisible = nums.some(function(n){
+        var el = document.getElementById('finding-' + n);
+        return el && el.offsetParent !== null;
+      });
+      m.classList.toggle('hl-cleared-hidden', !anyVisible);
+    });
+    updateOutstanding();
+  }
+  if (tglC) tglC.addEventListener('change', applyToggles);
+  if (tglD) tglD.addEventListener('change', applyToggles);
+
+  // ---- highlight <-> panel linking ----
+  function activate(num){
+    document.querySelectorAll('.finding.active').forEach(function(e){ e.classList.remove('active'); });
+    var f = document.getElementById('finding-' + num);
+    if (f) { f.classList.add('active'); f.scrollIntoView({behavior:'smooth', block:'center'}); }
+  }
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    m.addEventListener('click', function(){ activate(m.getAttribute('data-findings').split(',')[0]); });
+  });
+  document.querySelectorAll('.finding').forEach(function(el){
+    el.addEventListener('click', function(e){
+      if (e.target.closest('.fdecide') || e.target.closest('.fnote')) return;
+      var num = el.getAttribute('data-num');
+      var hl = document.querySelector('mark.hl[data-findings~="' + num + '"]')
+            || document.getElementById('hl-' + num)
+            || Array.prototype.find.call(document.querySelectorAll('mark.hl'), function(m){
+                 return m.getAttribute('data-findings').split(',').indexOf(num) !== -1; });
+      if (hl) {
+        hl.scrollIntoView({behavior:'smooth', block:'center'});
+        hl.classList.remove('pulse'); void hl.offsetWidth; hl.classList.add('pulse');
+      }
+    });
+  });
+
+  // ---- re-prompt a rewrite ----
+  // The reviewer disagrees with the proposal but does not want a deletion.
+  // Their direction goes back to the model, which returns a revised rewrite.
+  // Nothing reaches Sanity until they then click Rewrite.
+  document.querySelectorAll('.regenbtn').forEach(function(b){
+    b.addEventListener('click', function(){
+      var n = b.getAttribute('data-num');
+      var ta = document.querySelector('.fdirect[data-num="' + n + '"]');
+      var out = document.querySelector('.regenout[data-num="' + n + '"]');
+      var feedback = (ta && ta.value || '').trim();
+      if (!feedback) {
+        out.innerHTML = '<div class="regenerr">Say what you want changed first.</div>';
+        return;
+      }
+      b.disabled = true; b.textContent = 'Generating…';
+      out.innerHTML = '';
+      fetch('/api/seo-review/regenerate', {
+        method:'POST', credentials:'same-origin',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ id: idOf[n], feedback: feedback }),
+      })
+        .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
+        .then(function(res){
+          b.disabled = false; b.textContent = 'Generate new rewrite';
+          if (!res.ok) {
+            out.innerHTML = '<div class="regenerr">' + esc2(res.j.error || 'Could not generate a rewrite.') + '</div>';
+            return;
+          }
+          out.innerHTML =
+            '<div class="newrw"><b>New rewrite (' + esc2(res.j.scope) + ' scope):</b> ' + esc2(res.j.rewrite) +
+            (res.j.explanation ? '<div class="why">' + esc2(res.j.explanation) + '</div>' : '') +
+            '<div class="acts">' +
+              '<button type="button" class="use" data-num="' + n + '">Use this rewrite</button>' +
+              '<button type="button" class="again" data-num="' + n + '">Try again</button>' +
+            '</div></div>';
+          out.querySelector('.use').addEventListener('click', function(){
+            // Store it as the proposal, then apply via the normal Rewrite path
+            // so there is still exactly one route into Sanity.
+            fetch('/api/seo-review/regenerate', {
+              method:'POST', credentials:'same-origin',
+              headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({ id: idOf[n], feedback: feedback, keep: true }),
+            }).then(function(){
+              var rw = document.querySelector('.frewrite[data-num="' + n + '"]');
+              if (rw) rw.innerHTML = '<b>Option B — rewrite (updated by you):</b> ' + esc2(res.j.rewrite);
+              out.innerHTML = '<div class="newrw">Saved as the proposed rewrite. Click <b>Rewrite</b> above to write it to the Sanity draft.</div>';
+            });
+          });
+          out.querySelector('.again').addEventListener('click', function(){
+            out.innerHTML = ''; if (ta) ta.focus();
+          });
+        })
+        .catch(function(e){
+          b.disabled = false; b.textContent = 'Generate new rewrite';
+          out.innerHTML = '<div class="regenerr">' + esc2(e.message) + '</div>';
+        });
+    });
+  });
+
+  // ---- draft verification ----
+  var vbtn = document.getElementById('verifybtn');
+  var vout = document.getElementById('verifyout');
+  var rbtn = document.getElementById('repairbtn');
+  var mbox = document.getElementById('manualbox');
+  var mout = document.getElementById('manualout');
+  var mcount = document.getElementById('manualcount');
+  function esc2(t){ return String(t == null ? '' : t)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function runVerify(){
+    vbtn.disabled = true;
+    vout.textContent = 'Reading the Sanity draft…';
+    fetch('/api/seo-review/verify?slug=' + encodeURIComponent(SLUG), {credentials:'same-origin'})
+      .then(function(r){
+        if (!r.ok) return r.text().then(function(t){ throw new Error('HTTP ' + r.status + ' — ' + t.slice(0,140)); });
+        return r.json();
+      })
+      .then(function(j){
+        var out = [];
+        if (!j.draftExists) {
+          out.push('<div class="vidle">Nothing applied yet. This check runs against the Sanity draft, ' +
+                   'which is created the first time you accept a change. Not a problem — there is just nothing to check so far.</div>');
+        } else {
+          out.push('<div style="margin-bottom:6px">Draft has <b>' + j.draftBlocks + '</b> blocks (published has ' + j.publishedBlocks + ').</div>');
+          if (j.issues.length === 0) {
+            out.push('<div class="vok">✓ No artifacts found — no stranded punctuation, duplicated sentences, empty blocks or fragments.</div>');
+          } else {
+            out.push('<div style="margin:8px 0 4px"><b>' + j.issues.length + ' issue(s) to fix in the Studio:</b></div>');
+            j.issues.forEach(function(i){
+              out.push('<div class="vissue"><b>' + esc2(i.where) + '</b> — ' + esc2(i.detail) +
+                       '<span class="vsnip">' + esc2(i.text) + '</span></div>');
+            });
+          }
+        }
+        if (j.manualActions.length) {
+          out.push('<div style="margin:10px 0 4px"><b>' + j.manualActions.length + ' edit(s) you accepted that must be made by hand:</b></div>');
+          j.manualActions.forEach(function(a){
+            out.push('<div class="vmanual"><b>' + esc2(a.fieldLabel) + '</b> — ' + esc2(a.reason) +
+                     '<span class="vsnip">' + esc2(a.text) + '</span></div>');
+          });
+        } else if (j.draftExists) {
+          out.push('<div class="vok" style="margin-top:8px">✓ Nothing left to do by hand.</div>');
+        }
+        if (j.draftExists) {
+          out.push('<div style="margin-top:8px"><a href="https://www.granola.ai/studio/structure/seoPosts;' +
+                   encodeURIComponent(j.postId) + '" target="_blank" rel="noopener">Open the draft in Sanity Studio ↗</a></div>');
+        }
+        vout.innerHTML = out.join('');
+        vbtn.disabled = false;
+
+        // Offer the automatic fix only when there is something it can fix.
+        var fixable = j.issues.filter(function(i){
+          return i.kind === 'duplication' || i.kind === 'punctuation';
+        }).length;
+        if (rbtn) rbtn.style.display = fixable ? 'inline-block' : 'none';
+
+        // ---- Manual Reviews ----
+        var manual = (j.manualActions || []).slice();
+        if (manual.length) {
+          mbox.style.display = 'block';
+          mcount.textContent = '(' + manual.length + ' item' + (manual.length === 1 ? '' : 's') + ' you must do by hand in Sanity)';
+          mout.innerHTML = manual.map(function(a){
+            return '<div class="manualitem"><b>' + esc2(a.fieldLabel) + '</b> — you chose ' +
+              (a.decision === 'accept-delete' ? 'delete' : 'rewrite') +
+              '<div class="why">' + esc2(a.reason) + '</div>' +
+              '<span class="txt">' + esc2(a.text) + '</span></div>';
+          }).join('') +
+          '<div style="font-size:12px"><a href="https://www.granola.ai/studio/structure/seoPosts;' +
+          encodeURIComponent(j.postId) + '" target="_blank" rel="noopener">Open in Sanity Studio to make these ↗</a></div>';
+        } else {
+          mbox.style.display = 'none';
+        }
+      })
+      .catch(function(e){
+        vout.innerHTML = '<div class="vissue">Check failed: ' + esc2(e.message) + '</div>';
+        vbtn.disabled = false;
+      });
+  }
+  if (vbtn) vbtn.addEventListener('click', runVerify);
+  // Run on load so Manual Reviews is visible without having to ask for it.
+  runVerify();
+
+  if (rbtn) rbtn.addEventListener('click', function(){
+    rbtn.disabled = true;
+    rbtn.textContent = 'Fixing…';
+    fetch('/api/seo-review/repair', {
+      method:'POST', credentials:'same-origin',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ slug: SLUG, apply: true }),
+    })
+      .then(function(r){ return r.json(); })
+      .then(function(j){
+        rbtn.textContent = 'Fix artifacts';
+        rbtn.disabled = false;
+        if (j.error) { vout.innerHTML = '<div class="vissue">Repair failed: ' + esc2(j.error) + '</div>'; return; }
+        runVerify();
+      })
+      .catch(function(e){
+        rbtn.textContent = 'Fix artifacts';
+        rbtn.disabled = false;
+        vout.innerHTML = '<div class="vissue">Repair failed: ' + esc2(e.message) + '</div>';
+      });
+  });
+
+  // ---- CSV export ----
+  function csv(v){ v = v == null ? '' : String(v); return /[",\n\r]/.test(v) ? '"' + v.replace(/"/g,'""') + '"' : v; }
+  document.getElementById('export').addEventListener('click', function(){
+    var head = ['slug','finding_number','disposition','layer','term','field','verbatim_quote','reader_takeaway','suggested_rewrite','decision','note'];
+    var lines = [head.join(',')];
+    FINDINGS.forEach(function(f){
+      var d = state[f.number] || {};
+      lines.push([SLUG,f.number,f.disposition,f.layer,f.term,f.field,f.quote,f.takeaway,f.rewrite,d.decision||'',d.note||''].map(csv).join(','));
+    });
+    var blob = new Blob([lines.join('\n')], {type:'text/csv'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'decisions-' + SLUG + '.csv';
+    a.click(); URL.revokeObjectURL(a.href);
+  });
+
+  // ---- arrow-key navigation ----
+  document.addEventListener('keydown', function(e){
+    var t = e.target.tagName;
+    if (t === 'TEXTAREA' || t === 'INPUT' || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.key === 'ArrowLeft')  { var p = document.getElementById('prevlink'); if (p) location.href = p.getAttribute('href'); }
+    if (e.key === 'ArrowRight') { var n = document.getElementById('nextlink'); if (n) location.href = n.getAttribute('href'); }
+  });
+})();
+</script>
+<footer style="max-width:1500px;margin:0 auto;padding:0 24px 40px;color:#6b7280;font-size:12px">
+  Generated 2026-08-04T09:03:45.123Z · RULES.md sha256 <code>4f158f1eb915653ca6d1348764792f68f4c89bc8cb9df6742985add6517e0f3c</code> · model claude-opus-5
+</footer>
+</body></html>

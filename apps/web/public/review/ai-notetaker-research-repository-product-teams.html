@@ -1,0 +1,2137 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Review — From scattered notes to searchable insights: Building a research repository with AI notetakers</title>
+<style>
+  :root{--bg:#fbfbfa;--card:#fff;--ink:#1a1a1a;--muted:#6b7280;--line:#e5e7eb;--accent:#4f46e5;
+        --red:#b91c1c;--redbg:#fee2e2;--amber:#b45309;--amberbg:#fef3c7;--comp:#7c3aed;--compbg:#ede9fe;--clr:#6b7280;--ok:#15803d}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  header{background:var(--card);border-bottom:1px solid var(--line);padding:16px 24px;position:sticky;top:0;z-index:20}
+  h1{font-size:19px;margin:0 0 6px;line-height:1.35}
+  .meta{color:var(--muted);font-size:13px;display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center}
+  .meta a{color:var(--accent)}
+  .nav{display:flex;gap:8px;margin-top:10px;align-items:center;flex-wrap:wrap}
+  .nav a,.nav span{font-size:13px;padding:5px 11px;border:1px solid var(--line);border-radius:7px;
+       background:var(--card);text-decoration:none;color:var(--ink)}
+  .nav a:hover{border-color:var(--accent);color:var(--accent)}
+  .nav .disabled{color:#c0c0c0}
+  .nav .sep{border:none;padding:0;width:10px}
+  .wrap{display:grid;grid-template-columns:minmax(0,1fr) 420px;gap:28px;max-width:1500px;margin:0 auto;padding:24px}
+  @media (max-width:1100px){.wrap{grid-template-columns:1fr}.panel{position:static!important;max-height:none!important}}
+  .prose{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:28px 32px;
+         max-width:72ch;line-height:1.75}
+  .fieldgroup{margin-bottom:28px}
+  .fieldlabel{font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);
+              font-weight:700;border-bottom:1px solid var(--line);padding-bottom:6px;margin:0 0 14px}
+  .metafield{margin-bottom:12px}
+  .metakey{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+  .metaval{font-size:15px}
+  .body-h{margin:26px 0 10px;line-height:1.35}
+  h2.body-h{font-size:22px} h3.body-h{font-size:18px} h4.body-h{font-size:16px}
+  .body-p{margin:0 0 15px}
+  .body-list{margin:0 0 15px 22px} .body-list li{margin-bottom:7px}
+  .body-quote{margin:0 0 16px;padding:10px 16px;border-left:3px solid var(--accent);background:#f8f7ff;font-style:italic}
+  .cell{margin:0 0 8px;padding:7px 10px;background:#f8f8f7;border-radius:6px;font-size:14px}
+  .cell.url{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;word-break:break-all}
+  .tag-inline{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:2px;font-style:normal}
+  mark.hl{padding:1px 0;border-radius:2px;cursor:pointer;background:none}
+  mark.hl.d-red{background:var(--redbg);box-shadow:0 1px 0 var(--red)}
+  mark.hl.d-amber{background:var(--amberbg);box-shadow:0 1px 0 var(--amber)}
+  mark.hl.d-competitor{background:var(--compbg);box-shadow:0 1px 0 var(--comp)}
+  mark.hl.d-cleared,mark.hl.d-notaudited{background:none;border-bottom:2px dotted #b6b6b6;color:#555}
+  mark.hl:focus{outline:2px solid var(--accent)}
+  mark.hl.pulse{animation:pulse 1.1s ease-out 2}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(79,70,229,.55)}50%{box-shadow:0 0 0 7px rgba(79,70,229,0)}}
+  .hlnum{font-size:10px;font-weight:700;color:var(--accent);vertical-align:super;margin-left:1px}
+  .panel{position:sticky;top:104px;max-height:calc(100vh - 128px);overflow:auto}
+  .panelhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px}
+  .panelhead h2{font-size:14px;margin:0;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+  .finding{background:var(--card);border:1px solid var(--line);border-left-width:4px;border-radius:9px;
+           padding:13px 15px;margin-bottom:11px;font-size:13.5px;scroll-margin-top:110px}
+  .finding.d-red{border-left-color:var(--red)} .finding.d-amber{border-left-color:var(--amber)}
+  .finding.d-competitor{border-left-color:var(--comp)} .finding.d-cleared,.finding.d-notaudited{border-left-color:#c9c9c9}
+  .finding.active{box-shadow:0 0 0 2px var(--accent)}
+  .fhead{display:flex;align-items:center;gap:8px;margin-bottom:5px;flex-wrap:wrap}
+  .fnum{background:var(--accent);color:#fff;border-radius:50%;width:21px;height:21px;display:inline-flex;
+        align-items:center;justify-content:center;font-size:11px;font-weight:700;flex:none}
+  .fdisp{font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+  .d-red .fdisp{color:var(--red)} .d-amber .fdisp{color:var(--amber)}
+  .d-competitor .fdisp{color:var(--comp)} .d-cleared .fdisp,.d-notaudited .fdisp{color:var(--clr)}
+  .flayer{font-size:11px;color:var(--muted);margin-left:auto}
+  .fcat{font-size:10px;font-weight:800;letter-spacing:.06em;padding:2px 7px;border-radius:5px}
+  .cat-accuracy{background:#1e1b4b;color:#fff}
+  .cat-bot-denigration{background:#7c2d12;color:#fff}
+  .ffield{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+  .fquote{margin:0 0 8px;padding:7px 11px;background:#f7f7f6;border-radius:6px;font-style:italic;font-size:13px}
+  .ftake,.frewrite{margin-bottom:7px;font-size:13px}
+  .frewrite{color:#065f46;background:#f0fdf4;padding:7px 10px;border-radius:6px;margin-bottom:7px}
+  .fdelete{color:#7c2d12;background:#fff7ed;padding:7px 10px;border-radius:6px;margin-bottom:7px}
+  .fdelete.muted-note{color:var(--muted);background:#f7f7f6}
+  .fdefer{font-size:12px;color:var(--muted);background:#f4f4ff;border-left:2px solid var(--accent);
+          padding:6px 9px;border-radius:5px;margin-bottom:7px}
+  .fdefer a{color:var(--accent);font-weight:600}
+  .fdecide{display:flex;gap:12px;align-items:center;font-size:12.5px;margin:9px 0 6px}
+  .fdecide label{cursor:pointer} .clearbtn{margin-left:auto;font-size:11px;color:var(--muted);
+        background:none;border:1px solid var(--line);border-radius:5px;padding:2px 7px;cursor:pointer}
+  .freprompt{margin:4px 0 7px}
+  .fdirect{width:100%;font:inherit;font-size:12.5px;padding:6px 8px;border:1px solid var(--line);
+           border-radius:6px;resize:vertical;background:#fcfcff}
+  .regenbtn{margin-top:5px;font-size:11.5px;padding:4px 10px;border:1px solid var(--accent);
+            color:var(--accent);background:var(--card);border-radius:6px;cursor:pointer;font-weight:600}
+  .regenbtn:hover:not(:disabled){background:var(--accent);color:#fff}
+  .regenbtn:disabled{opacity:.55;cursor:default}
+  .regenout{font-size:12.5px;margin-top:6px}
+  .newrw{background:#f0fdf4;border-left:3px solid #16a34a;padding:8px 10px;border-radius:6px;color:#065f46}
+  .newrw .why{color:#3f6212;font-size:11.5px;margin-top:4px}
+  .newrw .acts{margin-top:6px;display:flex;gap:8px}
+  .newrw button{font-size:11.5px;padding:3px 9px;border-radius:5px;cursor:pointer;border:1px solid var(--line);background:#fff}
+  .newrw button.use{border-color:#16a34a;color:#166534;font-weight:600}
+  .regenerr{background:#fef3c7;border-left:3px solid #d97706;padding:7px 10px;border-radius:6px;color:#78350f}
+  .fnote{width:100%;font:inherit;font-size:12.5px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;resize:vertical}
+  .finding.decided-accept{background:#f0fdf4} .finding.decided-dismiss{opacity:.62}
+  /* Once decided, a finding collapses to a single line so the panel shows what
+     is still outstanding at a glance. Click the header to reopen it. */
+  .finding.collapsed{padding:8px 13px;cursor:pointer}
+  .finding.collapsed .fbody{display:none}
+  .finding.collapsed .fhead{margin-bottom:0}
+  .finding.collapsed .fdone{display:block}
+  .fdone{display:none;font-size:11.5px;font-weight:600;margin-top:3px}
+  .finding.collapsed.decided-accept .fdone{color:#15803d}
+  .finding.collapsed.decided-dismiss .fdone{color:var(--muted)}
+  .finding.collapsed:hover{box-shadow:0 0 0 1px var(--accent)}
+  .finding.discarded{display:none}
+  /* Cleared items are listed for auditability but hidden by default — at ~70%
+     of findings they drown the ones that need a decision. */
+  .panel:not(.reveal-cleared) .finding.is-cleared{display:none}
+  .panel.reveal-cleared .finding.is-cleared{opacity:.62}
+  .panelfilters{display:flex;gap:14px;flex-wrap:wrap;margin:0 0 10px;font-size:12px;color:var(--muted)}
+  .tgl{display:inline-flex;align-items:center;gap:5px;cursor:pointer;user-select:none}
+  .tgl input{margin:0}
+  mark.hl.hl-cleared-hidden{background:none!important;box-shadow:none!important;
+    border-bottom:1px dotted #d4d4d4;color:inherit}
+  .panel.reveal-discarded .finding.discarded{display:block;opacity:.5;border-left-color:#c9c9c9}
+  mark.hl.hl-discarded{background:none!important;box-shadow:none!important;border-bottom:1px dotted #d0d0d0;color:inherit}
+  #outstanding{font-size:11px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);margin-left:6px}
+  #showdiscarded{font-size:11px;font-weight:400;text-transform:none;letter-spacing:0;margin-left:8px;color:var(--accent)}
+  .fstatus{font-size:11.5px;margin:2px 0 6px;min-height:14px;color:var(--muted)}
+  .fstatus.ok{color:#15803d;font-weight:600}
+  .fstatus.warn{color:#b45309;font-weight:600}
+  .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:700}
+  .pill.d-red{background:var(--redbg);color:var(--red)} .pill.d-amber{background:var(--amberbg);color:var(--amber)}
+  .pill.d-competitor{background:var(--compbg);color:var(--comp)}
+  .pill.d-cleared,.pill.d-notaudited{background:#f0f0f0;color:var(--clr)}
+  .pill.d-clean{background:#dcfce7;color:var(--ok)}
+  .manualbox{background:#fffbeb;border:1px solid #f0c674;border-radius:9px;padding:11px 13px;margin-bottom:11px}
+  .manualhead{font-weight:700;font-size:13px;color:#92400e;margin-bottom:7px}
+  .manualcount{font-weight:400;color:#a16207}
+  .manualitem{background:#fff;border-left:3px solid #d97706;padding:8px 10px;border-radius:6px;margin-bottom:7px;font-size:12.5px}
+  .manualitem .why{color:#78350f;margin-top:3px}
+  .manualitem .txt{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;
+                   background:#faf9f7;padding:5px 7px;border-radius:4px;margin-top:4px;display:block}
+  .verifybox{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:11px 13px;margin-bottom:11px}
+  .verifyhead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px;font-size:13px}
+  .verifybtn{font-size:12px;padding:5px 11px;border:1px solid var(--accent);color:var(--accent);
+             background:var(--card);border-radius:7px;cursor:pointer;font-weight:600}
+  .verifybtn:hover{background:var(--accent);color:#fff}
+  .verifyout{font-size:12.5px;color:var(--muted);line-height:1.5}
+  .vissue{background:#fef3c7;border-left:3px solid #d97706;padding:7px 10px;border-radius:6px;margin:6px 0;color:#78350f}
+  .vmanual{background:#eef2ff;border-left:3px solid var(--accent);padding:7px 10px;border-radius:6px;margin:6px 0;color:#312e81}
+  .vidle{background:#f7f7f6;border-left:3px solid #c9c9c9;padding:7px 10px;border-radius:6px;color:var(--muted)}
+  .vok{background:#f0fdf4;border-left:3px solid #16a34a;padding:7px 10px;border-radius:6px;color:#166534}
+  .vsnip{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;display:block;margin-top:3px;opacity:.85}
+  .loadwarn{background:#fef3c7;border:1px solid #f0c674;color:#92400e;padding:9px 12px;
+            border-radius:8px;font-size:12.5px;margin-bottom:10px;line-height:1.45}
+  .clean{background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;padding:14px;border-radius:9px;font-size:14px}
+  .exportbtn{font-size:12px;padding:5px 11px;border:1px solid var(--line);border-radius:7px;background:var(--card);cursor:pointer}
+  .exportbtn:hover{border-color:var(--accent);color:var(--accent)}
+  .builderr{background:#fee2e2;border:1px solid var(--red);color:var(--red);padding:12px 15px;border-radius:9px;margin-bottom:16px;font-size:13.5px}
+  code{background:#f0f0ef;padding:1px 5px;border-radius:4px;font-size:12.5px}
+  .bkbadge{padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700;cursor:help}
+  .bkbadge.bk1{background:#fee2e2;color:#991b1b}
+  .bkbadge.bk2{background:#fef3c7;color:#92400e}
+  .bkbadge.bk3{background:#dcfce7;color:#166534}
+  .actbar{margin:11px 0 0;padding:10px 14px;border-radius:9px;font-size:13px;line-height:1.55;
+          border:1px solid transparent}
+  .actbar b{font-weight:800}
+  .actbar.act1{background:#fee2e2;color:#7f1d1d;border-color:#fca5a5}
+  .actbar.act2{background:#fef3c7;color:#78350f;border-color:#fcd34d}
+  .actbar.act3{background:#dcfce7;color:#14532d;border-color:#86efac}
+</style></head><body>
+<header>
+  <h1>From scattered notes to searchable insights: Building a research repository with AI notetakers</h1>
+  <div class="meta">
+    <span class="bkbadge bk2" title="Content: external / client-facing calls — Capture of people outside the company — clients, candidates, research participants — where consent expectations are highest.
+
+Findings: 10 red findings.">Bucket 2 · medium</span>
+    <span class="bkbadge bk2">Agency: Review &amp; recommend</span>
+    <span><code>ai-notetaker-research-repository-product-teams</code></span>
+    <span>Published 2026-04-28</span>
+    <span><code>6152f848-bc9a-49e9-ba2e-30ab0b6d9512</code></span>
+    <a href="https://www.granola.ai/blog/ai-notetaker-research-repository-product-teams" target="_blank" rel="noopener">Live page ↗</a>
+    <a href="https://www.granola.ai/studio/structure/seoPosts;6152f848-bc9a-49e9-ba2e-30ab0b6d9512" target="_blank" rel="noopener">Sanity Studio ↗</a>
+    <span><span class="pill d-cleared">cleared-in-context 25</span> <span class="pill d-red">red 10</span> <span class="pill d-amber">amber 9</span> <span class="pill d-competitor">about-competitor 1</span></span>
+  </div>
+  <div class="actbar act2">
+    <b>Agency — Review &amp; recommend.</b> Review every finding and leave a note saying what you would do and why, but do not Accept or Delete. Granola makes the final call. Use the note field — it regenerates a rewrite from your direction.
+  </div>
+  <div class="nav">
+    <a href="/seo-audit">All articles</a>
+    <a href="index.html">Review status</a>
+    <a href="/seo-review/changes">Change log</a>
+    <span class="sep"></span>
+    <a href="ai-notetaker-hubspot-customer-feedback.html" id="prevlink">← Previous</a>
+    <a href="ai-notetaker-research-credibility-stakeholders.html" id="nextlink">Next →</a>
+    <span class="disabled" style="border:none">← / → arrow keys</span>
+  </div>
+</header>
+<div class="wrap">
+  <main class="prose">
+    
+    <section class="fieldgroup"><h3 class="fieldlabel">Title, slug &amp; meta/summary</h3>
+<div class="metafield"><span class="metakey">Title</span><div class="metaval">From scattered notes to searchable insights: Building a research repository with AI notetakers</div></div>
+<div class="metafield"><span class="metakey">Slug (URL)</span><div class="metaval">ai-notetaker-research-repository-product-teams</div></div>
+<div class="metafield"><span class="metakey">Meta / summary</span><div class="metaval"><mark class="hl d-cleared" data-findings="1" id="hl-1" tabindex="0">AI notetakers create searchable research repositories that prevent repeat customer interviews and make insights accessible across product teams.<sup class="hlnum">1</sup></mark></div></div>
+</section>
+<section class="fieldgroup"><h3 class="fieldlabel">Article body</h3>
+<blockquote class="body-quote"><span class="tag-inline">Blockquote / testimonial</span>TL;DR: Teams running customer interviews often repeat the same discovery questions months later because insights die in personal Notion docs, Slack threads, and Google Docs. AI notetakers fix this by enhancing your rough notes with transcript context, organizing everything into shared folders you can query, and <mark class="hl d-red" data-findings="2" id="hl-2" tabindex="0">capturing interviews without a visible participant in the call<sup class="hlnum">2</sup></mark>. Instead of repeating research, ask &quot;Why do enterprise customers hesitate on SSO?&quot; and get exact quotes with citations in seconds.</blockquote>
+<p class="body-p">Teams that regularly run customer interviews find that most of that research never gets reused. Not because the insights lack value, but because they scatter across personal Notion pages, unwatched recordings, and synthesis decks that stakeholders skim once. When someone asks, &quot;Have we heard anything about SSO adoption?&quot; you know the answer is buried somewhere, but finding it takes hours.</p>
+<p class="body-p">Research loss is measurable, not just felt. Market Logic Software found that 75% of market research and consumer insights go unused inside the organizations that commissioned them. Teams pay for the interviews, conduct the sessions, and then lose the findings to folders nobody searches.</p>
+<div class="cell"><span class="tag-inline">Link text → https://marketlogicsoftware.com/blog/innovation-has-stalled-reigniting-it-starts-with-insight/?trk=public_post_comment-text</span>Market Logic Software</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://marketlogicsoftware.com/blog/innovation-has-stalled-reigniting-it-starts-with-insight/?trk=public_post_comment-text</div>
+<p class="body-p">AI notetakers change the architecture of how research gets stored. When every interview is saved to a centralized, searchable folder, your past conversations become queryable evidence rather than lost memory.</p>
+<div class="cell"><span class="tag-inline">Link text → https://www.granola.ai/ai-note-taker</span>AI notetakers </div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://www.granola.ai/ai-note-taker</div>
+<h2 class="body-h">How scattered research hurts product decisions</h2>
+<p class="body-p">Fragmentation is the default state for research documentation. One researcher captures notes in Notion. Another saves a recording she never re-watches. A third keeps a running Google Doc that only she understands. When the team needs evidence for a roadmap decision three months later, <mark class="hl d-cleared" data-findings="3" id="hl-3" tabindex="0">nobody knows<sup class="hlnum">3</sup></mark> where to look.</p>
+<h3 class="body-h">The cost of unused and duplicate research</h3>
+<p class="body-p">When past research cannot be surfaced quickly, two expensive problems compound. First, synthesis decks get created, shared in team meetings, and buried in drives nobody maintains. When stakeholders challenge decisions with &quot;Is this just one customer or a pattern?&quot;, retrieving exact quotes fails, and qualitative research gets dismissed as anecdotal. The insights are real, but they are not readily accessible, which means they have no practical impact.</p>
+<p class="body-p">Second, teams commission new interviews to answer questions they have already asked. A research repository, as defined by NNG, is designed to centralize assets such as reports, recordings, notes, and transcripts. Without such centralization, teams struggle to access their own past research. Each redundant discovery round pulls engineering attention, delays delivery, and erodes stakeholder confidence in the research process.</p>
+<div class="cell"><span class="tag-inline">Link text → https://www.nngroup.com/articles/research-repositories/</span>research repository, as defined by NNG</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://www.nngroup.com/articles/research-repositories/</div>
+<h3 class="body-h">When research knowledge walks out the door</h3>
+<p class="body-p">The institutional memory problem becomes acute when a team member leaves. Granola's product team guide clearly captures the goal: make research knowledge persist beyond individual tenure so teammates can query past work rather than starting from scratch. When research is stored in a shared, structured repository rather than in personal notes, the knowledge remains even when the person does not. New hires can query project folders to understand customer context before running their first interview, building on prior research rather than repeating it.</p>
+<div class="cell"><span class="tag-inline">Link text → https://www.granola.ai/blog/product-teams-using-ai-notetaker-transcripts-to-revisit-decisions</span>Granola's product team guide</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://www.granola.ai/blog/product-teams-using-ai-notetaker-transcripts-to-revisit-decisions</div>
+<h2 class="body-h">What a high-impact research repository actually needs</h2>
+<p class="body-p">You probably think about a research repository as a storage problem, meaning somewhere to put things. The real requirement is a retrieval problem. Storage without findability produces the same outcome as having no repository at all.</p>
+<p class="body-p">A repository that works lets you ask a question and get an answer with citations, not a list of documents to open and manually search. That requires structured note formats, AI-enhanced context, and a query layer that works across all conversations simultaneously. The comparison below shows how manual synthesis workflows stack up against that standard:</p>
+<div class="cell"><span class="tag-inline">Table header cell</span>Dimension</div>
+<div class="cell"><span class="tag-inline">Table header cell</span><mark class="hl d-amber" data-findings="4" id="hl-4" tabindex="0">Bot-based capture + manual synthesis<sup class="hlnum">4</sup></mark></div>
+<div class="cell"><span class="tag-inline">Table header cell</span>AI-enhanced repository</div>
+<div class="cell"><span class="tag-inline">Table cell</span>Setup time</div>
+<div class="cell"><span class="tag-inline">Table cell</span>Template and tool coordination required</div>
+<div class="cell"><span class="tag-inline">Table cell</span>Under 5 minutes one-time setup</div>
+<div class="cell"><span class="tag-inline">Table cell</span>Note quality</div>
+<div class="cell"><span class="tag-inline">Table cell</span>Variable based on note-taking approach</div>
+<div class="cell"><span class="tag-inline">Table cell</span>Full transcript context added after meeting</div>
+<div class="cell"><span class="tag-inline">Table cell</span>Searchability</div>
+<div class="cell"><span class="tag-inline">Table cell</span>Search through documents</div>
+<div class="cell"><span class="tag-inline">Table cell</span>Query across folders</div>
+<div class="cell"><span class="tag-inline">Table cell</span>Synthesis time</div>
+<div class="cell"><span class="tag-inline">Table cell</span>Manual review process</div>
+<div class="cell"><span class="tag-inline">Table cell</span>Query-based analysis</div>
+<div class="cell"><span class="tag-inline">Table cell</span>Team access</div>
+<div class="cell"><span class="tag-inline">Table cell</span>Shared documents</div>
+<div class="cell"><span class="tag-inline">Table cell</span>Shared folder with query access</div>
+<div class="cell"><span class="tag-inline">Table cell</span><mark class="hl d-amber" data-findings="5" id="hl-5" tabindex="0">Participant comfort<sup class="hlnum">5</sup></mark></div>
+<div class="cell"><span class="tag-inline">Table cell</span><mark class="hl d-amber" data-findings="6" id="hl-6" tabindex="0">May include recording bot presence<sup class="hlnum">6</sup></mark></div>
+<div class="cell"><span class="tag-inline">Table cell</span><mark class="hl d-amber" data-findings="7" id="hl-7" tabindex="0">Personal recording approach<sup class="hlnum">7</sup></mark></div>
+<h3 class="body-h">Semantic vs. keyword search for research</h3>
+<p class="body-p">Basic search returns documents containing the exact words you typed. Semantic search aims to go beyond exact keyword matching to find conceptually related content. For customer research, this distinction matters: a semantic approach can surface conversations about authentication concerns even when the exact phrase &quot;SSO hesitation&quot; never appears in the transcript.</p>
+<h3 class="body-h">Why citations matter for credibility</h3>
+<p class="body-p">When you pull the exact sentence a customer said and trace it to the specific interview where it was said, qualitative research stops being anecdotal. Source-linked citations make findings defensible because the chain from insight to source is visible and verifiable. In stakeholder reviews, presenting &quot;three enterprise customers mentioned authentication delays,&quot; backed by linked transcript excerpts from named sessions, is treated as evidence, not opinion.</p>
+<h2 class="body-h">AI-driven search across your team's conversations</h2>
+<p class="body-p">An AI notepad like Granola captures audio from the device, transcribes conversations in real time, and uses the transcript to enhance the rough notes you jotted during the meeting. The result is a structured document in which your judgment about what matters guides the AI fill-in. <mark class="hl d-cleared" data-findings="8" id="hl-8" tabindex="0">Granola's help center explains that your notes stay visible in black while AI additions appear in gray, so you control what stays visible.<sup class="hlnum">8</sup></mark></p>
+<div class="cell"><span class="tag-inline">Link text → https://help.granola.ai/article/ai-enhanced-notes</span>Granola's help center explains</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://help.granola.ai/article/ai-enhanced-notes</div>
+<h3 class="body-h"><mark class="hl d-amber" data-findings="9" id="hl-9" tabindex="0">Staying present during customer interviews<sup class="hlnum">9</sup></mark></h3>
+<p class="body-p"><mark class="hl d-red" data-findings="10" id="hl-10" tabindex="0">The participant's experience in a customer interview changes the moment a recording bot joins the call.<sup class="hlnum">10</sup></mark> <mark class="hl d-red" data-findings="11" id="hl-11" tabindex="0">A visible bot in the participant list or a recording announcement at the start of the call can make participants more aware they're being recorded, which may influence how they respond during the conversation.<sup class="hlnum">11</sup></mark></p>
+<p class="body-p"><mark class="hl d-red" data-findings="12" id="hl-12" tabindex="0">Granola's transcription architecture sidesteps this entirely.<sup class="hlnum">12</sup></mark> Granola captures device audio and transcribes in real time without joining your Zoom, Teams, or Meet call as a visible participant. <mark class="hl d-red" data-findings="13,14" id="hl-13" tabindex="0">No bot appears in the participant list, and no recording announcement plays.<sup class="hlnum">13,14</sup></mark> <mark class="hl d-cleared" data-findings="15" id="hl-15" tabindex="0">The audio is immediately discarded after transcription: no audio files are retained.<sup class="hlnum">15</sup></mark></p>
+<div class="cell"><span class="tag-inline">Link text → https://help.granola.ai/article/transcription</span>Granola's transcription architecture</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://help.granola.ai/article/transcription</div>
+<p class="body-p">The notes Granola produces reflect what was actually said: specific language, commitments made, and <mark class="hl d-cleared" data-findings="16,17" id="hl-16" tabindex="0">context that generic automated summaries tend to flatten or miss entirely<sup class="hlnum">16,17</sup></mark>.</p>
+<blockquote class="body-quote"><span class="tag-inline">Blockquote / testimonial</span><mark class="hl d-red" data-findings="18,19" id="hl-18" tabindex="0">&quot;background without joining as a bot or recording audio means I can actually be present in conversations. No awkward 'there's a bot in this call' energy.&quot; - Aprielle D. on G2<sup class="hlnum">18,19</sup></mark></blockquote>
+<div class="cell"><span class="tag-inline">Link text → https://g2.com/products/granola/reviews/granola-review-12552067</span>Aprielle D. on G2</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://g2.com/products/granola/reviews/granola-review-12552067</div>
+<h3 class="body-h">Organizing by research initiative for reuse</h3>
+<p class="body-p">The folder structure you build converts individual interviews into a queryable repository. The practical approach is to create one shared folder per research initiative: one for SSO adoption research, one for onboarding interviews, and one for competitive displacement conversations. Each new interview is added to the relevant folder as it is completed.</p>
+<p class="body-p">Granola's chat feature lets you query conversations in a folder. This scales research beyond a single product manager because any teammate with folder access can surface findings directly rather than asking the PM who ran the interviews.</p>
+<div class="cell"><span class="tag-inline">Link text → https://docs.granola.ai/help-center/getting-more-from-your-notes/granola-chat-dictation-vs-transcription</span>Granola's chat feature</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://docs.granola.ai/help-center/getting-more-from-your-notes/granola-chat-dictation-vs-transcription</div>
+<h3 class="body-h">Querying across multiple conversations</h3>
+<p class="body-p">The queries that matter most in customer research are pattern-level, not document-level. Natural language queries like &quot;What are the main pain points for enterprise users regarding onboarding?&quot; or &quot;Which objections came up most frequently in the last six weeks?&quot; require scanning dozens of conversations simultaneously and returning citations rather than a list of documents to open.</p>
+<blockquote class="body-quote"><span class="tag-inline">Blockquote / testimonial</span>&quot;I find it particularly useful the ability to interact with and query chat and note data. This functionality allows me to easily reference decision points and discussions from meetings, which is crucial in my daily tasks that often involve complex information and numerous decision points.&quot; - Dean M. on G2</blockquote>
+<div class="cell"><span class="tag-inline">Link text → https://g2.com/products/granola/reviews/granola-review-12022021</span>Dean M. on G2</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://g2.com/products/granola/reviews/granola-review-12022021</div>
+<h2 class="body-h">Real example: querying 10+ past interviews</h2>
+<p class="body-p">A team needs to understand why enterprise customers are stalling on SSO adoption before a QBR presentation. The standard response is to schedule five new interviews. The repository response is to query the folder.</p>
+<h3 class="body-h">Enterprise SSO adoption challenges</h3>
+<p class="body-p">The team opens the shared &quot;Enterprise Discovery&quot; folder containing recent customer interviews. They type: &quot;Why do enterprise customers hesitate on SSO?&quot; Granola scans the conversations, identifies every discussion in which SSO, authentication, or IT approval came up, and returns a summary with citations to the exact conversations where each concern was raised. Common themes emerge: IT team review timelines surface repeatedly, along with concerns about breaking existing authentication workflows. The presentation deck now includes citable evidence rather than assertions.</p>
+<p class="body-p">The difference between a synthesis deck and a verbatim quote is the difference between an assertion and evidence. When you show a stakeholder the exact words a customer used and link them to the specific conversation, the dismissal of qualitative data as &quot;just your opinion&quot; loses its footing. Granola's AI-enhanced notes docs walk through how this enhancement works in practice.</p>
+<div class="cell"><span class="tag-inline">Link text → https://docs.granola.ai/help-center/taking-notes/ai-enhanced-notes</span>Granola's AI-enhanced notes docs</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://docs.granola.ai/help-center/taking-notes/ai-enhanced-notes</div>
+<h3 class="body-h">Use exact customer language to strengthen findings</h3>
+<p class="body-p">Presenting exact customer language with source citations makes findings harder to dismiss. Sales leaders, engineering managers, and executives respond differently to &quot;three enterprise customers mentioned authentication delays in their onboarding&quot; when that claim is backed by linked transcripts from named sessions. The research becomes auditable rather than asserted.</p>
+<blockquote class="body-quote"><span class="tag-inline">Blockquote / testimonial</span>&quot;With Granola I don't have to worry anymore about taking meeting notes, I can just write down things I really care about and let Granola take care of the rest. Love that I can easily share my notes with my colleagues as well, and that we can all chat with the meeting transcript so everyone can see the full context of the meeting, even if they weren't there.&quot; - Jess M. on G2</blockquote>
+<div class="cell"><span class="tag-inline">Link text → https://g2.com/products/granola/reviews/granola-review-9856422</span>Jess M. on G2</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://g2.com/products/granola/reviews/granola-review-9856422</div>
+<h2 class="body-h">Organizing your customer insights hub</h2>
+<p class="body-p">Building a research repository with Granola follows three steps, and the entire setup takes less time than a standard onboarding call.</p>
+<h3 class="body-h">Step 1: Define core research themes</h3>
+<p class="body-p">Before capturing interviews, decide on your folder taxonomy. Researchers often organize folders by research theme, user segment, or project phase. Granola's template library includes 29+ pre-built templates that structure notes consistently during calls. Select a template before each session so AI-enhanced notes follow the same format across all interviews in a folder, making cross-interview queries more reliable. Granola also includes pre-built Recipes (saved prompts that analyze meeting patterns across folders). These let you extract specific insights from an entire folder at once, surfacing all feature requests or enterprise hesitations mentioned across multiple conversations simultaneously.</p>
+<div class="cell"><span class="tag-inline">Link text → https://docs.granola.ai/help-center/taking-notes/customise-notes-with-templates</span>Granola's template library</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://docs.granola.ai/help-center/taking-notes/customise-notes-with-templates</div>
+<h3 class="body-h">Step 2: Centralize research insights</h3>
+<p class="body-p"><mark class="hl d-cleared" data-findings="20,21" id="hl-20" tabindex="0">Download the desktop or iPhone app, connect your calendar, and Granola automatically syncs upcoming meetings.<sup class="hlnum">20,21</sup></mark> Before a scheduled interview, Granola sends a notification. Click it, and both your video call and transcription start. After the meeting, click &quot;Enhance notes,&quot; review the output, and move the note into the relevant shared folder. Granola's Zapier integration lets you connect folder actions to downstream tools, pushing summaries to Notion or connecting to project management systems without manual copy-pasting.</p>
+<div class="cell"><span class="tag-inline">Link text → https://docs.granola.ai/help-center/sharing/integrations/zapier</span>Granola's Zapier integration</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://docs.granola.ai/help-center/sharing/integrations/zapier</div>
+<h3 class="body-h">Step 3: Make insights searchable for all</h3>
+<p class="body-p">The repository only prevents repeat research if teammates actually use it. When shared, team members with folder access can query directly without involving the PM who ran the interviews. Engineering can ask &quot;what accessibility concerns have come up in the last quarter?&quot; and get citations without waiting for a synthesis deck. Design can query &quot;what navigation patterns confuse first-time users?&quot; and read source-linked answers from real sessions.</p>
+<blockquote class="body-quote"><span class="tag-inline">Blockquote / testimonial</span>&quot;I like that Granola provides detailed, thorough notes with actionable next steps in a clean format... <mark class="hl d-competitor" data-findings="22" id="hl-22" tabindex="0">Granola is simpler to use and more efficient, producing more productive notes than Zoom and Gong notetakers.<sup class="hlnum">22</sup></mark>&quot; - Verified user on G2</blockquote>
+<div class="cell"><span class="tag-inline">Link text → https://g2.com/products/granola/reviews/granola-review-12270248</span>Verified user on G2</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://g2.com/products/granola/reviews/granola-review-12270248</div>
+<h2 class="body-h">The ROI of queryable research: hours saved, repeat work prevented</h2>
+<p class="body-p">When a new research question surfaces, querying the repository provides a first answer from existing interviews, which may resolve the question entirely or sharpen the scope of new sessions so they cover genuinely new ground. As Granola's product guide documents, the folder query workflow lets teams answer stakeholder questions like &quot;Why are enterprise customers hesitating about SSO?&quot; with citations from specific past conversations rather than commissioning new research. When research lives in shared folders rather than personal documents, engineers and designers get customer context directly without waiting for synthesis decks, and the research function moves from a service role to infrastructure.</p>
+<blockquote class="body-quote"><span class="tag-inline">Blockquote / testimonial</span>&quot;Granola nails exactly what I need: clean, reliable meeting transcripts and smart follow-up summaries without any fluff. I use it for nearly every call to stay focused on the conversation instead of scribbling notes... Huge time saver.&quot; - Verified user on G2</blockquote>
+<div class="cell"><span class="tag-inline">Link text → https://g2.com/products/granola/reviews/granola-review-11289286</span>Verified user on G2</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://g2.com/products/granola/reviews/granola-review-11289286</div>
+<h2 class="body-h">Common research repository challenges solved</h2>
+<h3 class="body-h">Building your AI research repository</h3>
+<p class="body-p">Granola's Business plan costs $14 per user monthly and includes unlimited meeting notes, unlimited history, shared team folders, and integrations with Notion, Slack, HubSpot, Attio, and Zapier. For context on where that sits in the market, Granola's pricing benchmarks show that business-tier plans for AI meeting tools average $19 to $30 per user monthly. <mark class="hl d-cleared" data-findings="23" id="hl-23" tabindex="0">Heavy, dedicated research tools carry significantly higher overhead and require manual tagging workflows that multiply the per-interview cost in time, not just software spend.<sup class="hlnum">23</sup></mark></p>
+<div class="cell"><span class="tag-inline">Link text → https://www.granola.ai/pricing</span>Granola's Business plan</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://www.granola.ai/pricing</div>
+<div class="cell"><span class="tag-inline">Link text → https://www.granola.ai/blog/meeting-notes-tool-pricing-benchmarks</span>Granola's pricing benchmarks</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://www.granola.ai/blog/meeting-notes-tool-pricing-benchmarks</div>
+<div class="cell"><span class="tag-inline">Link text → https://www.granola.ai/ai-meeting-assistant</span>AI meeting tools</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://www.granola.ai/ai-meeting-assistant</div>
+<blockquote class="body-quote"><span class="tag-inline">Blockquote / testimonial</span>&quot;I love that you can blend shorthand with AI notes. It's also super intuitive and super easy to use. The interface is clean and simple.&quot; - Mason K. on G2</blockquote>
+<div class="cell"><span class="tag-inline">Link text → https://g2.com/products/granola/reviews/granola-review-10322423</span>Mason K. on G2</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://g2.com/products/granola/reviews/granola-review-10322423</div>
+<h3 class="body-h"><mark class="hl d-amber" data-findings="24" id="hl-24" tabindex="0">Managing participant consent<sup class="hlnum">24</sup></mark></h3>
+<p class="body-p"><mark class="hl d-red" data-findings="25" id="hl-25" tabindex="0">Participants stay comfortable and informed without any disruption to the call.<sup class="hlnum">25</sup></mark> <mark class="hl d-red" data-findings="26,27,28" id="hl-26" tabindex="0">Granola achieves this because it captures device audio locally rather than joining as a visible participant, so no bot notification appears in the meeting.<sup class="hlnum">26,27,28</sup></mark> Granola's security and <mark class="hl d-cleared" data-findings="29" id="hl-29" tabindex="0">privacy<sup class="hlnum">29</sup></mark> documentation is available to share with anyone reviewing your tools.</p>
+<div class="cell"><span class="tag-inline">Link text → https://docs.granola.ai/help-center/consent-security-privacy/security-privacy-data-faqs</span>Granola's security and <mark class="hl d-cleared" data-findings="30" id="hl-30" tabindex="0">privacy<sup class="hlnum">30</sup></mark> documentation</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://docs.granola.ai/help-center/consent-security-<mark class="hl d-cleared" data-findings="31" id="hl-31" tabindex="0">privacy<sup class="hlnum">31</sup></mark>/security-<mark class="hl d-cleared" data-findings="32" id="hl-32" tabindex="0">privacy<sup class="hlnum">32</sup></mark>-data-faqs</div>
+<p class="body-p">One trade-off, to be honest: Granola does not store audio after transcription. As one user notes in their review, &quot;it doesn't record audio or video, it only transcribes the device output, which means I can't go back and replay parts of a meeting if something was misheard or misattributed.<mark class="hl d-amber" data-findings="33,34" id="hl-33" tabindex="0">&quot; For many use cases, transcripts and enhanced notes are sufficient, and the absence of stored audio can provide privacy benefits.<sup class="hlnum">33,34</sup></mark></p>
+<h3 class="body-h">AI notetaker implementation timeline</h3>
+<p class="body-p">Setup takes under 5 minutes: download the desktop app on Mac or Windows, connect your Google or Microsoft calendar, and Granola <mark class="hl d-cleared" data-findings="35" id="hl-35" tabindex="0">automatically<sup class="hlnum">35</sup></mark> syncs your upcoming meetings. No training is required. Granola's security page documents SOC 2 Type 2 compliance and GDPR alignment for teams that need to clear procurement or security reviews before adopting a new tool.</p>
+<div class="cell"><span class="tag-inline">Link text → https://www.granola.ai/security</span>Granola's security page</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://www.granola.ai/security</div>
+<blockquote class="body-quote"><span class="tag-inline">Blockquote / testimonial</span><mark class="hl d-amber" data-findings="36,37" id="hl-36" tabindex="0">&quot;Easy to set up and runs quietly in the background. Accurate discussion summaries with the backup transcript available.&quot; - Joe M. on G2<sup class="hlnum">36,37</sup></mark></blockquote>
+<div class="cell"><span class="tag-inline">Link text → https://g2.com/products/granola/reviews/granola-review-11055567</span>Joe M. on G2</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://g2.com/products/granola/reviews/granola-review-11055567</div>
+<h3 class="body-h">How is team access managed?</h3>
+<p class="body-p">On Business plans, each user controls their own folder sharing. <mark class="hl d-cleared" data-findings="38,39" id="hl-38" tabindex="0">You can share an &quot;Enterprise Discovery&quot; folder with product and design while keeping a &quot;Leadership 1-on-1s&quot; folder private.<sup class="hlnum">38,39</sup></mark> Enterprise plans add admin controls for organization-wide policies and granular folder-level permissions, plus SSO, org-wide auto-deletion periods, and usage analytics for larger teams managing multiple research programs simultaneously.</p>
+<p class="body-p">Try Granola for free, download the Mac, iOS, or Windows app, connect your calendar, and capture your next customer interview to see the transcription in action. After your first session, create a shared folder and invite your team to begin building the queryable research archive to prevent duplicate discovery work.</p>
+<div class="cell"><span class="tag-inline">Link text → https://www.granola.ai/</span>download</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://www.granola.ai/</div>
+<h2 class="body-h">FAQs</h2>
+<p class="body-p">How much does Granola cost per user?</p>
+<p class="body-p">Granola offers a Basic plan with 30-day meeting history. The Business plan is $14 per user per month and includes unlimited meeting history, shared team folders, and integrations with Notion, Slack, HubSpot, Attio, and Zapier.</p>
+<p class="body-p">Does Granola work with Zoom, Teams, and Google Meet?</p>
+<p class="body-p">Yes. <mark class="hl d-amber" data-findings="40" id="hl-40" tabindex="0">Granola captures device audio directly, so it works with any meeting platform, including Zoom, Google Meet, Microsoft Teams, Slack huddles, and WebEx, without requiring a visible participant to join your calls.<sup class="hlnum">40</sup></mark></p>
+<p class="body-p">Does Granola store audio from customer interviews?</p>
+<p class="body-p">No. Granola transcribes audio in real time and then deletes it immediately. <mark class="hl d-red" data-findings="41" id="hl-41" tabindex="0">Nothing is stored after transcription, which means no audio playback after the meeting and no audio files are retained anywhere.<sup class="hlnum">41</sup></mark></p>
+<p class="body-p">How long does setup take?</p>
+<p class="body-p">Setup takes under 5 minutes. Download the desktop app, connect your Google or Microsoft calendar, and Granola <mark class="hl d-cleared" data-findings="42" id="hl-42" tabindex="0">automatically<sup class="hlnum">42</sup></mark> syncs your upcoming meetings. No training is required, and there is no new interface to learn during calls.</p>
+<p class="body-p">Can teammates query shared research folders without involving the PM who ran the interviews?</p>
+<p class="body-p">Yes, on Business plans. Any teammate with access to a shared folder can query that folder directly using natural language questions and receive answers with source-linked citations from specific conversations.</p>
+<h2 class="body-h">Key terms glossary</h2>
+<p class="body-p">AI notepad: A note-taking approach where your rough notes guide AI enhancement, so the final output reflects your judgment about what mattered in a conversation rather than a generic <mark class="hl d-cleared" data-findings="43" id="hl-43" tabindex="0">automated<sup class="hlnum">43</sup></mark> summary.</p>
+<p class="body-p">Semantic search: An information retrieval technique that uses natural language processing to identify the contextual meaning and intent behind a query rather than matching exact keywords, allowing queries to surface relevant content even when the precise words differ.</p>
+<p class="body-p">Research repository: A centralized, organized collection of research assets including interview notes, transcripts, and insights, structured for easy access across a team rather than locked in the original researcher's personal files. Effective repositories enable querying, not just storage.</p>
+<p class="body-p"><mark class="hl d-red" data-findings="44,45" id="hl-44" tabindex="0">Bot-free capture: A transcription method that accesses device audio directly without a third-party participant appearing in the meeting's participant list and without triggering a platform-level recording announcement.<sup class="hlnum">44,45</sup></mark></p>
+<p class="body-p">Source-linked citations: References within AI-generated summaries or query responses that point directly to the specific conversation or transcript passage where a customer statement was made, making qualitative findings auditable rather than asserted.</p>
+</section>
+  </main>
+  <aside class="panel">
+    <div id="loadwarn" class="loadwarn" style="display:none"></div>
+    <div id="manualbox" class="manualbox" style="display:none">
+      <div class="manualhead">Manual Reviews <span id="manualcount" class="manualcount"></span></div>
+      <div id="manualout"></div>
+    </div>
+    <div class="verifybox">
+      <div class="verifyhead">
+        <b>Draft check</b>
+        <span>
+          <button type="button" id="repairbtn" class="verifybtn" style="display:none">Fix artifacts</button>
+          <button type="button" id="verifybtn" class="verifybtn">Re-check</button>
+        </span>
+      </div>
+      <div id="verifyout" class="verifyout">Checking the draft…</div>
+    </div>
+    <div class="panelhead">
+      <h2>Findings <span id="outstanding"></span></h2>
+      <div class="panelfilters">
+        <label class="tgl"><input type="checkbox" id="tglcleared"> Show cleared (<span id="nclr">0</span>)</label>
+        <label class="tgl"><input type="checkbox" id="tgldiscarded"> Show discarded (<span id="ndis">0</span>)</label>
+      </div>
+      <button class="exportbtn" id="export">Export decisions to CSV</button>
+    </div>
+    
+    <div class="finding d-cleared is-cleared" id="finding-1" data-num="1" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">1</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Meta / summary</div>
+      <blockquote class="fquote">AI notetakers create searchable research repositories that prevent repeat customer interviews and make insights accessible across product teams.</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> Meta description makes no claim about participant awareness or data storage.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="1" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="1"></div>
+      
+      <textarea class="fnote" data-num="1" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-red" id="finding-2" data-num="2" data-disposition="red">
+      <div class="fhead">
+        <span class="fnum">2</span>
+        <span class="fdisp">red</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Blockquote / testimonial</div>
+      <blockquote class="fquote">capturing interviews without a visible participant in the call</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> A reader takes from this that Granola captures interviews in a way that participants won't see, i.e. others need not know it is taking notes.</div>
+      
+      <div class="fdelete"><b>Option A — delete the paragraph:</b> The clause sits mid-sentence in a list, so a sentence-level deletion would leave broken punctuation; deleting or rewriting the whole TL;DR removes the imperceptibility framing while keeping the repository benefit available via rewrite.</div>
+      
+      <div class="frewrite" data-num="2"><b>Option B — rewrite the paragraph:</b> TL;DR: Teams running customer interviews often repeat the same discovery questions months later because insights die in personal Notion docs, Slack threads, and Google Docs. AI notetakers fix this by enhancing your rough notes with transcript context and organizing everything into shared folders you can query. Instead of repeating research, ask &quot;Why do enterprise customers hesitate on SSO?&quot; and get exact quotes with citations in seconds.</div>
+      <div class="fdecide">
+        <label><input type="radio" name="dec-2" value="accept-delete" data-num="2"> Delete</label>
+        <label><input type="radio" name="dec-2" value="accept" data-num="2"> Rewrite</label>
+        <button class="clearbtn" data-num="2" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="2"></div>
+      
+      <div class="freprompt">
+        <textarea class="fdirect" data-num="2" rows="2"
+          placeholder="Not happy with the rewrite? Say what to change and generate a new one…"></textarea>
+        <button type="button" class="regenbtn" data-num="2">Generate new rewrite</button>
+        <div class="regenout" data-num="2"></div>
+      </div>
+      <textarea class="fnote" data-num="2" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-3" data-num="3" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">3</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer A · "nobody knows"</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">nobody knows</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> &quot;Nobody knows where to look&quot; describes scattered research notes being hard to find months later. It has nothing to do with meeting participants' awareness of recording.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="3" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="3"></div>
+      
+      <textarea class="fnote" data-num="3" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-amber" id="finding-4" data-num="4" data-disposition="amber">
+      <div class="fhead">
+        <span class="fnum">4</span>
+        <span class="fdisp">amber</span>
+        <span class="fcat cat-bot-denigration">BOT DENIGRATION</span>
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Table header cell</div>
+      <blockquote class="fquote">Bot-based capture + manual synthesis</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> The comparison table frames bots as the inferior alternative, making the absence of a bot the implicit benefit.</div>
+      
+      
+      <div class="fdelete muted-note"><b>Deletion not advised:</b> Deleting the header cell would break the table structure; relabelling the column to describe the workflow rather than the tool avoids denigrating bots.</div>
+      <div class="frewrite" data-num="4"><b>Option B — rewrite the sentence:</b> Manual note-taking + manual synthesis</div>
+      <div class="fdecide">
+        
+        <label><input type="radio" name="dec-4" value="accept" data-num="4"> Rewrite</label>
+        <button class="clearbtn" data-num="4" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="4"></div>
+      
+      <div class="freprompt">
+        <textarea class="fdirect" data-num="4" rows="2"
+          placeholder="Not happy with the rewrite? Say what to change and generate a new one…"></textarea>
+        <button type="button" class="regenbtn" data-num="4">Generate new rewrite</button>
+        <div class="regenout" data-num="4"></div>
+      </div>
+      <textarea class="fnote" data-num="4" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-amber" id="finding-5" data-num="5" data-disposition="amber">
+      <div class="fhead">
+        <span class="fnum">5</span>
+        <span class="fdisp">amber</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Table cell</div>
+      <blockquote class="fquote">Participant comfort</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> A table row comparing tools on 'participant comfort' invites the reader to conclude participants are better off not seeing anything in the call.</div>
+      
+      
+      <div class="fdelete muted-note"><b>Deletion not advised:</b> The row exists only to make a point about what participants perceive; deleting the row (this cell plus s44 and s45) would be cleanest, but a single-cell deletion breaks the table, so relabel or remove the whole row manually.</div>
+      <div class="frewrite" data-num="5"><b>Option B — rewrite the sentence:</b> Note format</div>
+      <div class="fdecide">
+        
+        <label><input type="radio" name="dec-5" value="accept" data-num="5"> Rewrite</label>
+        <button class="clearbtn" data-num="5" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="5"></div>
+      
+      <div class="freprompt">
+        <textarea class="fdirect" data-num="5" rows="2"
+          placeholder="Not happy with the rewrite? Say what to change and generate a new one…"></textarea>
+        <button type="button" class="regenbtn" data-num="5">Generate new rewrite</button>
+        <div class="regenout" data-num="5"></div>
+      </div>
+      <textarea class="fnote" data-num="5" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-amber" id="finding-6" data-num="6" data-disposition="amber">
+      <div class="fhead">
+        <span class="fnum">6</span>
+        <span class="fdisp">amber</span>
+        <span class="fcat cat-bot-denigration">BOT DENIGRATION</span>
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Table cell</div>
+      <blockquote class="fquote">May include recording bot presence</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> Bot presence is positioned as a drawback affecting participant comfort — bot-denigration with an imperceptibility payoff.</div>
+      
+      
+      <div class="fdelete muted-note"><b>Deletion not advised:</b> Removing a lone table cell breaks the row; the whole 'participant comfort' row should be cut by a human, which is the preferred remedy here.</div>
+      <div class="frewrite" data-num="6"><b>Option B — rewrite the sentence:</b> Depends on the tool and template used</div>
+      <div class="fdecide">
+        
+        <label><input type="radio" name="dec-6" value="accept" data-num="6"> Rewrite</label>
+        <button class="clearbtn" data-num="6" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="6"></div>
+      
+      <div class="freprompt">
+        <textarea class="fdirect" data-num="6" rows="2"
+          placeholder="Not happy with the rewrite? Say what to change and generate a new one…"></textarea>
+        <button type="button" class="regenbtn" data-num="6">Generate new rewrite</button>
+        <div class="regenout" data-num="6"></div>
+      </div>
+      <textarea class="fnote" data-num="6" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-amber" id="finding-7" data-num="7" data-disposition="amber">
+      <div class="fhead">
+        <span class="fnum">7</span>
+        <span class="fdisp">amber</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Table cell</div>
+      <blockquote class="fquote">Personal recording approach</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> Paired with 'participant comfort' and 'bot presence', this reads as Granola capturing notes in a way participants are not aware of.</div>
+      
+      
+      <div class="fdelete muted-note"><b>Deletion not advised:</b> Cell cannot be deleted alone without breaking the table; the entire row is the better removal and a human should cut it.</div>
+      <div class="frewrite" data-num="7"><b>Option B — rewrite the sentence:</b> Notes shaped by your own shorthand</div>
+      <div class="fdecide">
+        
+        <label><input type="radio" name="dec-7" value="accept" data-num="7"> Rewrite</label>
+        <button class="clearbtn" data-num="7" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="7"></div>
+      
+      <div class="freprompt">
+        <textarea class="fdirect" data-num="7" rows="2"
+          placeholder="Not happy with the rewrite? Say what to change and generate a new one…"></textarea>
+        <button type="button" class="regenbtn" data-num="7">Generate new rewrite</button>
+        <div class="regenout" data-num="7"></div>
+      </div>
+      <textarea class="fnote" data-num="7" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-8" data-num="8" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">8</span>
+        <span class="fdisp">cleared-in-context</span>
+        <span class="fcat cat-accuracy">FACTUAL ACCURACY</span>
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">Granola's help center explains that your notes stay visible in black while AI additions appear in gray, so you control what stays visible.</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> This describes text colour in the editor, not storage or awareness; no consent or accuracy implication.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="8" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="8"></div>
+      
+      <textarea class="fnote" data-num="8" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-amber" id="finding-9" data-num="9" data-disposition="amber">
+      <div class="fhead">
+        <span class="fnum">9</span>
+        <span class="fdisp">amber</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Heading</div>
+      <blockquote class="fquote">Staying present during customer interviews</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> As the heading over a passage about bots making participants self-conscious, it frames the section around what participants notice.</div>
+      
+      <div class="fdelete"><b>Option A — delete the sentence:</b> The heading itself is benign but introduces a section whose premise is participant awareness; retitling to focus on the user's own attention is sufficient, and deletion would leave the following paragraphs unheaded.</div>
+      
+      <div class="frewrite" data-num="9"><b>Option B — rewrite the sentence:</b> Keeping your attention on the conversation</div>
+      <div class="fdecide">
+        <label><input type="radio" name="dec-9" value="accept-delete" data-num="9"> Delete</label>
+        <label><input type="radio" name="dec-9" value="accept" data-num="9"> Rewrite</label>
+        <button class="clearbtn" data-num="9" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="9"></div>
+      
+      <div class="freprompt">
+        <textarea class="fdirect" data-num="9" rows="2"
+          placeholder="Not happy with the rewrite? Say what to change and generate a new one…"></textarea>
+        <button type="button" class="regenbtn" data-num="9">Generate new rewrite</button>
+        <div class="regenout" data-num="9"></div>
+      </div>
+      <textarea class="fnote" data-num="9" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-red" id="finding-10" data-num="10" data-disposition="red">
+      <div class="fhead">
+        <span class="fnum">10</span>
+        <span class="fdisp">red</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">The participant's experience in a customer interview changes the moment a recording bot joins the call.</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> This tells the reader that participants knowing they are recorded is a problem to be avoided, making non-awareness the benefit.</div>
+      
+      <div class="fdelete"><b>Option A — delete the paragraph:</b> The paragraph exists solely to argue that recording awareness distorts interviews; deleting it removes the risk entirely and the article loses nothing but an anti-bot argument.</div>
+      
+      <div class="frewrite" data-num="10"><b>Option B — rewrite the paragraph:</b> Customer interviews go better when your attention is on the person in front of you rather than on your keyboard. Jotting a few short cues as you listen, and letting the transcript fill in the detail afterwards, keeps the conversation flowing and still produces a complete record you can revisit.</div>
+      <div class="fdecide">
+        <label><input type="radio" name="dec-10" value="accept-delete" data-num="10"> Delete</label>
+        <label><input type="radio" name="dec-10" value="accept" data-num="10"> Rewrite</label>
+        <button class="clearbtn" data-num="10" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="10"></div>
+      
+      <div class="freprompt">
+        <textarea class="fdirect" data-num="10" rows="2"
+          placeholder="Not happy with the rewrite? Say what to change and generate a new one…"></textarea>
+        <button type="button" class="regenbtn" data-num="10">Generate new rewrite</button>
+        <div class="regenout" data-num="10"></div>
+      </div>
+      <textarea class="fnote" data-num="10" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-red" id="finding-11" data-num="11" data-disposition="red">
+      <div class="fhead">
+        <span class="fnum">11</span>
+        <span class="fdisp">red</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">A visible bot in the participant list or a recording announcement at the start of the call can make participants more aware they're being recorded, which may influence how they respond during the conversation.</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> Notification and disclosure are framed as harmful to research quality, positioning non-disclosure as a benefit.</div>
+      
+      <div class="fdelete"><b>Option A — delete the paragraph:</b> This is the core of the non-disclosure implicature; the whole paragraph should go, since deleting only this sentence leaves the bot-denigration opener in place.</div>
+      
+      <div class="frewrite" data-num="11"><b>Option B — rewrite the sentence:</b> Short cues typed during the call, expanded from the transcript afterwards, mean you can listen closely and still end up with an accurate record.</div>
+      <div class="fdecide">
+        <label><input type="radio" name="dec-11" value="accept-delete" data-num="11"> Delete</label>
+        <label><input type="radio" name="dec-11" value="accept" data-num="11"> Rewrite</label>
+        <button class="clearbtn" data-num="11" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="11"></div>
+      
+      <div class="freprompt">
+        <textarea class="fdirect" data-num="11" rows="2"
+          placeholder="Not happy with the rewrite? Say what to change and generate a new one…"></textarea>
+        <button type="button" class="regenbtn" data-num="11">Generate new rewrite</button>
+        <div class="regenout" data-num="11"></div>
+      </div>
+      <textarea class="fnote" data-num="11" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-red" id="finding-12" data-num="12" data-disposition="red">
+      <div class="fhead">
+        <span class="fnum">12</span>
+        <span class="fdisp">red</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">Granola's transcription architecture sidesteps this entirely.</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> Granola is presented as the way to avoid participants becoming aware they are being recorded.</div>
+      
+      <div class="fdelete"><b>Option A — delete the paragraph:</b> The paragraph's purpose is to say participants will see and hear nothing; deleting it removes the concealment framing, and the retention fact is already stated in the FAQ.</div>
+      
+      <div class="frewrite" data-num="12"><b>Option B — rewrite the paragraph:</b> Granola's transcription architecture captures device audio and transcribes in real time on your Mac, so notes are ready as the conversation happens. The audio is discarded immediately after transcription and no audio files are retained.</div>
+      <div class="fdecide">
+        <label><input type="radio" name="dec-12" value="accept-delete" data-num="12"> Delete</label>
+        <label><input type="radio" name="dec-12" value="accept" data-num="12"> Rewrite</label>
+        <button class="clearbtn" data-num="12" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="12"></div>
+      
+      <div class="freprompt">
+        <textarea class="fdirect" data-num="12" rows="2"
+          placeholder="Not happy with the rewrite? Say what to change and generate a new one…"></textarea>
+        <button type="button" class="regenbtn" data-num="12">Generate new rewrite</button>
+        <div class="regenout" data-num="12"></div>
+      </div>
+      <textarea class="fnote" data-num="12" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-13" data-num="13" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">13</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer A · "no bot"</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">No bot</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> The term &quot;no bot&quot; is legitimate here. The concern in this sentence is the surrounding framing, which is reported separately with the remedy attached to the right span.</div>
+      <div class="fdefer">Remedy handled by finding <a href="#finding-14" class="deferlink" data-goto="14">#14</a>, which is anchored to the full phrase.</div>
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="13" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="13"></div>
+      
+      <textarea class="fnote" data-num="13" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-red" id="finding-14" data-num="14" data-disposition="red">
+      <div class="fhead">
+        <span class="fnum">14</span>
+        <span class="fdisp">red</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">No bot appears in the participant list, and no recording announcement plays.</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> Explicitly tells the reader that nothing in the call will signal to participants that notes are being taken.</div>
+      
+      <div class="fdelete"><b>Option A — delete the paragraph:</b> Removing this one sentence still leaves 'sidesteps this entirely' pointing at participant awareness, so the paragraph is the right deletion scope.</div>
+      
+      <div class="frewrite" data-num="14"><b>Option B — rewrite the sentence:</b> Granola runs on your Mac and turns the transcript into structured notes while you talk.</div>
+      <div class="fdecide">
+        <label><input type="radio" name="dec-14" value="accept-delete" data-num="14"> Delete</label>
+        <label><input type="radio" name="dec-14" value="accept" data-num="14"> Rewrite</label>
+        <button class="clearbtn" data-num="14" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="14"></div>
+      
+      <div class="freprompt">
+        <textarea class="fdirect" data-num="14" rows="2"
+          placeholder="Not happy with the rewrite? Say what to change and generate a new one…"></textarea>
+        <button type="button" class="regenbtn" data-num="14">Generate new rewrite</button>
+        <div class="regenout" data-num="14"></div>
+      </div>
+      <textarea class="fnote" data-num="14" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-15" data-num="15" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">15</span>
+        <span class="fdisp">cleared-in-context</span>
+        <span class="fcat cat-accuracy">FACTUAL ACCURACY</span>
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">The audio is immediately discarded after transcription: no audio files are retained.</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> Accurate retention claim about audio; out of scope per Addendum 2.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="15" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="15"></div>
+      
+      <textarea class="fnote" data-num="15" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-16" data-num="16" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">16</span>
+        <span class="fdisp">cleared-in-context</span>
+        <span class="fcat cat-bot-denigration">BOT DENIGRATION</span>
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">context that generic automated summaries tend to flatten or miss entirely</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> A quality comparison against generic summaries, not about bots or participant awareness.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="16" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="16"></div>
+      
+      <textarea class="fnote" data-num="16" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-17" data-num="17" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">17</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer A · "automatic"</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">automated</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> &quot;Generic automated summaries&quot; is a note-quality contrast, not a claim about participant awareness or data storage.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="17" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="17"></div>
+      
+      <textarea class="fnote" data-num="17" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-red" id="finding-18" data-num="18" data-disposition="red">
+      <div class="fhead">
+        <span class="fnum">18</span>
+        <span class="fdisp">red</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Blockquote / testimonial</div>
+      <blockquote class="fquote">&quot;background without joining as a bot or recording audio means I can actually be present in conversations. No awkward 'there's a bot in this call' energy.&quot; - Aprielle D. on G2</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> A quoted user praises the absence of any visible signal to participants, framing the awkwardness of others knowing as the thing Granola solves.</div>
+      
+      <div class="fdelete"><b>Option A — delete the paragraph:</b> The testimonial's whole point is the awkwardness of a bot being noticed; deleting the blockquote removes the risk and the article loses only one of many G2 quotes.</div>
+      
+      <div class="frewrite" data-num="18"><b>Option B — rewrite the paragraph:</b> &quot;With Granola I can stay in the conversation and still get clean, structured notes afterwards. It saves me a huge amount of write-up time.&quot; - Aprielle D. on G2</div>
+      <div class="fdecide">
+        <label><input type="radio" name="dec-18" value="accept-delete" data-num="18"> Delete</label>
+        <label><input type="radio" name="dec-18" value="accept" data-num="18"> Rewrite</label>
+        <button class="clearbtn" data-num="18" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="18"></div>
+      
+      <div class="freprompt">
+        <textarea class="fdirect" data-num="18" rows="2"
+          placeholder="Not happy with the rewrite? Say what to change and generate a new one…"></textarea>
+        <button type="button" class="regenbtn" data-num="18">Generate new rewrite</button>
+        <div class="regenout" data-num="18"></div>
+      </div>
+      <textarea class="fnote" data-num="18" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-19" data-num="19" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">19</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer A · "in the background"</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Blockquote / testimonial</div>
+      <blockquote class="fquote">background</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> The term &quot;in the background&quot; is legitimate here. The concern in this sentence is the surrounding framing, which is reported separately with the remedy attached to the right span.</div>
+      <div class="fdefer">Remedy handled by finding <a href="#finding-18" class="deferlink" data-goto="18">#18</a>, which is anchored to the full phrase.</div>
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="19" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="19"></div>
+      
+      <textarea class="fnote" data-num="19" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-20" data-num="20" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">20</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">Download the desktop or iPhone app, connect your calendar, and Granola automatically syncs upcoming meetings.</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> 'Automatically' describes calendar sync in a setup context, with no implication about what participants perceive.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="20" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="20"></div>
+      
+      <textarea class="fnote" data-num="20" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-21" data-num="21" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">21</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer A · "automatic"</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">automatically</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> &quot;Automatically syncs upcoming meetings&quot; is ordinary setup copy about the user's own calendar; it makes no claim about other participants' awareness.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="21" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="21"></div>
+      
+      <textarea class="fnote" data-num="21" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-competitor is-cleared" id="finding-22" data-num="22" data-disposition="about-competitor">
+      <div class="fhead">
+        <span class="fnum">22</span>
+        <span class="fdisp">about-competitor</span>
+        <span class="fcat cat-bot-denigration">BOT DENIGRATION</span>
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Blockquote / testimonial</div>
+      <blockquote class="fquote">Granola is simpler to use and more efficient, producing more productive notes than Zoom and Gong notetakers.</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> A quality comparison with named competitors; it praises note output rather than imperceptibility, so it does not fail the governing test.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="22" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="22"></div>
+      
+      <textarea class="fnote" data-num="22" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-23" data-num="23" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">23</span>
+        <span class="fdisp">cleared-in-context</span>
+        <span class="fcat cat-bot-denigration">BOT DENIGRATION</span>
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">Heavy, dedicated research tools carry significantly higher overhead and require manual tagging workflows that multiply the per-interview cost in time, not just software spend.</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> A cost comparison against research repository tools, not meeting bots, and unrelated to disclosure.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="23" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="23"></div>
+      
+      <textarea class="fnote" data-num="23" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-amber" id="finding-24" data-num="24" data-disposition="amber">
+      <div class="fhead">
+        <span class="fnum">24</span>
+        <span class="fdisp">amber</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Heading</div>
+      <blockquote class="fquote">Managing participant consent</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> A heading promising consent guidance, above copy that instead explains participants see no notification — the mismatch implies consent is handled by there being nothing to notice.</div>
+      
+      <div class="fdelete"><b>Option A — delete the paragraph:</b> If the paragraph below is cut, this heading must go with it; leaving a consent heading over concealment copy is the worst outcome.</div>
+      
+      <div class="frewrite" data-num="24"><b>Option B — rewrite the sentence:</b> Sharing security and privacy details</div>
+      <div class="fdecide">
+        <label><input type="radio" name="dec-24" value="accept-delete" data-num="24"> Delete</label>
+        <label><input type="radio" name="dec-24" value="accept" data-num="24"> Rewrite</label>
+        <button class="clearbtn" data-num="24" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="24"></div>
+      
+      <div class="freprompt">
+        <textarea class="fdirect" data-num="24" rows="2"
+          placeholder="Not happy with the rewrite? Say what to change and generate a new one…"></textarea>
+        <button type="button" class="regenbtn" data-num="24">Generate new rewrite</button>
+        <div class="regenout" data-num="24"></div>
+      </div>
+      <textarea class="fnote" data-num="24" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-red" id="finding-25" data-num="25" data-disposition="red">
+      <div class="fhead">
+        <span class="fnum">25</span>
+        <span class="fdisp">red</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">Participants stay comfortable and informed without any disruption to the call.</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> Claims participants are 'informed' while the next sentence explains they receive no notification — implying disclosure is taken care of by nothing appearing.</div>
+      
+      <div class="fdelete"><b>Option A — delete the paragraph:</b> The paragraph as written answers a consent heading with an absence-of-notification claim; deleting it removes the exposure, though the rewrite is preferable because it keeps the documentation link.</div>
+      
+      <div class="frewrite" data-num="25"><b>Option B — rewrite the paragraph:</b> Tell participants at the top of the call that you're taking AI-assisted notes, and get their agreement before you start. Granola's security and privacy documentation is available to share with anyone reviewing your tools.</div>
+      <div class="fdecide">
+        <label><input type="radio" name="dec-25" value="accept-delete" data-num="25"> Delete</label>
+        <label><input type="radio" name="dec-25" value="accept" data-num="25"> Rewrite</label>
+        <button class="clearbtn" data-num="25" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="25"></div>
+      
+      <div class="freprompt">
+        <textarea class="fdirect" data-num="25" rows="2"
+          placeholder="Not happy with the rewrite? Say what to change and generate a new one…"></textarea>
+        <button type="button" class="regenbtn" data-num="25">Generate new rewrite</button>
+        <div class="regenout" data-num="25"></div>
+      </div>
+      <textarea class="fnote" data-num="25" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-red" id="finding-26" data-num="26" data-disposition="red">
+      <div class="fhead">
+        <span class="fnum">26</span>
+        <span class="fdisp">red</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">Granola achieves this because it captures device audio locally rather than joining as a visible participant, so no bot notification appears in the meeting.</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> The absence of any in-meeting notification is presented as the mechanism by which participants stay comfortable — non-disclosure as a feature.</div>
+      
+      <div class="fdelete"><b>Option A — delete the paragraph:</b> Deleting only this sentence leaves the false 'comfortable and informed' claim standing, so paragraph scope is the safer removal.</div>
+      
+      <div class="frewrite" data-num="26"><b>Option B — rewrite the sentence:</b> Granola captures device audio on your Mac and builds notes from the transcript as the conversation happens.</div>
+      <div class="fdecide">
+        <label><input type="radio" name="dec-26" value="accept-delete" data-num="26"> Delete</label>
+        <label><input type="radio" name="dec-26" value="accept" data-num="26"> Rewrite</label>
+        <button class="clearbtn" data-num="26" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="26"></div>
+      
+      <div class="freprompt">
+        <textarea class="fdirect" data-num="26" rows="2"
+          placeholder="Not happy with the rewrite? Say what to change and generate a new one…"></textarea>
+        <button type="button" class="regenbtn" data-num="26">Generate new rewrite</button>
+        <div class="regenout" data-num="26"></div>
+      </div>
+      <textarea class="fnote" data-num="26" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-27" data-num="27" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">27</span>
+        <span class="fdisp">cleared-in-context</span>
+        <span class="fcat cat-accuracy">FACTUAL ACCURACY</span>
+        <span class="flayer" title="Which layer caught it">Layer A · "local"</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">locally</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> &quot;Captures device audio locally&quot; describes the capture method, which Addendum 2 explicitly places out of scope; it is not a storage claim. The problem in this sentence is the clause about no bot notification appearing in the meeting, which is anchored separately at hit #6.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="27" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="27"></div>
+      
+      <textarea class="fnote" data-num="27" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-28" data-num="28" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">28</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer A · "no bot"</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">no bot</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> The term &quot;no bot&quot; is legitimate here. The concern in this sentence is the surrounding framing, which is reported separately with the remedy attached to the right span.</div>
+      <div class="fdefer">Remedy handled by finding <a href="#finding-26" class="deferlink" data-goto="26">#26</a>, which is anchored to the full phrase.</div>
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="28" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="28"></div>
+      
+      <textarea class="fnote" data-num="28" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-29" data-num="29" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">29</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer A · "private"</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">privacy</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> Points the reader to published security and privacy documentation — procurement vocabulary, and it actively encourages sharing details with others rather than concealing anything.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="29" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="29"></div>
+      
+      <textarea class="fnote" data-num="29" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-30" data-num="30" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">30</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer A · "private"</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Link anchor text</div>
+      <blockquote class="fquote">privacy</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> Link anchor text naming Granola's security and privacy documentation; no claim about participant awareness or storage location.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="30" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="30"></div>
+      
+      <textarea class="fnote" data-num="30" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-31" data-num="31" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">31</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer A · "private"</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Link URL</div>
+      <blockquote class="fquote">privacy</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> URL string containing &quot;privacy&quot;; carries no claim to a reader.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="31" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="31"></div>
+      
+      <textarea class="fnote" data-num="31" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-32" data-num="32" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">32</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer A · "private"</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Link URL</div>
+      <blockquote class="fquote">privacy</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> Duplicate URL string match; carries no claim to a reader.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="32" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="32"></div>
+      
+      <textarea class="fnote" data-num="32" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-amber" id="finding-33" data-num="33" data-disposition="amber">
+      <div class="fhead">
+        <span class="fnum">33</span>
+        <span class="fdisp">amber</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer A · "private"</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">&quot; For many use cases, transcripts and enhanced notes are sufficient, and the absence of stored audio can provide privacy benefits.</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> Says the absence of stored audio &quot;can provide privacy benefits&quot;. The audio-deletion fact itself is accurate and in-scope-clear, but pairing it with a privacy benefit nudges toward the idea that there is less to disclose or worry about — worth a human call.</div>
+      
+      <div class="fdelete"><b>Option A — delete the sentence:</b> The sentence can be removed cleanly; the reader loses only an editorial aside about audio retention, not any information about building a research repository.</div>
+      
+      <div class="frewrite" data-num="33"><b>Option B — rewrite the sentence:</b> For many use cases, transcripts and enhanced notes are sufficient, since the searchable text is what teams actually return to when they need evidence for a decision.</div>
+      <div class="fdecide">
+        <label><input type="radio" name="dec-33" value="accept-delete" data-num="33"> Delete</label>
+        <label><input type="radio" name="dec-33" value="accept" data-num="33"> Rewrite</label>
+        <button class="clearbtn" data-num="33" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="33"></div>
+      
+      <div class="freprompt">
+        <textarea class="fdirect" data-num="33" rows="2"
+          placeholder="Not happy with the rewrite? Say what to change and generate a new one…"></textarea>
+        <button type="button" class="regenbtn" data-num="33">Generate new rewrite</button>
+        <div class="regenout" data-num="33"></div>
+      </div>
+      <textarea class="fnote" data-num="33" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-34" data-num="34" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">34</span>
+        <span class="fdisp">cleared-in-context</span>
+        <span class="fcat cat-accuracy">FACTUAL ACCURACY</span>
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">For many use cases, transcripts and enhanced notes are sufficient, and the absence of stored audio can provide privacy benefits.</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> An accurate statement about audio retention; the subject is audio, which is out of scope, and it makes no claim about participant awareness.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="34" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="34"></div>
+      
+      <textarea class="fnote" data-num="34" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-35" data-num="35" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">35</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer A · "automatic"</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">automatically</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> Routine setup instruction about calendar syncing on the user's own machine; no claim about other participants.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="35" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="35"></div>
+      
+      <textarea class="fnote" data-num="35" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-amber" id="finding-36" data-num="36" data-disposition="amber">
+      <div class="fhead">
+        <span class="fnum">36</span>
+        <span class="fdisp">amber</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Blockquote / testimonial</div>
+      <blockquote class="fquote">&quot;Easy to set up and runs quietly in the background. Accurate discussion summaries with the backup transcript available.&quot; - Joe M. on G2</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> 'Runs quietly in the background' could be read as imperceptible to others, though in context it reads as not interrupting the user's own workflow.</div>
+      
+      <div class="fdelete"><b>Option A — delete the paragraph:</b> The quote's value is setup ease and summary accuracy, both stated elsewhere, so deletion costs little; the rewrite keeps the user voice while anchoring 'quietly' to the user's own workflow.</div>
+      
+      <div class="frewrite" data-num="36"><b>Option B — rewrite the paragraph:</b> &quot;Easy to set up and stays out of my way while I work. Accurate discussion summaries with the backup transcript available.&quot; - Joe M. on G2</div>
+      <div class="fdecide">
+        <label><input type="radio" name="dec-36" value="accept-delete" data-num="36"> Delete</label>
+        <label><input type="radio" name="dec-36" value="accept" data-num="36"> Rewrite</label>
+        <button class="clearbtn" data-num="36" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="36"></div>
+      
+      <div class="freprompt">
+        <textarea class="fdirect" data-num="36" rows="2"
+          placeholder="Not happy with the rewrite? Say what to change and generate a new one…"></textarea>
+        <button type="button" class="regenbtn" data-num="36">Generate new rewrite</button>
+        <div class="regenout" data-num="36"></div>
+      </div>
+      <textarea class="fnote" data-num="36" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-37" data-num="37" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">37</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer A · "in the background"</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Blockquote / testimonial</div>
+      <blockquote class="fquote">in the background</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> The term &quot;in the background&quot; is legitimate here. The concern in this sentence is the surrounding framing, which is reported separately with the remedy attached to the right span.</div>
+      <div class="fdefer">Remedy handled by finding <a href="#finding-36" class="deferlink" data-goto="36">#36</a>, which is anchored to the full phrase.</div>
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="37" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="37"></div>
+      
+      <textarea class="fnote" data-num="37" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-38" data-num="38" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">38</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">You can share an &quot;Enterprise Discovery&quot; folder with product and design while keeping a &quot;Leadership 1-on-1s&quot; folder private.</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> 'Private' here scopes to folder sharing permissions, a genuine access-control claim, not to participant awareness or storage location.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="38" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="38"></div>
+      
+      <textarea class="fnote" data-num="38" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-39" data-num="39" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">39</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer A · "private"</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">private</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> &quot;Private&quot; here describes folder sharing permissions between colleagues — a genuine access-control feature, not a claim about meeting participants' awareness.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="39" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="39"></div>
+      
+      <textarea class="fnote" data-num="39" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-amber" id="finding-40" data-num="40" data-disposition="amber">
+      <div class="fhead">
+        <span class="fnum">40</span>
+        <span class="fdisp">amber</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">Granola captures device audio directly, so it works with any meeting platform, including Zoom, Google Meet, Microsoft Teams, Slack huddles, and WebEx, without requiring a visible participant to join your calls.</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> Platform compatibility is legitimate, but 'without requiring a visible participant' leans on invisibility to other attendees rather than on reliability.</div>
+      
+      <div class="fdelete"><b>Option A — delete the sentence:</b> Deleting the sentence would leave the bare 'Yes.' answering nothing, so the paragraph rewrite using the approved framing is the better remedy.</div>
+      
+      <div class="frewrite" data-num="40"><b>Option B — rewrite the paragraph:</b> Yes. Granola captures device audio directly, so it works with any meeting platform, including Zoom, Google Meet, Microsoft Teams, Slack huddles, and WebEx. No meeting bot joins your calls; Granola runs on your Mac to help generate notes during and after your meetings.</div>
+      <div class="fdecide">
+        <label><input type="radio" name="dec-40" value="accept-delete" data-num="40"> Delete</label>
+        <label><input type="radio" name="dec-40" value="accept" data-num="40"> Rewrite</label>
+        <button class="clearbtn" data-num="40" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="40"></div>
+      
+      <div class="freprompt">
+        <textarea class="fdirect" data-num="40" rows="2"
+          placeholder="Not happy with the rewrite? Say what to change and generate a new one…"></textarea>
+        <button type="button" class="regenbtn" data-num="40">Generate new rewrite</button>
+        <div class="regenout" data-num="40"></div>
+      </div>
+      <textarea class="fnote" data-num="40" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-red" id="finding-41" data-num="41" data-disposition="red">
+      <div class="fhead">
+        <span class="fnum">41</span>
+        <span class="fdisp">red</span>
+        <span class="fcat cat-accuracy">FACTUAL ACCURACY</span>
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">Nothing is stored after transcription, which means no audio playback after the meeting and no audio files are retained anywhere.</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> 'Nothing is stored after transcription' is a subjectless absence claim a reader will apply to their notes and transcripts, which are in fact cloud-stored.</div>
+      
+      <div class="fdelete"><b>Option A — delete the sentence:</b> Deleting the sentence leaves an accurate two-sentence answer about audio deletion intact; the rewrite is offered if the reviewer wants to state what is retained.</div>
+      
+      <div class="frewrite" data-num="41"><b>Option B — rewrite the paragraph:</b> No. Granola transcribes audio in real time and then deletes it immediately, so there is no audio playback after the meeting and no audio files are retained. Your notes and transcripts remain available in Granola, encrypted in transit and at rest.</div>
+      <div class="fdecide">
+        <label><input type="radio" name="dec-41" value="accept-delete" data-num="41"> Delete</label>
+        <label><input type="radio" name="dec-41" value="accept" data-num="41"> Rewrite</label>
+        <button class="clearbtn" data-num="41" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="41"></div>
+      
+      <div class="freprompt">
+        <textarea class="fdirect" data-num="41" rows="2"
+          placeholder="Not happy with the rewrite? Say what to change and generate a new one…"></textarea>
+        <button type="button" class="regenbtn" data-num="41">Generate new rewrite</button>
+        <div class="regenout" data-num="41"></div>
+      </div>
+      <textarea class="fnote" data-num="41" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-42" data-num="42" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">42</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer A · "automatic"</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">automatically</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> Repeat setup instruction about calendar sync; no disclosure or storage claim.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="42" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="42"></div>
+      
+      <textarea class="fnote" data-num="42" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-43" data-num="43" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">43</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer A · "automatic"</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">automated</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> Glossary definition contrasting user-guided notes with a generic automated summary — a note-quality point, not a disclosure or storage claim.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="43" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="43"></div>
+      
+      <textarea class="fnote" data-num="43" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-44" data-num="44" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">44</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer A · "no bot"</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">Bot-free</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> The term &quot;no bot&quot; is legitimate here. The concern in this sentence is the surrounding framing, which is reported separately with the remedy attached to the right span.</div>
+      <div class="fdefer">Remedy handled by finding <a href="#finding-45" class="deferlink" data-goto="45">#45</a>, which is anchored to the full phrase.</div>
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="44" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="44"></div>
+      
+      <textarea class="fnote" data-num="44" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-red" id="finding-45" data-num="45" data-disposition="red">
+      <div class="fhead">
+        <span class="fnum">45</span>
+        <span class="fdisp">red</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">Bot-free capture: A transcription method that accesses device audio directly without a third-party participant appearing in the meeting's participant list and without triggering a platform-level recording announcement.</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> A glossary definition whose defining features are that nothing appears to participants and no recording announcement is triggered — non-disclosure as the product concept.</div>
+      
+      <div class="fdelete"><b>Option A — delete the paragraph:</b> The glossary entry exists to make the no-announcement point; deleting the whole entry removes the risk cleanly and the article's glossary still covers the concepts that matter, though the quote begins with a likely-bolded label so a sentence-scope rewrite is offered as the safer splice.</div>
+      
+      <div class="frewrite" data-num="45"><b>Option B — rewrite the sentence:</b> Bot-free capture: A transcription method that accesses device audio directly from your own machine, so notes are generated during and after the meeting without any additional software joining the call.</div>
+      <div class="fdecide">
+        <label><input type="radio" name="dec-45" value="accept-delete" data-num="45"> Delete</label>
+        <label><input type="radio" name="dec-45" value="accept" data-num="45"> Rewrite</label>
+        <button class="clearbtn" data-num="45" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="45"></div>
+      
+      <div class="freprompt">
+        <textarea class="fdirect" data-num="45" rows="2"
+          placeholder="Not happy with the rewrite? Say what to change and generate a new one…"></textarea>
+        <button type="button" class="regenbtn" data-num="45">Generate new rewrite</button>
+        <div class="regenout" data-num="45"></div>
+      </div>
+      <textarea class="fnote" data-num="45" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+  </aside>
+</div>
+<script>
+(function(){
+  var SLUG = "ai-notetaker-research-repository-product-teams";
+  var KEY = 'granola-review-decisions:' + SLUG;
+  var FINDINGS = [{"number":1,"id":"288a5aa048dbb3e4e4902941d1887c53","disposition":"cleared-in-context","layer":"B","term":"","field":"Meta / summary","quote":"AI notetakers create searchable research repositories that prevent repeat customer interviews and make insights accessible across product teams.","takeaway":"Meta description makes no claim about participant awareness or data storage.","rewrite":""},{"number":2,"id":"f69722b852544dc7bfb3c8d124eea571","disposition":"red","layer":"B","term":"","field":"Blockquote / testimonial","quote":"capturing interviews without a visible participant in the call","takeaway":"A reader takes from this that Granola captures interviews in a way that participants won't see, i.e. others need not know it is taking notes.","rewrite":"TL;DR: Teams running customer interviews often repeat the same discovery questions months later because insights die in personal Notion docs, Slack threads, and Google Docs. AI notetakers fix this by enhancing your rough notes with transcript context and organizing everything into shared folders you can query. Instead of repeating research, ask \"Why do enterprise customers hesitate on SSO?\" and get exact quotes with citations in seconds."},{"number":3,"id":"d0d37c03c7a73fcffa5fe1b2cdfde360","disposition":"cleared-in-context","layer":"A","term":"nobody knows","field":"Body paragraph","quote":"nobody knows","takeaway":"\"Nobody knows where to look\" describes scattered research notes being hard to find months later. It has nothing to do with meeting participants' awareness of recording.","rewrite":""},{"number":4,"id":"9b1442628f83806081d01bdf536451cf","disposition":"amber","layer":"B","term":"","field":"Table header cell","quote":"Bot-based capture + manual synthesis","takeaway":"The comparison table frames bots as the inferior alternative, making the absence of a bot the implicit benefit.","rewrite":"Manual note-taking + manual synthesis"},{"number":5,"id":"c8740f40bdc30b0c40c524ead10338ab","disposition":"amber","layer":"B","term":"","field":"Table cell","quote":"Participant comfort","takeaway":"A table row comparing tools on 'participant comfort' invites the reader to conclude participants are better off not seeing anything in the call.","rewrite":"Note format"},{"number":6,"id":"0b9690f0959149b26cbfad954806bf63","disposition":"amber","layer":"B","term":"","field":"Table cell","quote":"May include recording bot presence","takeaway":"Bot presence is positioned as a drawback affecting participant comfort — bot-denigration with an imperceptibility payoff.","rewrite":"Depends on the tool and template used"},{"number":7,"id":"4f075f41a84e895d18c46884a5377c10","disposition":"amber","layer":"B","term":"","field":"Table cell","quote":"Personal recording approach","takeaway":"Paired with 'participant comfort' and 'bot presence', this reads as Granola capturing notes in a way participants are not aware of.","rewrite":"Notes shaped by your own shorthand"},{"number":8,"id":"f8a04de0cb8e12243778194d93f633ae","disposition":"cleared-in-context","layer":"B","term":"","field":"Body paragraph","quote":"Granola's help center explains that your notes stay visible in black while AI additions appear in gray, so you control what stays visible.","takeaway":"This describes text colour in the editor, not storage or awareness; no consent or accuracy implication.","rewrite":""},{"number":9,"id":"98059fe2159bd6342251f00857a5c93a","disposition":"amber","layer":"B","term":"","field":"Heading","quote":"Staying present during customer interviews","takeaway":"As the heading over a passage about bots making participants self-conscious, it frames the section around what participants notice.","rewrite":"Keeping your attention on the conversation"},{"number":10,"id":"e43bedc63a8b9b81b9ca1db02b947048","disposition":"red","layer":"B","term":"","field":"Body paragraph","quote":"The participant's experience in a customer interview changes the moment a recording bot joins the call.","takeaway":"This tells the reader that participants knowing they are recorded is a problem to be avoided, making non-awareness the benefit.","rewrite":"Customer interviews go better when your attention is on the person in front of you rather than on your keyboard. Jotting a few short cues as you listen, and letting the transcript fill in the detail afterwards, keeps the conversation flowing and still produces a complete record you can revisit."},{"number":11,"id":"75a2c3e4716548999590c1d0712002b7","disposition":"red","layer":"B","term":"","field":"Body paragraph","quote":"A visible bot in the participant list or a recording announcement at the start of the call can make participants more aware they're being recorded, which may influence how they respond during the conversation.","takeaway":"Notification and disclosure are framed as harmful to research quality, positioning non-disclosure as a benefit.","rewrite":"Short cues typed during the call, expanded from the transcript afterwards, mean you can listen closely and still end up with an accurate record."},{"number":12,"id":"9960fd57a9abb0caaee0a8b86d2be06f","disposition":"red","layer":"B","term":"","field":"Body paragraph","quote":"Granola's transcription architecture sidesteps this entirely.","takeaway":"Granola is presented as the way to avoid participants becoming aware they are being recorded.","rewrite":"Granola's transcription architecture captures device audio and transcribes in real time on your Mac, so notes are ready as the conversation happens. The audio is discarded immediately after transcription and no audio files are retained."},{"number":13,"id":"53900311ed929e14f64976577d003336","disposition":"cleared-in-context","layer":"A","term":"no bot","field":"Body paragraph","quote":"No bot","takeaway":"The term \"no bot\" is legitimate here. The concern in this sentence is the surrounding framing, which is reported separately with the remedy attached to the right span.","rewrite":""},{"number":14,"id":"5fde4c46a070a547ad8fb4e2ad5fc803","disposition":"red","layer":"B","term":"","field":"Body paragraph","quote":"No bot appears in the participant list, and no recording announcement plays.","takeaway":"Explicitly tells the reader that nothing in the call will signal to participants that notes are being taken.","rewrite":"Granola runs on your Mac and turns the transcript into structured notes while you talk."},{"number":15,"id":"7b52c3e35f392a6632bd23032828b2fc","disposition":"cleared-in-context","layer":"B","term":"","field":"Body paragraph","quote":"The audio is immediately discarded after transcription: no audio files are retained.","takeaway":"Accurate retention claim about audio; out of scope per Addendum 2.","rewrite":""},{"number":16,"id":"7ce5a4dc2c2ee9b36666496b505ddfc1","disposition":"cleared-in-context","layer":"B","term":"","field":"Body paragraph","quote":"context that generic automated summaries tend to flatten or miss entirely","takeaway":"A quality comparison against generic summaries, not about bots or participant awareness.","rewrite":""},{"number":17,"id":"19b155bcff39abb6c18c232f8ad2978e","disposition":"cleared-in-context","layer":"A","term":"automatic","field":"Body paragraph","quote":"automated","takeaway":"\"Generic automated summaries\" is a note-quality contrast, not a claim about participant awareness or data storage.","rewrite":""},{"number":18,"id":"6f235cbfd48d74ea1316f0eb60fcb483","disposition":"red","layer":"B","term":"","field":"Blockquote / testimonial","quote":"\"background without joining as a bot or recording audio means I can actually be present in conversations. No awkward 'there's a bot in this call' energy.\" - Aprielle D. on G2","takeaway":"A quoted user praises the absence of any visible signal to participants, framing the awkwardness of others knowing as the thing Granola solves.","rewrite":"\"With Granola I can stay in the conversation and still get clean, structured notes afterwards. It saves me a huge amount of write-up time.\" - Aprielle D. on G2"},{"number":19,"id":"5fb3ada5d73d50f9501a5a4575813c26","disposition":"cleared-in-context","layer":"A","term":"in the background","field":"Blockquote / testimonial","quote":"background","takeaway":"The term \"in the background\" is legitimate here. The concern in this sentence is the surrounding framing, which is reported separately with the remedy attached to the right span.","rewrite":""},{"number":20,"id":"957001400ce01ca02dcdaf5d65d5cb5a","disposition":"cleared-in-context","layer":"B","term":"","field":"Body paragraph","quote":"Download the desktop or iPhone app, connect your calendar, and Granola automatically syncs upcoming meetings.","takeaway":"'Automatically' describes calendar sync in a setup context, with no implication about what participants perceive.","rewrite":""},{"number":21,"id":"4b91788a33921d086c17729c14324abd","disposition":"cleared-in-context","layer":"A","term":"automatic","field":"Body paragraph","quote":"automatically","takeaway":"\"Automatically syncs upcoming meetings\" is ordinary setup copy about the user's own calendar; it makes no claim about other participants' awareness.","rewrite":""},{"number":22,"id":"597130427e53c99d5f35cd5e5d7bee7b","disposition":"about-competitor","layer":"B","term":"","field":"Blockquote / testimonial","quote":"Granola is simpler to use and more efficient, producing more productive notes than Zoom and Gong notetakers.","takeaway":"A quality comparison with named competitors; it praises note output rather than imperceptibility, so it does not fail the governing test.","rewrite":""},{"number":23,"id":"ef61b61f48d0c9ccfe18a6cb227214c4","disposition":"cleared-in-context","layer":"B","term":"","field":"Body paragraph","quote":"Heavy, dedicated research tools carry significantly higher overhead and require manual tagging workflows that multiply the per-interview cost in time, not just software spend.","takeaway":"A cost comparison against research repository tools, not meeting bots, and unrelated to disclosure.","rewrite":""},{"number":24,"id":"5ee2fca7b58e6440501d1eddf34ecd36","disposition":"amber","layer":"B","term":"","field":"Heading","quote":"Managing participant consent","takeaway":"A heading promising consent guidance, above copy that instead explains participants see no notification — the mismatch implies consent is handled by there being nothing to notice.","rewrite":"Sharing security and privacy details"},{"number":25,"id":"fb01486c0d320b6f6d88d4659a507fa7","disposition":"red","layer":"B","term":"","field":"Body paragraph","quote":"Participants stay comfortable and informed without any disruption to the call.","takeaway":"Claims participants are 'informed' while the next sentence explains they receive no notification — implying disclosure is taken care of by nothing appearing.","rewrite":"Tell participants at the top of the call that you're taking AI-assisted notes, and get their agreement before you start. Granola's security and privacy documentation is available to share with anyone reviewing your tools."},{"number":26,"id":"1674e89b9323d26d3517f6d7ee50ec65","disposition":"red","layer":"B","term":"","field":"Body paragraph","quote":"Granola achieves this because it captures device audio locally rather than joining as a visible participant, so no bot notification appears in the meeting.","takeaway":"The absence of any in-meeting notification is presented as the mechanism by which participants stay comfortable — non-disclosure as a feature.","rewrite":"Granola captures device audio on your Mac and builds notes from the transcript as the conversation happens."},{"number":27,"id":"607fc94f18a14800a8b172fad8dc7c4a","disposition":"cleared-in-context","layer":"A","term":"local","field":"Body paragraph","quote":"locally","takeaway":"\"Captures device audio locally\" describes the capture method, which Addendum 2 explicitly places out of scope; it is not a storage claim. The problem in this sentence is the clause about no bot notification appearing in the meeting, which is anchored separately at hit #6.","rewrite":""},{"number":28,"id":"4ce34eb3b1de37a861ee304a714306d0","disposition":"cleared-in-context","layer":"A","term":"no bot","field":"Body paragraph","quote":"no bot","takeaway":"The term \"no bot\" is legitimate here. The concern in this sentence is the surrounding framing, which is reported separately with the remedy attached to the right span.","rewrite":""},{"number":29,"id":"acb410a94cedbd7e3e80a2d8e54bc707","disposition":"cleared-in-context","layer":"A","term":"private","field":"Body paragraph","quote":"privacy","takeaway":"Points the reader to published security and privacy documentation — procurement vocabulary, and it actively encourages sharing details with others rather than concealing anything.","rewrite":""},{"number":30,"id":"bdcc37e24537afcbd6da47dae3b237df","disposition":"cleared-in-context","layer":"A","term":"private","field":"Link anchor text","quote":"privacy","takeaway":"Link anchor text naming Granola's security and privacy documentation; no claim about participant awareness or storage location.","rewrite":""},{"number":31,"id":"fbb2fb40d27346a1c002725053c987ce","disposition":"cleared-in-context","layer":"A","term":"private","field":"Link URL","quote":"privacy","takeaway":"URL string containing \"privacy\"; carries no claim to a reader.","rewrite":""},{"number":32,"id":"4401758a2bfaa0f1fe202028f2e17ac4","disposition":"cleared-in-context","layer":"A","term":"private","field":"Link URL","quote":"privacy","takeaway":"Duplicate URL string match; carries no claim to a reader.","rewrite":""},{"number":33,"id":"db68d3b56ebcbe225191c2d2137f8896","disposition":"amber","layer":"A","term":"private","field":"Body paragraph","quote":"\" For many use cases, transcripts and enhanced notes are sufficient, and the absence of stored audio can provide privacy benefits.","takeaway":"Says the absence of stored audio \"can provide privacy benefits\". The audio-deletion fact itself is accurate and in-scope-clear, but pairing it with a privacy benefit nudges toward the idea that there is less to disclose or worry about — worth a human call.","rewrite":"For many use cases, transcripts and enhanced notes are sufficient, since the searchable text is what teams actually return to when they need evidence for a decision."},{"number":34,"id":"79d76891a33f2048646196f95b7cc373","disposition":"cleared-in-context","layer":"B","term":"","field":"Body paragraph","quote":"For many use cases, transcripts and enhanced notes are sufficient, and the absence of stored audio can provide privacy benefits.","takeaway":"An accurate statement about audio retention; the subject is audio, which is out of scope, and it makes no claim about participant awareness.","rewrite":""},{"number":35,"id":"06bfa8391af00ad8adcae202377cd260","disposition":"cleared-in-context","layer":"A","term":"automatic","field":"Body paragraph","quote":"automatically","takeaway":"Routine setup instruction about calendar syncing on the user's own machine; no claim about other participants.","rewrite":""},{"number":36,"id":"22bf1ec8d78ab1190da32f15fde27571","disposition":"amber","layer":"B","term":"","field":"Blockquote / testimonial","quote":"\"Easy to set up and runs quietly in the background. Accurate discussion summaries with the backup transcript available.\" - Joe M. on G2","takeaway":"'Runs quietly in the background' could be read as imperceptible to others, though in context it reads as not interrupting the user's own workflow.","rewrite":"\"Easy to set up and stays out of my way while I work. Accurate discussion summaries with the backup transcript available.\" - Joe M. on G2"},{"number":37,"id":"e6cc691771a728159ea83f06ee807405","disposition":"cleared-in-context","layer":"A","term":"in the background","field":"Blockquote / testimonial","quote":"in the background","takeaway":"The term \"in the background\" is legitimate here. The concern in this sentence is the surrounding framing, which is reported separately with the remedy attached to the right span.","rewrite":""},{"number":38,"id":"f350b2a538d98fcce70c99289295ab52","disposition":"cleared-in-context","layer":"B","term":"","field":"Body paragraph","quote":"You can share an \"Enterprise Discovery\" folder with product and design while keeping a \"Leadership 1-on-1s\" folder private.","takeaway":"'Private' here scopes to folder sharing permissions, a genuine access-control claim, not to participant awareness or storage location.","rewrite":""},{"number":39,"id":"ffcacfb19b465a5c7d88c881b081b114","disposition":"cleared-in-context","layer":"A","term":"private","field":"Body paragraph","quote":"private","takeaway":"\"Private\" here describes folder sharing permissions between colleagues — a genuine access-control feature, not a claim about meeting participants' awareness.","rewrite":""},{"number":40,"id":"b67cd4267a2c1e7116927519e394b250","disposition":"amber","layer":"B","term":"","field":"Body paragraph","quote":"Granola captures device audio directly, so it works with any meeting platform, including Zoom, Google Meet, Microsoft Teams, Slack huddles, and WebEx, without requiring a visible participant to join your calls.","takeaway":"Platform compatibility is legitimate, but 'without requiring a visible participant' leans on invisibility to other attendees rather than on reliability.","rewrite":"Yes. Granola captures device audio directly, so it works with any meeting platform, including Zoom, Google Meet, Microsoft Teams, Slack huddles, and WebEx. No meeting bot joins your calls; Granola runs on your Mac to help generate notes during and after your meetings."},{"number":41,"id":"b86b68f2c850c542863fd0f9c21a56a8","disposition":"red","layer":"B","term":"","field":"Body paragraph","quote":"Nothing is stored after transcription, which means no audio playback after the meeting and no audio files are retained anywhere.","takeaway":"'Nothing is stored after transcription' is a subjectless absence claim a reader will apply to their notes and transcripts, which are in fact cloud-stored.","rewrite":"No. Granola transcribes audio in real time and then deletes it immediately, so there is no audio playback after the meeting and no audio files are retained. Your notes and transcripts remain available in Granola, encrypted in transit and at rest."},{"number":42,"id":"62e3bc1b1eb10670695156b5203f5134","disposition":"cleared-in-context","layer":"A","term":"automatic","field":"Body paragraph","quote":"automatically","takeaway":"Repeat setup instruction about calendar sync; no disclosure or storage claim.","rewrite":""},{"number":43,"id":"be0347459c5a92ef960cef5b6aa06e88","disposition":"cleared-in-context","layer":"A","term":"automatic","field":"Body paragraph","quote":"automated","takeaway":"Glossary definition contrasting user-guided notes with a generic automated summary — a note-quality point, not a disclosure or storage claim.","rewrite":""},{"number":44,"id":"c9871a2aa84441aeb38d8f66709a14fc","disposition":"cleared-in-context","layer":"A","term":"no bot","field":"Body paragraph","quote":"Bot-free","takeaway":"The term \"no bot\" is legitimate here. The concern in this sentence is the surrounding framing, which is reported separately with the remedy attached to the right span.","rewrite":""},{"number":45,"id":"31ea43ee1db18248bdb0e24eb524e0c4","disposition":"red","layer":"B","term":"","field":"Body paragraph","quote":"Bot-free capture: A transcription method that accesses device audio directly without a third-party participant appearing in the meeting's participant list and without triggering a platform-level recording announcement.","takeaway":"A glossary definition whose defining features are that nothing appears to participants and no recording announcement is triggered — non-disclosure as the product concept.","rewrite":"Bot-free capture: A transcription method that accesses device audio directly from your own machine, so notes are generated during and after the meeting without any additional software joining the call."}];
+  var API = '/api/seo-review/decisions';
+  var idOf = {}; FINDINGS.forEach(function(f){ idOf[f.number] = f.id; });
+
+  // ---- decisions persisted SERVER-SIDE ----
+  // Accepting writes the rewrite to the article's Sanity draft. localStorage is
+  // kept only as an offline mirror so a failed request is visibly unsaved
+  // rather than silently lost.
+  var state = {};
+  try { state = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch(e) { state = {}; }
+  function mirror(){ try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e){} }
+  function paint(num){
+    var el = document.getElementById('finding-' + num);
+    if (!el) return;
+    var d = state[num] || {};
+    var isAccept = d.decision === 'accept' || d.decision === 'accept-delete';
+    el.classList.toggle('decided-accept', isAccept);
+    el.classList.toggle('decided-dismiss', d.decision === 'dismiss');
+    // Collapse anything decided, unless the reviewer has reopened it.
+    if (d.decision && !el.dataset.reopened) el.classList.add('collapsed');
+    if (!d.decision) el.classList.remove('collapsed');
+  }
+  function setDone(num, text){
+    var el = document.getElementById('finding-' + num);
+    if (!el) return;
+    var d = el.querySelector('.fdone');
+    if (d) d.textContent = text;
+  }
+  // Clicking a collapsed card reopens it for review.
+  document.addEventListener('click', function(e){
+    var card = e.target.closest('.finding.collapsed');
+    if (!card) return;
+    if (e.target.closest('.fdecide') || e.target.closest('.fnote')) return;
+    card.dataset.reopened = '1';
+    card.classList.remove('collapsed');
+  });
+  function setStatus(num, text, cls){
+    var el = document.querySelector('.fstatus[data-num="' + num + '"]');
+    if (!el) return;
+    el.textContent = text || '';
+    el.className = 'fstatus' + (cls ? ' ' + cls : '');
+    el.setAttribute('data-num', num);
+  }
+
+  // Restore decisions from the server (authoritative), falling back to the
+  // local mirror if the API is unreachable.
+  function restore(){
+    fetch(API + '?slug=' + encodeURIComponent(SLUG), {credentials:'same-origin'})
+      .then(function(r){
+        if (!r.ok) {
+          return r.text().then(function(t){
+            throw new Error('HTTP ' + r.status + (t ? ' — ' + t.slice(0, 160) : ''));
+          });
+        }
+        return r.json();
+      })
+      .then(function(j){
+        var byId = {}; (j.findings||[]).forEach(function(x){ byId[x.id] = x; });
+        FINDINGS.forEach(function(f){
+          var s = byId[f.id]; if (!s) return;
+          state[f.number] = { decision: s.decision, note: s.note || '' };
+          if (s.decision) {
+            var r = document.querySelector('input[name="dec-' + f.number + '"][value="' + s.decision + '"]');
+            if (r) r.checked = true;
+          }
+          if (s.note) { var t = document.querySelector('.fnote[data-num="' + f.number + '"]'); if (t) t.value = s.note; }
+          if (s.decision === 'discard') { setStatus(f.number, 'Discarded', ''); hideFinding(f.number); }
+          else if (s.appliedToDraft) { setStatus(f.number, '✓ Written to the Sanity draft', 'ok'); setDone(f.number, '✓ Written to the Sanity draft'); }
+          else if (s.decision === 'dismiss') setDone(f.number, 'Dismissed — no change made');
+          else if (s.decision === 'accept') setStatus(f.number, '⚠ Accepted but not yet written to the draft — click Accept again to retry', 'warn');
+          paint(f.number);
+        });
+        mirror();
+        updateOutstanding();
+      })
+      .catch(function(e){
+        // Offline / not signed in: show local mirror but say it is unsaved.
+        // Say WHY, not just that it failed — a bare "not saved" gives no way to
+        // diagnose. Shown once at the top rather than on every finding.
+        var banner = document.getElementById('loadwarn');
+        if (banner) {
+          banner.style.display = 'block';
+          banner.textContent = '⚠ Could not load saved decisions: ' + e.message +
+            '  — anything you change now is stored in this browser only. Reload once you are signed in.';
+        }
+        FINDINGS.forEach(function(f){
+          var d = state[f.number]; if (!d) return;
+          if (d.decision) {
+            var r = document.querySelector('input[name="dec-' + f.number + '"][value="' + d.decision + '"]');
+            if (r) r.checked = true;
+          }
+          if (d.note) { var t = document.querySelector('.fnote[data-num="' + f.number + '"]'); if (t) t.value = d.note; }
+          paint(f.number);
+        });
+      });
+  }
+  restore();
+
+  function send(num, decision, note){
+    var id = idOf[num];
+    if (!id) { setStatus(num, '⚠ No server id for this finding', 'warn'); return; }
+    setStatus(num, 'Saving…', '');
+    fetch(API, {
+      method:'POST', credentials:'same-origin',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ id: id, decision: decision, note: note || null }),
+    })
+      .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
+      .then(function(res){
+        if (!res.ok) { setStatus(num, '⚠ ' + (res.j.error || 'save failed'), 'warn'); return; }
+        if (decision === 'accept' || decision === 'accept-delete') {
+          if (res.j.appliedToDraft) {
+            var msg = res.j.alreadyApplied
+              ? '✓ Already in the Sanity draft'
+              : (res.j.deleted
+                  ? '✓ ' + (res.j.scope === 'paragraph' ? 'Paragraph' : 'Sentence') + ' removed in the Sanity draft — not published'
+                  : '✓ Written to the Sanity draft — not published');
+            setStatus(num, msg, 'ok');
+            setDone(num, msg);
+          } else {
+            var w = '⚠ Saved, but NOT applied: ' + (res.j.warning || 'unknown reason');
+            setStatus(num, w, 'warn');
+            setDone(num, w);
+            // A failure must stay open — collapsing it would hide the problem.
+            var el = document.getElementById('finding-' + num);
+            if (el) { el.dataset.reopened = '1'; el.classList.remove('collapsed'); }
+          }
+        } else if (decision === 'dismiss') {
+          setStatus(num, res.j.warning ? '⚠ ' + res.j.warning : 'Dismissed', res.j.warning ? 'warn' : '');
+          setDone(num, res.j.warning ? '⚠ ' + res.j.warning : 'Dismissed — no change made');
+        } else {
+          setStatus(num, res.j.warning ? '⚠ ' + res.j.warning : '', res.j.warning ? 'warn' : '');
+        }
+      })
+      .catch(function(e){ setStatus(num, '⚠ Save failed: ' + e.message, 'warn'); });
+  }
+
+  // Use 'click' rather than 'change' so re-selecting an already-selected option
+  // retries. A previous attempt can fail (e.g. a bad token) leaving the choice
+  // selected but unapplied — with 'change' alone that is a dead end.
+  document.querySelectorAll('.fdecide input[type=radio]').forEach(function(r){
+    r.addEventListener('click', function(){
+      var n = r.getAttribute('data-num');
+      state[n] = state[n] || {}; state[n].decision = r.value; mirror(); paint(n);
+      send(n, r.value, (state[n] && state[n].note) || null);
+      updateOutstanding();
+    });
+  });
+  var noteTimer = {};
+  document.querySelectorAll('.fnote').forEach(function(t){
+    t.addEventListener('input', function(){
+      var n = t.getAttribute('data-num');
+      state[n] = state[n] || {}; state[n].note = t.value; mirror();
+      clearTimeout(noteTimer[n]);
+      noteTimer[n] = setTimeout(function(){
+        if (state[n] && state[n].decision) send(n, state[n].decision, t.value);
+      }, 900);
+    });
+  });
+  // Discard: record the suggestion as deliberately rejected, then remove it from
+  // the panel so what remains is what is still outstanding. It is NOT deleted —
+  // it stays in the log as a discarded decision.
+  function hideFinding(n){
+    var el = document.getElementById('finding-' + n);
+    if (el) el.classList.add('discarded');
+    document.querySelectorAll('mark.hl').forEach(function(m){
+      var nums = m.getAttribute('data-findings').split(',');
+      if (nums.indexOf(String(n)) !== -1 && nums.length === 1) m.classList.add('hl-discarded');
+    });
+    updateOutstanding();
+  }
+  function updateOutstanding(){
+    var needing = document.querySelectorAll('.finding:not(.is-cleared):not(.discarded)').length;
+    var decided = document.querySelectorAll(
+      '.finding:not(.is-cleared):not(.discarded).decided-accept, ' +
+      '.finding:not(.is-cleared):not(.discarded).decided-dismiss').length;
+    var el = document.getElementById('outstanding');
+    if (el) el.textContent = (needing - decided) + ' of ' + needing + ' needing a decision';
+    var c = document.getElementById('nclr');
+    if (c) c.textContent = document.querySelectorAll('.finding.is-cleared').length;
+    var d = document.getElementById('ndis');
+    if (d) d.textContent = document.querySelectorAll('.finding.discarded').length;
+  }
+  updateOutstanding();
+  document.querySelectorAll('.clearbtn').forEach(function(b){
+    b.addEventListener('click', function(){
+      var n = b.getAttribute('data-num');
+      state[n] = state[n] || {}; state[n].decision = 'discard'; mirror();
+      document.querySelectorAll('input[name="dec-' + n + '"]').forEach(function(r){ r.checked = false; });
+      setStatus(n, 'Discarded — recorded in the log', '');
+      send(n, 'discard', (state[n] && state[n].note) || null);
+      hideFinding(n);
+    });
+  });
+  // Cleared and discarded items stay in the DOM (and in the log) but are hidden
+  // by default so the panel shows only what still needs a decision.
+  var panel = document.querySelector('.panel');
+  var tglC = document.getElementById('tglcleared');
+  var tglD = document.getElementById('tgldiscarded');
+  function applyToggles(){
+    panel.classList.toggle('reveal-cleared', tglC && tglC.checked);
+    panel.classList.toggle('reveal-discarded', tglD && tglD.checked);
+    // Mute highlights whose only finding is hidden, so the prose matches.
+    document.querySelectorAll('mark.hl').forEach(function(m){
+      var nums = m.getAttribute('data-findings').split(',');
+      var anyVisible = nums.some(function(n){
+        var el = document.getElementById('finding-' + n);
+        return el && el.offsetParent !== null;
+      });
+      m.classList.toggle('hl-cleared-hidden', !anyVisible);
+    });
+    updateOutstanding();
+  }
+  if (tglC) tglC.addEventListener('change', applyToggles);
+  if (tglD) tglD.addEventListener('change', applyToggles);
+
+  // ---- highlight <-> panel linking ----
+  function activate(num){
+    document.querySelectorAll('.finding.active').forEach(function(e){ e.classList.remove('active'); });
+    var f = document.getElementById('finding-' + num);
+    if (f) { f.classList.add('active'); f.scrollIntoView({behavior:'smooth', block:'center'}); }
+  }
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    m.addEventListener('click', function(){ activate(m.getAttribute('data-findings').split(',')[0]); });
+  });
+  document.querySelectorAll('.finding').forEach(function(el){
+    el.addEventListener('click', function(e){
+      if (e.target.closest('.fdecide') || e.target.closest('.fnote')) return;
+      var num = el.getAttribute('data-num');
+      var hl = document.querySelector('mark.hl[data-findings~="' + num + '"]')
+            || document.getElementById('hl-' + num)
+            || Array.prototype.find.call(document.querySelectorAll('mark.hl'), function(m){
+                 return m.getAttribute('data-findings').split(',').indexOf(num) !== -1; });
+      if (hl) {
+        hl.scrollIntoView({behavior:'smooth', block:'center'});
+        hl.classList.remove('pulse'); void hl.offsetWidth; hl.classList.add('pulse');
+      }
+    });
+  });
+
+  // ---- re-prompt a rewrite ----
+  // The reviewer disagrees with the proposal but does not want a deletion.
+  // Their direction goes back to the model, which returns a revised rewrite.
+  // Nothing reaches Sanity until they then click Rewrite.
+  document.querySelectorAll('.regenbtn').forEach(function(b){
+    b.addEventListener('click', function(){
+      var n = b.getAttribute('data-num');
+      var ta = document.querySelector('.fdirect[data-num="' + n + '"]');
+      var out = document.querySelector('.regenout[data-num="' + n + '"]');
+      var feedback = (ta && ta.value || '').trim();
+      if (!feedback) {
+        out.innerHTML = '<div class="regenerr">Say what you want changed first.</div>';
+        return;
+      }
+      b.disabled = true; b.textContent = 'Generating…';
+      out.innerHTML = '';
+      fetch('/api/seo-review/regenerate', {
+        method:'POST', credentials:'same-origin',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ id: idOf[n], feedback: feedback }),
+      })
+        .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
+        .then(function(res){
+          b.disabled = false; b.textContent = 'Generate new rewrite';
+          if (!res.ok) {
+            out.innerHTML = '<div class="regenerr">' + esc2(res.j.error || 'Could not generate a rewrite.') + '</div>';
+            return;
+          }
+          out.innerHTML =
+            '<div class="newrw"><b>New rewrite (' + esc2(res.j.scope) + ' scope):</b> ' + esc2(res.j.rewrite) +
+            (res.j.explanation ? '<div class="why">' + esc2(res.j.explanation) + '</div>' : '') +
+            '<div class="acts">' +
+              '<button type="button" class="use" data-num="' + n + '">Use this rewrite</button>' +
+              '<button type="button" class="again" data-num="' + n + '">Try again</button>' +
+            '</div></div>';
+          out.querySelector('.use').addEventListener('click', function(){
+            // Store it as the proposal, then apply via the normal Rewrite path
+            // so there is still exactly one route into Sanity.
+            fetch('/api/seo-review/regenerate', {
+              method:'POST', credentials:'same-origin',
+              headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({ id: idOf[n], feedback: feedback, keep: true }),
+            }).then(function(){
+              var rw = document.querySelector('.frewrite[data-num="' + n + '"]');
+              if (rw) rw.innerHTML = '<b>Option B — rewrite (updated by you):</b> ' + esc2(res.j.rewrite);
+              out.innerHTML = '<div class="newrw">Saved as the proposed rewrite. Click <b>Rewrite</b> above to write it to the Sanity draft.</div>';
+            });
+          });
+          out.querySelector('.again').addEventListener('click', function(){
+            out.innerHTML = ''; if (ta) ta.focus();
+          });
+        })
+        .catch(function(e){
+          b.disabled = false; b.textContent = 'Generate new rewrite';
+          out.innerHTML = '<div class="regenerr">' + esc2(e.message) + '</div>';
+        });
+    });
+  });
+
+  // ---- draft verification ----
+  var vbtn = document.getElementById('verifybtn');
+  var vout = document.getElementById('verifyout');
+  var rbtn = document.getElementById('repairbtn');
+  var mbox = document.getElementById('manualbox');
+  var mout = document.getElementById('manualout');
+  var mcount = document.getElementById('manualcount');
+  function esc2(t){ return String(t == null ? '' : t)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function runVerify(){
+    vbtn.disabled = true;
+    vout.textContent = 'Reading the Sanity draft…';
+    fetch('/api/seo-review/verify?slug=' + encodeURIComponent(SLUG), {credentials:'same-origin'})
+      .then(function(r){
+        if (!r.ok) return r.text().then(function(t){ throw new Error('HTTP ' + r.status + ' — ' + t.slice(0,140)); });
+        return r.json();
+      })
+      .then(function(j){
+        var out = [];
+        if (!j.draftExists) {
+          out.push('<div class="vidle">Nothing applied yet. This check runs against the Sanity draft, ' +
+                   'which is created the first time you accept a change. Not a problem — there is just nothing to check so far.</div>');
+        } else {
+          out.push('<div style="margin-bottom:6px">Draft has <b>' + j.draftBlocks + '</b> blocks (published has ' + j.publishedBlocks + ').</div>');
+          if (j.issues.length === 0) {
+            out.push('<div class="vok">✓ No artifacts found — no stranded punctuation, duplicated sentences, empty blocks or fragments.</div>');
+          } else {
+            out.push('<div style="margin:8px 0 4px"><b>' + j.issues.length + ' issue(s) to fix in the Studio:</b></div>');
+            j.issues.forEach(function(i){
+              out.push('<div class="vissue"><b>' + esc2(i.where) + '</b> — ' + esc2(i.detail) +
+                       '<span class="vsnip">' + esc2(i.text) + '</span></div>');
+            });
+          }
+        }
+        if (j.manualActions.length) {
+          out.push('<div style="margin:10px 0 4px"><b>' + j.manualActions.length + ' edit(s) you accepted that must be made by hand:</b></div>');
+          j.manualActions.forEach(function(a){
+            out.push('<div class="vmanual"><b>' + esc2(a.fieldLabel) + '</b> — ' + esc2(a.reason) +
+                     '<span class="vsnip">' + esc2(a.text) + '</span></div>');
+          });
+        } else if (j.draftExists) {
+          out.push('<div class="vok" style="margin-top:8px">✓ Nothing left to do by hand.</div>');
+        }
+        if (j.draftExists) {
+          out.push('<div style="margin-top:8px"><a href="https://www.granola.ai/studio/structure/seoPosts;' +
+                   encodeURIComponent(j.postId) + '" target="_blank" rel="noopener">Open the draft in Sanity Studio ↗</a></div>');
+        }
+        vout.innerHTML = out.join('');
+        vbtn.disabled = false;
+
+        // Offer the automatic fix only when there is something it can fix.
+        var fixable = j.issues.filter(function(i){
+          return i.kind === 'duplication' || i.kind === 'punctuation';
+        }).length;
+        if (rbtn) rbtn.style.display = fixable ? 'inline-block' : 'none';
+
+        // ---- Manual Reviews ----
+        var manual = (j.manualActions || []).slice();
+        if (manual.length) {
+          mbox.style.display = 'block';
+          mcount.textContent = '(' + manual.length + ' item' + (manual.length === 1 ? '' : 's') + ' you must do by hand in Sanity)';
+          mout.innerHTML = manual.map(function(a){
+            return '<div class="manualitem"><b>' + esc2(a.fieldLabel) + '</b> — you chose ' +
+              (a.decision === 'accept-delete' ? 'delete' : 'rewrite') +
+              '<div class="why">' + esc2(a.reason) + '</div>' +
+              '<span class="txt">' + esc2(a.text) + '</span></div>';
+          }).join('') +
+          '<div style="font-size:12px"><a href="https://www.granola.ai/studio/structure/seoPosts;' +
+          encodeURIComponent(j.postId) + '" target="_blank" rel="noopener">Open in Sanity Studio to make these ↗</a></div>';
+        } else {
+          mbox.style.display = 'none';
+        }
+      })
+      .catch(function(e){
+        vout.innerHTML = '<div class="vissue">Check failed: ' + esc2(e.message) + '</div>';
+        vbtn.disabled = false;
+      });
+  }
+  if (vbtn) vbtn.addEventListener('click', runVerify);
+  // Run on load so Manual Reviews is visible without having to ask for it.
+  runVerify();
+
+  if (rbtn) rbtn.addEventListener('click', function(){
+    rbtn.disabled = true;
+    rbtn.textContent = 'Fixing…';
+    fetch('/api/seo-review/repair', {
+      method:'POST', credentials:'same-origin',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ slug: SLUG, apply: true }),
+    })
+      .then(function(r){ return r.json(); })
+      .then(function(j){
+        rbtn.textContent = 'Fix artifacts';
+        rbtn.disabled = false;
+        if (j.error) { vout.innerHTML = '<div class="vissue">Repair failed: ' + esc2(j.error) + '</div>'; return; }
+        runVerify();
+      })
+      .catch(function(e){
+        rbtn.textContent = 'Fix artifacts';
+        rbtn.disabled = false;
+        vout.innerHTML = '<div class="vissue">Repair failed: ' + esc2(e.message) + '</div>';
+      });
+  });
+
+  // ---- CSV export ----
+  function csv(v){ v = v == null ? '' : String(v); return /[",\n\r]/.test(v) ? '"' + v.replace(/"/g,'""') + '"' : v; }
+  document.getElementById('export').addEventListener('click', function(){
+    var head = ['slug','finding_number','disposition','layer','term','field','verbatim_quote','reader_takeaway','suggested_rewrite','decision','note'];
+    var lines = [head.join(',')];
+    FINDINGS.forEach(function(f){
+      var d = state[f.number] || {};
+      lines.push([SLUG,f.number,f.disposition,f.layer,f.term,f.field,f.quote,f.takeaway,f.rewrite,d.decision||'',d.note||''].map(csv).join(','));
+    });
+    var blob = new Blob([lines.join('\n')], {type:'text/csv'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'decisions-' + SLUG + '.csv';
+    a.click(); URL.revokeObjectURL(a.href);
+  });
+
+  // ---- arrow-key navigation ----
+  document.addEventListener('keydown', function(e){
+    var t = e.target.tagName;
+    if (t === 'TEXTAREA' || t === 'INPUT' || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.key === 'ArrowLeft')  { var p = document.getElementById('prevlink'); if (p) location.href = p.getAttribute('href'); }
+    if (e.key === 'ArrowRight') { var n = document.getElementById('nextlink'); if (n) location.href = n.getAttribute('href'); }
+  });
+})();
+</script>
+<footer style="max-width:1500px;margin:0 auto;padding:0 24px 40px;color:#6b7280;font-size:12px">
+  Generated 2026-08-04T09:03:45.081Z · RULES.md sha256 <code>4f158f1eb915653ca6d1348764792f68f4c89bc8cb9df6742985add6517e0f3c</code> · model claude-opus-5
+</footer>
+</body></html>

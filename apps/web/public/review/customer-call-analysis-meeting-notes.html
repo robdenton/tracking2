@@ -1,0 +1,1383 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Review — Customer call analysis: Surfacing patterns across 100+ customer calls</title>
+<style>
+  :root{--bg:#fbfbfa;--card:#fff;--ink:#1a1a1a;--muted:#6b7280;--line:#e5e7eb;--accent:#4f46e5;
+        --red:#b91c1c;--redbg:#fee2e2;--amber:#b45309;--amberbg:#fef3c7;--comp:#7c3aed;--compbg:#ede9fe;--clr:#6b7280;--ok:#15803d}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  header{background:var(--card);border-bottom:1px solid var(--line);padding:16px 24px;position:sticky;top:0;z-index:20}
+  h1{font-size:19px;margin:0 0 6px;line-height:1.35}
+  .meta{color:var(--muted);font-size:13px;display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center}
+  .meta a{color:var(--accent)}
+  .nav{display:flex;gap:8px;margin-top:10px;align-items:center;flex-wrap:wrap}
+  .nav a,.nav span{font-size:13px;padding:5px 11px;border:1px solid var(--line);border-radius:7px;
+       background:var(--card);text-decoration:none;color:var(--ink)}
+  .nav a:hover{border-color:var(--accent);color:var(--accent)}
+  .nav .disabled{color:#c0c0c0}
+  .nav .sep{border:none;padding:0;width:10px}
+  .wrap{display:grid;grid-template-columns:minmax(0,1fr) 420px;gap:28px;max-width:1500px;margin:0 auto;padding:24px}
+  @media (max-width:1100px){.wrap{grid-template-columns:1fr}.panel{position:static!important;max-height:none!important}}
+  .prose{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:28px 32px;
+         max-width:72ch;line-height:1.75}
+  .fieldgroup{margin-bottom:28px}
+  .fieldlabel{font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);
+              font-weight:700;border-bottom:1px solid var(--line);padding-bottom:6px;margin:0 0 14px}
+  .metafield{margin-bottom:12px}
+  .metakey{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+  .metaval{font-size:15px}
+  .body-h{margin:26px 0 10px;line-height:1.35}
+  h2.body-h{font-size:22px} h3.body-h{font-size:18px} h4.body-h{font-size:16px}
+  .body-p{margin:0 0 15px}
+  .body-list{margin:0 0 15px 22px} .body-list li{margin-bottom:7px}
+  .body-quote{margin:0 0 16px;padding:10px 16px;border-left:3px solid var(--accent);background:#f8f7ff;font-style:italic}
+  .cell{margin:0 0 8px;padding:7px 10px;background:#f8f8f7;border-radius:6px;font-size:14px}
+  .cell.url{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;word-break:break-all}
+  .tag-inline{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:2px;font-style:normal}
+  mark.hl{padding:1px 0;border-radius:2px;cursor:pointer;background:none}
+  mark.hl.d-red{background:var(--redbg);box-shadow:0 1px 0 var(--red)}
+  mark.hl.d-amber{background:var(--amberbg);box-shadow:0 1px 0 var(--amber)}
+  mark.hl.d-competitor{background:var(--compbg);box-shadow:0 1px 0 var(--comp)}
+  mark.hl.d-cleared,mark.hl.d-notaudited{background:none;border-bottom:2px dotted #b6b6b6;color:#555}
+  mark.hl:focus{outline:2px solid var(--accent)}
+  mark.hl.pulse{animation:pulse 1.1s ease-out 2}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(79,70,229,.55)}50%{box-shadow:0 0 0 7px rgba(79,70,229,0)}}
+  .hlnum{font-size:10px;font-weight:700;color:var(--accent);vertical-align:super;margin-left:1px}
+  .panel{position:sticky;top:104px;max-height:calc(100vh - 128px);overflow:auto}
+  .panelhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px}
+  .panelhead h2{font-size:14px;margin:0;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+  .finding{background:var(--card);border:1px solid var(--line);border-left-width:4px;border-radius:9px;
+           padding:13px 15px;margin-bottom:11px;font-size:13.5px;scroll-margin-top:110px}
+  .finding.d-red{border-left-color:var(--red)} .finding.d-amber{border-left-color:var(--amber)}
+  .finding.d-competitor{border-left-color:var(--comp)} .finding.d-cleared,.finding.d-notaudited{border-left-color:#c9c9c9}
+  .finding.active{box-shadow:0 0 0 2px var(--accent)}
+  .fhead{display:flex;align-items:center;gap:8px;margin-bottom:5px;flex-wrap:wrap}
+  .fnum{background:var(--accent);color:#fff;border-radius:50%;width:21px;height:21px;display:inline-flex;
+        align-items:center;justify-content:center;font-size:11px;font-weight:700;flex:none}
+  .fdisp{font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+  .d-red .fdisp{color:var(--red)} .d-amber .fdisp{color:var(--amber)}
+  .d-competitor .fdisp{color:var(--comp)} .d-cleared .fdisp,.d-notaudited .fdisp{color:var(--clr)}
+  .flayer{font-size:11px;color:var(--muted);margin-left:auto}
+  .fcat{font-size:10px;font-weight:800;letter-spacing:.06em;padding:2px 7px;border-radius:5px}
+  .cat-accuracy{background:#1e1b4b;color:#fff}
+  .cat-bot-denigration{background:#7c2d12;color:#fff}
+  .ffield{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+  .fquote{margin:0 0 8px;padding:7px 11px;background:#f7f7f6;border-radius:6px;font-style:italic;font-size:13px}
+  .ftake,.frewrite{margin-bottom:7px;font-size:13px}
+  .frewrite{color:#065f46;background:#f0fdf4;padding:7px 10px;border-radius:6px;margin-bottom:7px}
+  .fdelete{color:#7c2d12;background:#fff7ed;padding:7px 10px;border-radius:6px;margin-bottom:7px}
+  .fdelete.muted-note{color:var(--muted);background:#f7f7f6}
+  .fdefer{font-size:12px;color:var(--muted);background:#f4f4ff;border-left:2px solid var(--accent);
+          padding:6px 9px;border-radius:5px;margin-bottom:7px}
+  .fdefer a{color:var(--accent);font-weight:600}
+  .fdecide{display:flex;gap:12px;align-items:center;font-size:12.5px;margin:9px 0 6px}
+  .fdecide label{cursor:pointer} .clearbtn{margin-left:auto;font-size:11px;color:var(--muted);
+        background:none;border:1px solid var(--line);border-radius:5px;padding:2px 7px;cursor:pointer}
+  .freprompt{margin:4px 0 7px}
+  .fdirect{width:100%;font:inherit;font-size:12.5px;padding:6px 8px;border:1px solid var(--line);
+           border-radius:6px;resize:vertical;background:#fcfcff}
+  .regenbtn{margin-top:5px;font-size:11.5px;padding:4px 10px;border:1px solid var(--accent);
+            color:var(--accent);background:var(--card);border-radius:6px;cursor:pointer;font-weight:600}
+  .regenbtn:hover:not(:disabled){background:var(--accent);color:#fff}
+  .regenbtn:disabled{opacity:.55;cursor:default}
+  .regenout{font-size:12.5px;margin-top:6px}
+  .newrw{background:#f0fdf4;border-left:3px solid #16a34a;padding:8px 10px;border-radius:6px;color:#065f46}
+  .newrw .why{color:#3f6212;font-size:11.5px;margin-top:4px}
+  .newrw .acts{margin-top:6px;display:flex;gap:8px}
+  .newrw button{font-size:11.5px;padding:3px 9px;border-radius:5px;cursor:pointer;border:1px solid var(--line);background:#fff}
+  .newrw button.use{border-color:#16a34a;color:#166534;font-weight:600}
+  .regenerr{background:#fef3c7;border-left:3px solid #d97706;padding:7px 10px;border-radius:6px;color:#78350f}
+  .fnote{width:100%;font:inherit;font-size:12.5px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;resize:vertical}
+  .finding.decided-accept{background:#f0fdf4} .finding.decided-dismiss{opacity:.62}
+  /* Once decided, a finding collapses to a single line so the panel shows what
+     is still outstanding at a glance. Click the header to reopen it. */
+  .finding.collapsed{padding:8px 13px;cursor:pointer}
+  .finding.collapsed .fbody{display:none}
+  .finding.collapsed .fhead{margin-bottom:0}
+  .finding.collapsed .fdone{display:block}
+  .fdone{display:none;font-size:11.5px;font-weight:600;margin-top:3px}
+  .finding.collapsed.decided-accept .fdone{color:#15803d}
+  .finding.collapsed.decided-dismiss .fdone{color:var(--muted)}
+  .finding.collapsed:hover{box-shadow:0 0 0 1px var(--accent)}
+  .finding.discarded{display:none}
+  /* Cleared items are listed for auditability but hidden by default — at ~70%
+     of findings they drown the ones that need a decision. */
+  .panel:not(.reveal-cleared) .finding.is-cleared{display:none}
+  .panel.reveal-cleared .finding.is-cleared{opacity:.62}
+  .panelfilters{display:flex;gap:14px;flex-wrap:wrap;margin:0 0 10px;font-size:12px;color:var(--muted)}
+  .tgl{display:inline-flex;align-items:center;gap:5px;cursor:pointer;user-select:none}
+  .tgl input{margin:0}
+  mark.hl.hl-cleared-hidden{background:none!important;box-shadow:none!important;
+    border-bottom:1px dotted #d4d4d4;color:inherit}
+  .panel.reveal-discarded .finding.discarded{display:block;opacity:.5;border-left-color:#c9c9c9}
+  mark.hl.hl-discarded{background:none!important;box-shadow:none!important;border-bottom:1px dotted #d0d0d0;color:inherit}
+  #outstanding{font-size:11px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);margin-left:6px}
+  #showdiscarded{font-size:11px;font-weight:400;text-transform:none;letter-spacing:0;margin-left:8px;color:var(--accent)}
+  .fstatus{font-size:11.5px;margin:2px 0 6px;min-height:14px;color:var(--muted)}
+  .fstatus.ok{color:#15803d;font-weight:600}
+  .fstatus.warn{color:#b45309;font-weight:600}
+  .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:700}
+  .pill.d-red{background:var(--redbg);color:var(--red)} .pill.d-amber{background:var(--amberbg);color:var(--amber)}
+  .pill.d-competitor{background:var(--compbg);color:var(--comp)}
+  .pill.d-cleared,.pill.d-notaudited{background:#f0f0f0;color:var(--clr)}
+  .pill.d-clean{background:#dcfce7;color:var(--ok)}
+  .manualbox{background:#fffbeb;border:1px solid #f0c674;border-radius:9px;padding:11px 13px;margin-bottom:11px}
+  .manualhead{font-weight:700;font-size:13px;color:#92400e;margin-bottom:7px}
+  .manualcount{font-weight:400;color:#a16207}
+  .manualitem{background:#fff;border-left:3px solid #d97706;padding:8px 10px;border-radius:6px;margin-bottom:7px;font-size:12.5px}
+  .manualitem .why{color:#78350f;margin-top:3px}
+  .manualitem .txt{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;
+                   background:#faf9f7;padding:5px 7px;border-radius:4px;margin-top:4px;display:block}
+  .verifybox{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:11px 13px;margin-bottom:11px}
+  .verifyhead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px;font-size:13px}
+  .verifybtn{font-size:12px;padding:5px 11px;border:1px solid var(--accent);color:var(--accent);
+             background:var(--card);border-radius:7px;cursor:pointer;font-weight:600}
+  .verifybtn:hover{background:var(--accent);color:#fff}
+  .verifyout{font-size:12.5px;color:var(--muted);line-height:1.5}
+  .vissue{background:#fef3c7;border-left:3px solid #d97706;padding:7px 10px;border-radius:6px;margin:6px 0;color:#78350f}
+  .vmanual{background:#eef2ff;border-left:3px solid var(--accent);padding:7px 10px;border-radius:6px;margin:6px 0;color:#312e81}
+  .vidle{background:#f7f7f6;border-left:3px solid #c9c9c9;padding:7px 10px;border-radius:6px;color:var(--muted)}
+  .vok{background:#f0fdf4;border-left:3px solid #16a34a;padding:7px 10px;border-radius:6px;color:#166534}
+  .vsnip{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;display:block;margin-top:3px;opacity:.85}
+  .loadwarn{background:#fef3c7;border:1px solid #f0c674;color:#92400e;padding:9px 12px;
+            border-radius:8px;font-size:12.5px;margin-bottom:10px;line-height:1.45}
+  .clean{background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;padding:14px;border-radius:9px;font-size:14px}
+  .exportbtn{font-size:12px;padding:5px 11px;border:1px solid var(--line);border-radius:7px;background:var(--card);cursor:pointer}
+  .exportbtn:hover{border-color:var(--accent);color:var(--accent)}
+  .builderr{background:#fee2e2;border:1px solid var(--red);color:var(--red);padding:12px 15px;border-radius:9px;margin-bottom:16px;font-size:13.5px}
+  code{background:#f0f0ef;padding:1px 5px;border-radius:4px;font-size:12.5px}
+  .bkbadge{padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700;cursor:help}
+  .bkbadge.bk1{background:#fee2e2;color:#991b1b}
+  .bkbadge.bk2{background:#fef3c7;color:#92400e}
+  .bkbadge.bk3{background:#dcfce7;color:#166534}
+  .actbar{margin:11px 0 0;padding:10px 14px;border-radius:9px;font-size:13px;line-height:1.55;
+          border:1px solid transparent}
+  .actbar b{font-weight:800}
+  .actbar.act1{background:#fee2e2;color:#7f1d1d;border-color:#fca5a5}
+  .actbar.act2{background:#fef3c7;color:#78350f;border-color:#fcd34d}
+  .actbar.act3{background:#dcfce7;color:#14532d;border-color:#86efac}
+</style></head><body>
+<header>
+  <h1>Customer call analysis: Surfacing patterns across 100+ customer calls</h1>
+  <div class="meta">
+    <span class="bkbadge bk2" title="Content: external / client-facing calls — Capture of people outside the company — clients, candidates, research participants — where consent expectations are highest.
+
+Findings: 4 red and 2 amber findings.">Bucket 2 · medium</span>
+    <span class="bkbadge bk2">Agency: Review &amp; recommend</span>
+    <span><code>customer-call-analysis-meeting-notes</code></span>
+    <span>Published 2026-05-08</span>
+    <span><code>8adb0785-d99b-4dcf-b548-70f122a1f6cb</code></span>
+    <a href="https://www.granola.ai/blog/customer-call-analysis-meeting-notes" target="_blank" rel="noopener">Live page ↗</a>
+    <a href="https://www.granola.ai/studio/structure/seoPosts;8adb0785-d99b-4dcf-b548-70f122a1f6cb" target="_blank" rel="noopener">Sanity Studio ↗</a>
+    <span><span class="pill d-cleared">cleared-in-context 14</span> <span class="pill d-amber">amber 2</span> <span class="pill d-red">red 4</span></span>
+  </div>
+  <div class="actbar act2">
+    <b>Agency — Review &amp; recommend.</b> Review every finding and leave a note saying what you would do and why, but do not Accept or Delete. Granola makes the final call. Use the note field — it regenerates a rewrite from your direction.
+  </div>
+  <div class="nav">
+    <a href="/seo-audit">All articles</a>
+    <a href="index.html">Review status</a>
+    <a href="/seo-review/changes">Change log</a>
+    <span class="sep"></span>
+    <a href="ai-meeting-agenda-generator.html" id="prevlink">← Previous</a>
+    <a href="chat-with-meetings-search-analyze-ai-2026.html" id="nextlink">Next →</a>
+    <span class="disabled" style="border:none">← / → arrow keys</span>
+  </div>
+</header>
+<div class="wrap">
+  <main class="prose">
+    
+    <section class="fieldgroup"><h3 class="fieldlabel">Title, slug &amp; meta/summary</h3>
+<div class="metafield"><span class="metakey">Title</span><div class="metaval">Customer call analysis: Surfacing patterns across 100+ customer calls</div></div>
+<div class="metafield"><span class="metakey">Slug (URL)</span><div class="metaval">customer-call-analysis-meeting-notes</div></div>
+<div class="metafield"><span class="metakey">Meta / summary</span><div class="metaval">Customer call analysis using AI folder queries surfaces pricing objections, feature gaps, and churn signals across 100+ calls instantly.</div></div>
+</section>
+<section class="fieldgroup"><h3 class="fieldlabel">Article body</h3>
+<blockquote class="body-quote"><span class="tag-inline">Blockquote / testimonial</span>TL;DR: Manually reviewing pitch and customer calls for recurring themes is impractical and introduces memory bias into investment decisions. Voice of Customer (VoC) mining solves this by using folder-level AI queries to surface pricing objections, feature gaps, competitor mentions, and churn signals across your entire call archive. Granola's Chat with folders feature lets you ask questions across hundreds of meetings at once, with inline citations pointing back to specific conversations. <mark class="hl d-cleared" data-findings="1" id="hl-1" tabindex="0">You jot rough notes during calls, Granola enhances them, and your team queries the whole folder for patterns that would take days to find manually.<sup class="hlnum">1</sup></mark></blockquote>
+<p class="body-p">Many investment teams focus on deal flow volume while the insights from hundreds of calls remain unanalyzed. The bottleneck is rarely a lack of data. It's the inability to query it. This guide explains how to structure call data for analysis, run folder-level queries that surface what you actually need, and move those findings directly into IC memos and Notion databases.</p>
+<h2 class="body-h">Manual review: Missing critical deal insights</h2>
+<p class="body-p">Three pitch meetings a week, plus board meetings, portfolio check-ins, reference calls, and LP updates, generate hundreds of hours of conversation containing pricing signals, competitive intelligence, and founder red flags. The workflow itself fails structurally. Even disciplined post-call review habits cannot reliably surface cross-call patterns. A founder who mentioned burn rate concerns during diligence and a portfolio CEO who flagged the same issue in a separate board meeting are telling you something together. Reviewing them in isolation misses the signal entirely.</p>
+<h3 class="body-h">Hours lost to disconnected notes</h3>
+<p class="body-p">The time cost compounds quickly because each call produces a transcript, a set of rough notes, and often a follow-up summary scattered across separate documents. Retrieving what a specific founder said about their go-to-market motion six weeks ago means searching email threads, Notion pages, and memory simultaneously. That friction explains why IC memos are frequently written from recollection rather than based on evidence.</p>
+<p class="body-p">When call notes live in individual documents, the knowledge belongs to whoever took them. When an associate leaves, the mental maps of hundreds of founders, market conversations, and deal patterns leave too. Shared folders with folder-level queries change this. Every call captured in a shared folder becomes part of an institutional archive that any team member can query, with citations from specific conversations according to the Granola help center.</p>
+<div class="cell"><span class="tag-inline">Link text → https://docs.granola.ai/help-center/</span>Granola help center</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://docs.granola.ai/help-center/</div>
+<div class="cell"><span class="tag-inline">Table header cell</span>Analysis method</div>
+<div class="cell"><span class="tag-inline">Table header cell</span>Speed</div>
+<div class="cell"><span class="tag-inline">Table header cell</span>Cross-call patterns</div>
+<div class="cell"><span class="tag-inline">Table header cell</span>Source attribution</div>
+<div class="cell"><span class="tag-inline">Table cell</span>Manual transcript review</div>
+<div class="cell"><span class="tag-inline">Table cell</span>Hours per call</div>
+<div class="cell"><span class="tag-inline">Table cell</span>None</div>
+<div class="cell"><span class="tag-inline">Table cell</span>Requires manual tagging</div>
+<div class="cell"><span class="tag-inline">Table cell</span>AI folder-level queries (Granola)</div>
+<div class="cell"><span class="tag-inline">Table cell</span>Fast, across 100+ calls</div>
+<div class="cell"><span class="tag-inline">Table cell</span>Yes, with citations</div>
+<div class="cell"><span class="tag-inline">Table cell</span>Inline links to source meeting</div>
+<h3 class="body-h">How memory gaps weaken deal memos</h3>
+<p class="body-p">Writing a comprehensive IC (Investment Committee) memo requires specific founder quotes, market claims, and risk assessments. Associates spend hours hunting through transcripts to find the single line where a CEO described their net revenue retention. <mark class="hl d-cleared" data-findings="2" id="hl-2" tabindex="0">If that line was not captured accurately during the original call, or if the note-taker was focused on maintaining rapport rather than typing, it is gone.<sup class="hlnum">2</sup></mark> The memo becomes weaker, and the deal presentation becomes less convincing.</p>
+<h2 class="body-h">Query past calls for instant deal insights</h2>
+<p class="body-p">Granola's Chat with folders feature handles questions across all your meetings with detailed analysis, rebuilt from the ground up to be agentic. Rather than surfacing a generic summary, it answers specific questions and attributes each finding to the original conversation with an inline citation you can jump to directly.</p>
+<p class="body-p">The practical difference is significant. You can ask &quot;Which competitors were mentioned most frequently across Q2 diligence calls and in what context?&quot; and get a synthesized answer with links to every relevant meeting. That would take hours to compile manually.</p>
+<blockquote class="body-quote"><span class="tag-inline">Blockquote / testimonial</span>&quot;I love that I can use Granola for absolutely everything... Being able to turn those notes into content assets, reflections, and new ideas is priceless. For the price, Granola very quickly went from 'nice-to-have' to one of the most essential tools in my stack.&quot; - Christel C. on G2</blockquote>
+<div class="cell"><span class="tag-inline">Link text → https://g2.com/products/granola/reviews/granola-review-12589742</span>Christel C. on G2</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://g2.com/products/granola/reviews/granola-review-12589742</div>
+<h3 class="body-h">Organizing call data for query search</h3>
+<p class="body-p">The quality of a folder query depends on what is in the folder. Three folder structures work well for investment teams:</p>
+<ul class="body-list">
+<li>By deal stage: Separate folders for Screening, Active Diligence, Passed, and Portfolio. This lets you ask &quot;Why did we pass on SaaS deals in Q3?&quot; without noise from irrelevant meetings.</li>
+<li>By sector: &quot;FinTech Diligence 2026&quot; or &quot;Climate Tech Screening&quot; enables sector-specific comparisons across dozens of pitches.</li>
+<li>By meeting type: &quot;Pitch Calls,&quot; &quot;Reference Checks,&quot; &quot;Board Meetings,&quot; and &quot;Portfolio CEO 1-on-1s&quot; as distinct folders, lets you query within a specific conversation context.</li>
+</ul>
+<p class="body-p">Folder-level chat is available on Business plans and above, and you can query any folder you have access to.</p>
+<h3 class="body-h">Folder strategies for rapid review</h3>
+<p class="body-p">Concrete folder naming saves time when setting up a query. Useful naming patterns include:</p>
+<ul class="body-list">
+<li>&quot;Q2 2026 SaaS Series A Pitches&quot;</li>
+<li>&quot;Active Diligence: [Company Name]&quot;</li>
+<li>&quot;Hiring Loops: Head of Engineering Candidates&quot;</li>
+<li>&quot;Portfolio Board Meetings: [Company Name]&quot;</li>
+</ul>
+<p class="body-p">Shared team folders mean every partner and associate sees the same archive. When a founder references a conversation from two months ago, anyone on the team can pull it instantly.</p>
+<h3 class="body-h">Pinpoint critical customer feedback</h3>
+<p class="body-p">Once your folder is populated, the query does the analysis. Questions that surface the most useful signal include:</p>
+<ul class="body-list">
+<li>&quot;What are the top three reasons founders cited for choosing us over [competitor] in pitches this quarter?&quot;</li>
+<li>&quot;Summarize all mentions of pricing concerns across Series A pitch meetings.&quot;</li>
+<li>&quot;Which friction points came up most often in customer diligence calls in the last 90 days?&quot;</li>
+<li>&quot;List all commitments made in board meetings this quarter with the name of who made them.&quot;</li>
+</ul>
+<p class="body-p">Each answer comes with inline citations linking back to the specific meeting, so you can verify the original context before putting it in a memo.</p>
+<h2 class="body-h">What founders consistently ask for</h2>
+<p class="body-p">Pitch calls contain rich product and market intelligence, but that intelligence only becomes useful when you can query it across many conversations at once. A single founder mentioning that their enterprise buyers ask for SSO before signing is interesting. Twenty founders saying the same thing across a sector folder is a pattern you can act on.</p>
+<h3 class="body-h">Deal insight: Identifying feature gaps</h3>
+<p class="body-p">A query like &quot;What capabilities do customers request that are not yet built?&quot; surfaces the gaps that define market opportunity. When the same feature request appears across ten diligence calls in a sector, it is a signal worth tracking in your investment thesis documentation.</p>
+<p class="body-p">For portfolio company support, the same logic applies. Querying &quot;What have portfolio CEOs flagged as the top product friction point in customer conversations this year?&quot; gives you advisory context before a board meeting without reading through every call note.</p>
+<h3 class="body-h">Identify top feature requests</h3>
+<p class="body-p">Feature requests from customer calls tend to cluster around three types: workflow gaps, integration requests, and pricing structure concerns. Running a query like &quot;Categorize all product feedback from customer calls into workflow, integration, and pricing themes&quot; produces a structured breakdown you can share directly with a portfolio company's product team.</p>
+<h3 class="body-h">Turning requests into product features</h3>
+<p class="body-p">The path from a folder query to a product decision involves one additional step: exporting the structured findings. A Granola folder query result, with its inline citations, can be copied directly into an IC memo, a Notion database, or a Slack message to a portfolio founder. The citation trail means the portfolio CEO can trace every feature request back to a specific customer conversation rather than trusting a summary.</p>
+<h2 class="body-h">Addressing deal-breaking pricing issues</h2>
+<p class="body-p">Pricing is one of the most reliable predictors of deal friction, and it is almost always discussed in specifics during calls rather than in generic terms. Conversations contain concrete details about price points, contract structures, and the thresholds where deals stall.</p>
+<h3 class="body-h">Querying founder pricing feedback</h3>
+<p class="body-p">A query like &quot;At what price points did Series B deals stall this year?&quot; returns a synthesized view of the market that would take days to compile manually. The citations let you verify the exact language a founder used about pricing objections rather than relying on memory.</p>
+<h3 class="body-h">Pinpointing deal-killer pricing thresholds</h3>
+<p class="body-p">The most useful insight is the specific number or contract structure that causes a deal to stop moving. Queries like &quot;At what contract value did enterprise customers in these diligence calls say procurement got involved?&quot; or &quot;Which pricing objections appeared in more than three calls in this folder?&quot; surface the thresholds that should inform how you advise portfolio companies on their pricing strategy.</p>
+<h3 class="body-h">Distribute pricing insights to deal teams</h3>
+<p class="body-p">Shared folders make these insights available to every partner and associate simultaneously. Rather than the insight living in one person's notes, the folder query output can be shared via Granola's Slack integration to push the summary into a deal channel, where the full team sees the same evidence before a partner meeting.</p>
+<div class="cell"><span class="tag-inline">Link text → https://docs.granola.ai/help-center/sharing/integrations/slack</span>Granola's Slack integration</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://docs.granola.ai/help-center/sharing/integrations/slack</div>
+<h2 class="body-h">Pinpoint win/loss drivers from calls</h2>
+<p class="body-p">Understanding why deals were won or lost is only possible when you can query across the conversations that led to each outcome. Individual call notes do not reveal patterns. A folder of passed deals from a sector does.</p>
+<h3 class="body-h">Querying competitor mentions</h3>
+<p class="body-p">A query like &quot;List every mention of [competitor name] across diligence calls in this folder and describe the context&quot; surfaces whether founders are positioning against a competitor as a strength or trying to explain away a weakness. The same query run against a &quot;Passed Deals&quot; folder reveals whether a specific competitor keeps appearing in conversations that did not convert to investments.</p>
+<h3 class="body-h">Understanding why deals are lost</h3>
+<p class="body-p">Passed deals contain as much signal as closed ones. Building a &quot;Passed 2025&quot; folder and querying it for &quot;What were the most common reasons we passed on deals and how did founders respond to our concerns?&quot; produces a calibration tool for refining the investment filter. Source-linked citations mean you can always read the original conversation to check whether your pattern interpretation is accurate.</p>
+<h3 class="body-h">Uncovering seasonal win/loss drivers</h3>
+<p class="body-p">Querying a year's worth of pitch calls for &quot;What market conditions did founders cite as headwinds in Q1 versus Q3?&quot; reveals whether your deal flow is affected by macro cycles or seasonality in a specific vertical. <mark class="hl d-amber" data-findings="3,4" id="hl-3" tabindex="0">Patterns like this are invisible from a single call and clear from a comprehensive folder.<sup class="hlnum">3,4</sup></mark></p>
+<h2 class="body-h">Identifying churn red flags in customer calls</h2>
+<p class="body-p">For portfolio company support work, one of the most valuable applications of folder-level queries is early churn detection. Customer calls contain language patterns that precede churn: repeated complaints about the same bug, unanswered questions about a specific use case, or language signaling that the buyer is evaluating alternatives.</p>
+<h3 class="body-h">Surfacing early churn signals</h3>
+<p class="body-p">A query like &quot;What complaints or frustrations appear more than twice across customer calls in this folder?&quot; surfaces issues that are systemic rather than one-off. A single customer mentioning an onboarding problem is noise. Multiple customers in a quarter mentioning the same onboarding step is a retention risk.</p>
+<p class="body-p">Natural language processing enables this kind of analysis by identifying the semantic content of transcripts rather than just exact keyword matching. The query captures variations in how customers describe the same issue, not just identical-phrase matches.</p>
+<div class="cell"><span class="tag-inline">Link text → https://www.ibm.com/topics/natural-language-processing</span>Natural language processing</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://www.ibm.com/topics/natural-language-processing</div>
+<h3 class="body-h">Detecting pre-churn indicators</h3>
+<p class="body-p">The indicators that precede churn are often softer than an explicit complaint. Sentiment shift across sequential calls with the same account, declining engagement signals, or repeated references to unresolved issues are the patterns worth watching. A folder query focused on accounts that appear in multiple calls can surface which ones show consistent tone drift over time.</p>
+<h3 class="body-h">Early intervention for at-risk companies</h3>
+<p class="body-p">Board members using this workflow can walk into a quarterly review with a portfolio CEO already knowing which customer segments are showing friction, based on querying the folder of recent customer call notes. The conversation moves from &quot;how are customers feeling?&quot; to &quot;here are three specific accounts showing warning signs and here is the exact language they used.&quot;</p>
+<h2 class="body-h">Creating structured call data in Notion</h2>
+<p class="body-p">Moving from a folder query to a structured Notion database closes the loop between call intelligence and deal tracking. The Granola Notion integration connects your meeting notes directly to a Notion database with a single click from each note.</p>
+<div class="cell"><span class="tag-inline">Link text → https://docs.granola.ai/help-center/sharing/notion</span>Granola Notion integration</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://docs.granola.ai/help-center/sharing/notion</div>
+<h3 class="body-h">Structuring call data for Notion</h3>
+<p class="body-p">The integration maps meeting data to Notion database fields, including title, attendees, date, and summary. This turns each call into a structured row in a deal tracker or portfolio database rather than a freestanding document buried in a folder hierarchy.</p>
+<p class="body-p">One important detail: Granola exports meetings as Notion database rows, not as standalone Notion documents. This means the data is immediately queryable within Notion's filtering and sorting tools, which is more useful for deal tracking than a document that must be opened individually.</p>
+<h3 class="body-h">Querying to Notion database rows</h3>
+<p class="body-p">The workflow is: capture the call in Granola, enhance the notes, and send to Notion. Each row in your Notion database then contains the structured summary, and the Granola Chat citation links back to the original enhanced notes for full context. <mark class="hl d-cleared" data-findings="5,6,7" id="hl-5" tabindex="0">For teams that want this to happen automatically without sending each note manually, the Granola Zapier integration supports a trigger that pushes any note added to a specific folder to Notion automatically.<sup class="hlnum">5,6,7</sup></mark></p>
+<div class="cell"><span class="tag-inline">Link text → https://docs.granola.ai/help-center/sharing/integrations/zapier</span>Granola Zapier integration</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://docs.granola.ai/help-center/sharing/integrations/zapier</div>
+<h3 class="body-h">Notion export: Row-only insights</h3>
+<p class="body-p">Because the export creates database rows rather than pages, teams can build dynamic deal tracking boards that filter by sector, deal stage, meeting date, or attendee. A &quot;Q2 SaaS Diligence&quot; view in Notion that surfaces every call with a specific company, sorted by date, gives the team instant context on a deal.</p>
+<blockquote class="body-quote"><span class="tag-inline">Blockquote / testimonial</span>&quot;With Granola I don't have to worry anymore about taking meeting notes, I can just write down things I really care about and let Granola take care of the rest. <mark class="hl d-cleared" data-findings="8" id="hl-8" tabindex="0">Love that I can easily share my notes with my colleagues as well, and that we can all chat with the meeting transcript so everyone can see the full context of the meeting, even if they weren't there.<sup class="hlnum">8</sup></mark>&quot; - Jess M. on G2</blockquote>
+<div class="cell"><span class="tag-inline">Link text → https://g2.com/products/granola/reviews/granola-review-9856422</span>Jess M. on G2</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://g2.com/products/granola/reviews/granola-review-9856422</div>
+<h2 class="body-h">Streamlining IC memos with call insights</h2>
+<p class="body-p">The IC memo problem is not a writing problem. It is a retrieval problem. The quotes that make a memo compelling, the specific founder claim about net revenue retention, and the exact pricing objection from the enterprise customer reference call are all in the transcripts. Getting them out quickly is what separates a strong memo from a weak one.</p>
+<h3 class="body-h">Export formats and options</h3>
+<p class="body-p">Granola supports several paths for moving call intelligence into your existing tools:</p>
+<ul class="body-list">
+<li>Notion: Database rows via the Notion integration, or <mark class="hl d-cleared" data-findings="9" id="hl-9" tabindex="0">automatic<sup class="hlnum">9</sup></mark> sync via Zapier</li>
+<li>Slack: Auto-post summaries to deal channels via the Business plan Slack integration</li>
+<li>CRM: Direct connection to Affinity, HubSpot, or Attio for deal tracking</li>
+<li>Zapier: Connect to 8,000+ apps including Google Sheets, Asana, and others</li>
+</ul>
+<p class="body-p">The Granola pricing page details current plan features and integration availability.</p>
+<div class="cell"><span class="tag-inline">Link text → https://www.granola.ai/pricing</span>Granola pricing page</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://www.granola.ai/pricing</div>
+<h3 class="body-h">Building IC memos from call patterns</h3>
+<p class="body-p">A folder query like &quot;Summarize the three strongest signals across all diligence calls for this company, with citations&quot; produces a paragraph you can paste directly into the IC memo. The inline citations give the IC audience a way to verify the claims against the original transcript rather than trusting the memo author's interpretation alone.</p>
+<h3 class="body-h">Reliable knowledge transfer to teams</h3>
+<p class="body-p"><mark class="hl d-red" data-findings="10" id="hl-10" tabindex="0">Daversa Partners introduced Granola across 136 of 150 employees after their president described traditional bots as &quot;intrusive&quot; for the sensitive executive search conversations their work requires.<sup class="hlnum">10</sup></mark> <mark class="hl d-red" data-findings="11,12" id="hl-11" tabindex="0">Bot-free capture became a practical necessity rather than a preference.<sup class="hlnum">11,12</sup></mark> <mark class="hl d-red" data-findings="13" id="hl-13" tabindex="0">The same logic applies to IC discussions, reference calls, and any conversation in which a visible recording participant would change what is said.<sup class="hlnum">13</sup></mark></p>
+<p class="body-p"><mark class="hl d-red" data-findings="14,15" id="hl-14" tabindex="0">Granola maintains strong retention among busy professionals by removing friction: no bot announcements, no visible participants, just a notepad that enhances what you write.<sup class="hlnum">14,15</sup></mark> When an associate leaves, their folder archive stays. Any team member with folder access can query the same conversations and get the same citations.</p>
+<p class="body-p"><mark class="hl d-cleared" data-findings="16" id="hl-16" tabindex="0">Try Granola for free: download the Mac or Windows app, connect your calendar, and run your next pitch call through it.<sup class="hlnum">16</sup></mark> Create a shared folder for your active deal diligence, add the calls, and run your first folder query before the next partner meeting.</p>
+<div class="cell"><span class="tag-inline">Link text → https://www.granola.ai/</span>Mac or Windows app</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://www.granola.ai/</div>
+<h2 class="body-h">FAQs</h2>
+<p class="body-p">How many calls do you need for actionable insights?</p>
+<p class="body-p">Folder-level queries work best with enough calls to surface recurring themes. A small set may reveal initial patterns, while larger archives provide richer context for the AI to identify consistent signals with source-linked citations.</p>
+<p class="body-p">Can I query across different call types in the same folder?</p>
+<p class="body-p">Yes, you can mix pitch calls, reference calls, board meetings, and customer diligence calls in the same folder and query them all simultaneously. The citation links in each answer identify which specific meeting the finding came from, so you always know the source context.</p>
+<p class="body-p">Do I need to manually send each call to my Notion database?</p>
+<p class="body-p"><mark class="hl d-cleared" data-findings="17,18" id="hl-17" tabindex="0">No, the Zapier integration can automatically push any call added to a specific folder to Notion as a database row without manual sending.<sup class="hlnum">17,18</sup></mark> You can also send notes individually with a single click directly from each note in Granola.</p>
+<p class="body-p">How is this different from generic transcription tools?</p>
+<p class="body-p">Generic transcription tools produce individual meeting transcripts that you read one at a time. Granola's Chat with folders feature lets you query across an entire archive simultaneously, returning synthesized answers with inline citations to specific conversations. The difference is between a filing cabinet and a queryable database.</p>
+<div class="cell"><span class="tag-inline">Link text → https://www.granola.ai/ai-meeting-assistant</span>meeting transcripts</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://www.granola.ai/ai-meeting-assistant</div>
+<div class="cell"><span class="tag-inline">Link text → https://docs.granola.ai/help-center/getting-more-from-your-notes/granola-chat-dictation-vs-transcription</span>Chat with folders feature</div>
+<div class="cell url"><span class="tag-inline">Link URL</span>https://docs.granola.ai/help-center/getting-more-from-your-notes/granola-chat-dictation-vs-transcription</div>
+<h2 class="body-h">Key terms glossary</h2>
+<p class="body-p">Voice of Customer (VoC) mining: The practice of systematically extracting and analyzing customer expectations, preferences, and pain points from raw conversation data using text analytics and sentiment analysis. <mark class="hl d-amber" data-findings="19,20" id="hl-19" tabindex="0">VoC mining applied to call archives surfaces patterns across hundreds of conversations that would be invisible from individual transcript review.<sup class="hlnum">19,20</sup></mark></p>
+<p class="body-p">NLP (Natural Language Processing): A field of computer science that applies linguistic and statistical algorithms to text in order to extract meaning from human language at scale. AI tools powered by NLP can identify themes, sentiment shifts, and recurring signals across large volumes of meeting transcripts without keyword-only matching.</p>
+<p class="body-p">Folder-level queries: The capability within Granola's Chat feature to ask analytical questions across all meetings in a shared folder simultaneously, with each answer attributed to specific source conversations via inline citations. Folder-level queries are available on Business plans and above.</p>
+</section>
+  </main>
+  <aside class="panel">
+    <div id="loadwarn" class="loadwarn" style="display:none"></div>
+    <div id="manualbox" class="manualbox" style="display:none">
+      <div class="manualhead">Manual Reviews <span id="manualcount" class="manualcount"></span></div>
+      <div id="manualout"></div>
+    </div>
+    <div class="verifybox">
+      <div class="verifyhead">
+        <b>Draft check</b>
+        <span>
+          <button type="button" id="repairbtn" class="verifybtn" style="display:none">Fix artifacts</button>
+          <button type="button" id="verifybtn" class="verifybtn">Re-check</button>
+        </span>
+      </div>
+      <div id="verifyout" class="verifyout">Checking the draft…</div>
+    </div>
+    <div class="panelhead">
+      <h2>Findings <span id="outstanding"></span></h2>
+      <div class="panelfilters">
+        <label class="tgl"><input type="checkbox" id="tglcleared"> Show cleared (<span id="nclr">0</span>)</label>
+        <label class="tgl"><input type="checkbox" id="tgldiscarded"> Show discarded (<span id="ndis">0</span>)</label>
+      </div>
+      <button class="exportbtn" id="export">Export decisions to CSV</button>
+    </div>
+    
+    <div class="finding d-cleared is-cleared" id="finding-1" data-num="1" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">1</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Blockquote / testimonial</div>
+      <blockquote class="fquote">You jot rough notes during calls, Granola enhances them, and your team queries the whole folder for patterns that would take days to find manually.</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> Describes the user's own workflow and output quality; no implication about concealment from participants.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="1" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="1"></div>
+      
+      <textarea class="fnote" data-num="1" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-2" data-num="2" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">2</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">If that line was not captured accurately during the original call, or if the note-taker was focused on maintaining rapport rather than typing, it is gone.</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> This is about a human note-taker's attention during a call, not about what other participants know; no disclosure implication.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="2" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="2"></div>
+      
+      <textarea class="fnote" data-num="2" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-amber" id="finding-3" data-num="3" data-disposition="amber">
+      <div class="fhead">
+        <span class="fnum">3</span>
+        <span class="fdisp">amber</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">Patterns like this are invisible from a single call and clear from a comprehensive folder.</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> &quot;Invisible&quot; here describes analytical patterns, not the product, but the context rules treat the term as RED in all uses so it needs a human call.</div>
+      
+      <div class="fdelete"><b>Option A — delete the sentence:</b> Deleting the sentence loses a minor rhetorical flourish; the rewrite is preferable here since the meaning is legitimately about data patterns, not about what participants perceive.</div>
+      
+      <div class="frewrite" data-num="3"><b>Option B — rewrite the sentence:</b> Patterns like this cannot be seen from a single call and become clear across a comprehensive folder.</div>
+      <div class="fdecide">
+        <label><input type="radio" name="dec-3" value="accept-delete" data-num="3"> Delete</label>
+        <label><input type="radio" name="dec-3" value="accept" data-num="3"> Rewrite</label>
+        <button class="clearbtn" data-num="3" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="3"></div>
+      
+      <div class="freprompt">
+        <textarea class="fdirect" data-num="3" rows="2"
+          placeholder="Not happy with the rewrite? Say what to change and generate a new one…"></textarea>
+        <button type="button" class="regenbtn" data-num="3">Generate new rewrite</button>
+        <div class="regenout" data-num="3"></div>
+      </div>
+      <textarea class="fnote" data-num="3" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-4" data-num="4" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">4</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer A · "invisible"</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">invisible</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> &quot;Invisible&quot; here describes patterns that cannot be seen in a single call's data — an analytical point about aggregate insight, not about Granola's perceptibility to meeting participants. No reader could take this as a claim about concealment.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="4" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="4"></div>
+      
+      <textarea class="fnote" data-num="4" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-5" data-num="5" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">5</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">For teams that want this to happen automatically without sending each note manually, the Granola Zapier integration supports a trigger that pushes any note added to a specific folder to Notion automatically.</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> &quot;Automatically&quot; is about the user's own export workflow, with no bearing on what other participants know.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="5" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="5"></div>
+      
+      <textarea class="fnote" data-num="5" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-6" data-num="6" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">6</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer A · "automatic"</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">automatically</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> &quot;Automatically&quot; describes a Zapier workflow that pushes notes to Notion without manual sending. It is a genuine product-automation claim about the user's own workflow and says nothing about what other participants know.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="6" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="6"></div>
+      
+      <textarea class="fnote" data-num="6" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-7" data-num="7" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">7</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer A · "automatic"</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">automatically</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> Second match of &quot;automatically&quot; in the same integration sentence. Same reasoning: it describes note syncing to Notion, not imperceptibility to anyone in the meeting.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="7" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="7"></div>
+      
+      <textarea class="fnote" data-num="7" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-8" data-num="8" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">8</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Blockquote / testimonial</div>
+      <blockquote class="fquote">Love that I can easily share my notes with my colleagues as well, and that we can all chat with the meeting transcript so everyone can see the full context of the meeting, even if they weren't there.</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> A testimonial about sharing notes internally; it does not touch on participant awareness of note-taking.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="8" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="8"></div>
+      
+      <textarea class="fnote" data-num="8" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-9" data-num="9" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">9</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer A · "automatic"</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">List item</div>
+      <blockquote class="fquote">automatic</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> &quot;Automatic sync via Zapier&quot; is a plain description of an export destination in a list of integrations. No disclosure implication.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="9" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="9"></div>
+      
+      <textarea class="fnote" data-num="9" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-red" id="finding-10" data-num="10" data-disposition="red">
+      <div class="fhead">
+        <span class="fnum">10</span>
+        <span class="fdisp">red</span>
+        <span class="fcat cat-bot-denigration">BOT DENIGRATION</span>
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">Daversa Partners introduced Granola across 136 of 150 employees after their president described traditional bots as &quot;intrusive&quot; for the sensitive executive search conversations their work requires.</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> A reader takes away that meeting bots are intrusive and that Granola is the choice for conversations where you do not want a recording presence noticed.</div>
+      
+      <div class="fdelete"><b>Option A — delete the paragraph:</b> Deleting the paragraph loses only a customer anecdote built entirely on denigrating bots and on the idea that a visible recording participant changes what is said; deletion is the better remedy because rewriting risks relocating the same implication.</div>
+      
+      <div class="frewrite" data-num="10"><b>Option B — rewrite the paragraph:</b> Daversa Partners rolled out Granola across 136 of 150 employees, using it to capture the substance of their executive search conversations. Their teams write down what matters in the moment and let Granola enhance those notes afterwards, so the record of each conversation is accurate and easy to revisit. The same benefit applies to IC discussions, reference calls, and any conversation where staying focused on the person in front of you matters most.</div>
+      <div class="fdecide">
+        <label><input type="radio" name="dec-10" value="accept-delete" data-num="10"> Delete</label>
+        <label><input type="radio" name="dec-10" value="accept" data-num="10"> Rewrite</label>
+        <button class="clearbtn" data-num="10" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="10"></div>
+      
+      <div class="freprompt">
+        <textarea class="fdirect" data-num="10" rows="2"
+          placeholder="Not happy with the rewrite? Say what to change and generate a new one…"></textarea>
+        <button type="button" class="regenbtn" data-num="10">Generate new rewrite</button>
+        <div class="regenout" data-num="10"></div>
+      </div>
+      <textarea class="fnote" data-num="10" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-11" data-num="11" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">11</span>
+        <span class="fdisp">cleared-in-context</span>
+        <span class="fcat cat-bot-denigration">BOT DENIGRATION</span>
+        <span class="flayer" title="Which layer caught it">Layer A · "no bot"</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">Bot-free</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> The term &quot;no bot&quot; is legitimate here. The concern in this sentence is the surrounding framing, which is reported separately with the remedy attached to the right span.</div>
+      <div class="fdefer">Remedy handled by finding <a href="#finding-12" class="deferlink" data-goto="12">#12</a>, which is anchored to the full phrase.</div>
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="11" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="11"></div>
+      
+      <textarea class="fnote" data-num="11" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-red" id="finding-12" data-num="12" data-disposition="red">
+      <div class="fhead">
+        <span class="fnum">12</span>
+        <span class="fdisp">red</span>
+        <span class="fcat cat-bot-denigration">BOT DENIGRATION</span>
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">Bot-free capture became a practical necessity rather than a preference.</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> The reader takes away that the value of Granola is the absence of anything others would see joining the call.</div>
+      
+      <div class="fdelete"><b>Option A — delete the sentence:</b> Deleting this sentence loses nothing factual and leaves the surrounding sentences grammatical; it exists only to make the no-bot point as a benefit.</div>
+      
+      <div class="frewrite" data-num="12"><b>Option B — rewrite the sentence:</b> Granola became a core part of how their consultants capture and revisit those conversations.</div>
+      <div class="fdecide">
+        <label><input type="radio" name="dec-12" value="accept-delete" data-num="12"> Delete</label>
+        <label><input type="radio" name="dec-12" value="accept" data-num="12"> Rewrite</label>
+        <button class="clearbtn" data-num="12" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="12"></div>
+      
+      <div class="freprompt">
+        <textarea class="fdirect" data-num="12" rows="2"
+          placeholder="Not happy with the rewrite? Say what to change and generate a new one…"></textarea>
+        <button type="button" class="regenbtn" data-num="12">Generate new rewrite</button>
+        <div class="regenout" data-num="12"></div>
+      </div>
+      <textarea class="fnote" data-num="12" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-red" id="finding-13" data-num="13" data-disposition="red">
+      <div class="fhead">
+        <span class="fnum">13</span>
+        <span class="fdisp">red</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">The same logic applies to IC discussions, reference calls, and any conversation in which a visible recording participant would change what is said.</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> The reader takes away that Granola is suitable precisely because participants will not see a recording presence and therefore will speak more freely — non-disclosure framed as the benefit.</div>
+      
+      <div class="fdelete"><b>Option A — delete the sentence:</b> Removing this sentence leaves the preceding sentences intact and grammatical, and eliminates the clearest non-disclosure implication in the article.</div>
+      
+      <div class="frewrite" data-num="13"><b>Option B — rewrite the sentence:</b> The same benefit applies to IC discussions, reference calls, and any conversation where you want an accurate record without writing everything down yourself.</div>
+      <div class="fdecide">
+        <label><input type="radio" name="dec-13" value="accept-delete" data-num="13"> Delete</label>
+        <label><input type="radio" name="dec-13" value="accept" data-num="13"> Rewrite</label>
+        <button class="clearbtn" data-num="13" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="13"></div>
+      
+      <div class="freprompt">
+        <textarea class="fdirect" data-num="13" rows="2"
+          placeholder="Not happy with the rewrite? Say what to change and generate a new one…"></textarea>
+        <button type="button" class="regenbtn" data-num="13">Generate new rewrite</button>
+        <div class="regenout" data-num="13"></div>
+      </div>
+      <textarea class="fnote" data-num="13" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-red" id="finding-14" data-num="14" data-disposition="red">
+      <div class="fhead">
+        <span class="fnum">14</span>
+        <span class="fdisp">red</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">Granola maintains strong retention among busy professionals by removing friction: no bot announcements, no visible participants, just a notepad that enhances what you write.</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> The reader takes away that nothing announces itself and no participant is visible to others in the call — imperceptibility to other participants presented as the reason to choose Granola.</div>
+      
+      <div class="fdelete"><b>Option A — delete the sentence:</b> Deleting just this sentence leaves the following two sentences about folder archives standing and grammatical; the sentence exists only to frame invisibility to others as a feature.</div>
+      
+      <div class="frewrite" data-num="14"><b>Option B — rewrite the paragraph:</b> Granola keeps a durable record for busy professionals: you jot the points you care about during a call, and Granola enhances those notes afterwards. When an associate leaves, their folder archive stays. Any team member with folder access can query the same conversations and get the same citations.</div>
+      <div class="fdecide">
+        <label><input type="radio" name="dec-14" value="accept-delete" data-num="14"> Delete</label>
+        <label><input type="radio" name="dec-14" value="accept" data-num="14"> Rewrite</label>
+        <button class="clearbtn" data-num="14" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="14"></div>
+      
+      <div class="freprompt">
+        <textarea class="fdirect" data-num="14" rows="2"
+          placeholder="Not happy with the rewrite? Say what to change and generate a new one…"></textarea>
+        <button type="button" class="regenbtn" data-num="14">Generate new rewrite</button>
+        <div class="regenout" data-num="14"></div>
+      </div>
+      <textarea class="fnote" data-num="14" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-15" data-num="15" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">15</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer A · "no bot"</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">no bot</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> The term &quot;no bot&quot; is legitimate here. The concern in this sentence is the surrounding framing, which is reported separately with the remedy attached to the right span.</div>
+      <div class="fdefer">Remedy handled by finding <a href="#finding-14" class="deferlink" data-goto="14">#14</a>, which is anchored to the full phrase.</div>
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="15" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="15"></div>
+      
+      <textarea class="fnote" data-num="15" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-16" data-num="16" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">16</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">Try Granola for free: download the Mac or Windows app, connect your calendar, and run your next pitch call through it.</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> A standard CTA with no claim about participant awareness or data storage.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="16" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="16"></div>
+      
+      <textarea class="fnote" data-num="16" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-17" data-num="17" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">17</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">No, the Zapier integration can automatically push any call added to a specific folder to Notion as a database row without manual sending.</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> Automation described here concerns the user's data pipeline, not participant awareness or data storage location.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="17" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="17"></div>
+      
+      <textarea class="fnote" data-num="17" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-18" data-num="18" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">18</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer A · "automatic"</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">automatically</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> FAQ answer describing that Zapier can push notes to a Notion database without manual sending. A genuine automation claim about the user's own workflow; no disclosure implication.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="18" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="18"></div>
+      
+      <textarea class="fnote" data-num="18" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-amber" id="finding-19" data-num="19" data-disposition="amber">
+      <div class="fhead">
+        <span class="fnum">19</span>
+        <span class="fdisp">amber</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer B</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">VoC mining applied to call archives surfaces patterns across hundreds of conversations that would be invisible from individual transcript review.</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> &quot;Invisible&quot; refers to patterns in transcript review rather than to the product, but per the context rules the term is treated as RED in every use and requires review.</div>
+      
+      <div class="fdelete"><b>Option A — delete the sentence:</b> The glossary entry still reads correctly with only its first sentence, so deletion is safe; the rewrite is the lighter fix because the claim itself is harmless.</div>
+      
+      <div class="frewrite" data-num="19"><b>Option B — rewrite the sentence:</b> VoC mining applied to call archives surfaces patterns across hundreds of conversations that individual transcript review would never reveal.</div>
+      <div class="fdecide">
+        <label><input type="radio" name="dec-19" value="accept-delete" data-num="19"> Delete</label>
+        <label><input type="radio" name="dec-19" value="accept" data-num="19"> Rewrite</label>
+        <button class="clearbtn" data-num="19" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="19"></div>
+      
+      <div class="freprompt">
+        <textarea class="fdirect" data-num="19" rows="2"
+          placeholder="Not happy with the rewrite? Say what to change and generate a new one…"></textarea>
+        <button type="button" class="regenbtn" data-num="19">Generate new rewrite</button>
+        <div class="regenout" data-num="19"></div>
+      </div>
+      <textarea class="fnote" data-num="19" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+
+    <div class="finding d-cleared is-cleared" id="finding-20" data-num="20" data-disposition="cleared-in-context">
+      <div class="fhead">
+        <span class="fnum">20</span>
+        <span class="fdisp">cleared-in-context</span>
+        
+        <span class="flayer" title="Which layer caught it">Layer A · "invisible"</span>
+      </div>
+      <div class="fdone" aria-hidden="true"></div>
+      <div class="fbody">
+      <div class="ffield">Body paragraph</div>
+      <blockquote class="fquote">invisible</blockquote>
+      <div class="ftake"><b>Reader takeaway:</b> &quot;Invisible&quot; describes patterns that cannot be detected by reviewing transcripts one at a time — an analytical claim about aggregate research, not about Granola being unnoticeable to meeting participants.</div>
+      
+      
+      
+      
+      <div class="fdecide">
+        
+        
+        <button class="clearbtn" data-num="20" type="button" title="Remove this suggestion from the list and record it as discarded">Discard</button>
+      </div>
+      <div class="fstatus" data-num="20"></div>
+      
+      <textarea class="fnote" data-num="20" rows="2" placeholder="Note (saved with your decision)…"></textarea>
+      </div>
+    </div>
+  </aside>
+</div>
+<script>
+(function(){
+  var SLUG = "customer-call-analysis-meeting-notes";
+  var KEY = 'granola-review-decisions:' + SLUG;
+  var FINDINGS = [{"number":1,"id":"19bb34042a2db255c707b67ff0811a45","disposition":"cleared-in-context","layer":"B","term":"","field":"Blockquote / testimonial","quote":"You jot rough notes during calls, Granola enhances them, and your team queries the whole folder for patterns that would take days to find manually.","takeaway":"Describes the user's own workflow and output quality; no implication about concealment from participants.","rewrite":""},{"number":2,"id":"4f81d12082b39df4757846b3e0e775fc","disposition":"cleared-in-context","layer":"B","term":"","field":"Body paragraph","quote":"If that line was not captured accurately during the original call, or if the note-taker was focused on maintaining rapport rather than typing, it is gone.","takeaway":"This is about a human note-taker's attention during a call, not about what other participants know; no disclosure implication.","rewrite":""},{"number":3,"id":"fab6a347947cd2986722332d245dddc3","disposition":"amber","layer":"B","term":"","field":"Body paragraph","quote":"Patterns like this are invisible from a single call and clear from a comprehensive folder.","takeaway":"\"Invisible\" here describes analytical patterns, not the product, but the context rules treat the term as RED in all uses so it needs a human call.","rewrite":"Patterns like this cannot be seen from a single call and become clear across a comprehensive folder."},{"number":4,"id":"a7ab9679c9f019332a4ab8b6b0237f1b","disposition":"cleared-in-context","layer":"A","term":"invisible","field":"Body paragraph","quote":"invisible","takeaway":"\"Invisible\" here describes patterns that cannot be seen in a single call's data — an analytical point about aggregate insight, not about Granola's perceptibility to meeting participants. No reader could take this as a claim about concealment.","rewrite":""},{"number":5,"id":"09b67c95914a22b7879bf656a5273f02","disposition":"cleared-in-context","layer":"B","term":"","field":"Body paragraph","quote":"For teams that want this to happen automatically without sending each note manually, the Granola Zapier integration supports a trigger that pushes any note added to a specific folder to Notion automatically.","takeaway":"\"Automatically\" is about the user's own export workflow, with no bearing on what other participants know.","rewrite":""},{"number":6,"id":"749494e14a40a0620f8e0997707d0fbd","disposition":"cleared-in-context","layer":"A","term":"automatic","field":"Body paragraph","quote":"automatically","takeaway":"\"Automatically\" describes a Zapier workflow that pushes notes to Notion without manual sending. It is a genuine product-automation claim about the user's own workflow and says nothing about what other participants know.","rewrite":""},{"number":7,"id":"dfd4432a3c786d18d1f3c8d766b8a986","disposition":"cleared-in-context","layer":"A","term":"automatic","field":"Body paragraph","quote":"automatically","takeaway":"Second match of \"automatically\" in the same integration sentence. Same reasoning: it describes note syncing to Notion, not imperceptibility to anyone in the meeting.","rewrite":""},{"number":8,"id":"d9b37326664dec6fbeaa804874086fce","disposition":"cleared-in-context","layer":"B","term":"","field":"Blockquote / testimonial","quote":"Love that I can easily share my notes with my colleagues as well, and that we can all chat with the meeting transcript so everyone can see the full context of the meeting, even if they weren't there.","takeaway":"A testimonial about sharing notes internally; it does not touch on participant awareness of note-taking.","rewrite":""},{"number":9,"id":"b827d0845e7bb3a9217b36b5993354d6","disposition":"cleared-in-context","layer":"A","term":"automatic","field":"List item","quote":"automatic","takeaway":"\"Automatic sync via Zapier\" is a plain description of an export destination in a list of integrations. No disclosure implication.","rewrite":""},{"number":10,"id":"01e88875d94758465165363b507bdde2","disposition":"red","layer":"B","term":"","field":"Body paragraph","quote":"Daversa Partners introduced Granola across 136 of 150 employees after their president described traditional bots as \"intrusive\" for the sensitive executive search conversations their work requires.","takeaway":"A reader takes away that meeting bots are intrusive and that Granola is the choice for conversations where you do not want a recording presence noticed.","rewrite":"Daversa Partners rolled out Granola across 136 of 150 employees, using it to capture the substance of their executive search conversations. Their teams write down what matters in the moment and let Granola enhance those notes afterwards, so the record of each conversation is accurate and easy to revisit. The same benefit applies to IC discussions, reference calls, and any conversation where staying focused on the person in front of you matters most."},{"number":11,"id":"10b9aa71728198afa4be849b52ef2807","disposition":"cleared-in-context","layer":"A","term":"no bot","field":"Body paragraph","quote":"Bot-free","takeaway":"The term \"no bot\" is legitimate here. The concern in this sentence is the surrounding framing, which is reported separately with the remedy attached to the right span.","rewrite":""},{"number":12,"id":"48ecf7b35a9902b9056aa3f01cb80543","disposition":"red","layer":"B","term":"","field":"Body paragraph","quote":"Bot-free capture became a practical necessity rather than a preference.","takeaway":"The reader takes away that the value of Granola is the absence of anything others would see joining the call.","rewrite":"Granola became a core part of how their consultants capture and revisit those conversations."},{"number":13,"id":"4cb7b8e57af757b6f5669d85c6206c42","disposition":"red","layer":"B","term":"","field":"Body paragraph","quote":"The same logic applies to IC discussions, reference calls, and any conversation in which a visible recording participant would change what is said.","takeaway":"The reader takes away that Granola is suitable precisely because participants will not see a recording presence and therefore will speak more freely — non-disclosure framed as the benefit.","rewrite":"The same benefit applies to IC discussions, reference calls, and any conversation where you want an accurate record without writing everything down yourself."},{"number":14,"id":"56bd60c358fcfb2a6e0be6649521756c","disposition":"red","layer":"B","term":"","field":"Body paragraph","quote":"Granola maintains strong retention among busy professionals by removing friction: no bot announcements, no visible participants, just a notepad that enhances what you write.","takeaway":"The reader takes away that nothing announces itself and no participant is visible to others in the call — imperceptibility to other participants presented as the reason to choose Granola.","rewrite":"Granola keeps a durable record for busy professionals: you jot the points you care about during a call, and Granola enhances those notes afterwards. When an associate leaves, their folder archive stays. Any team member with folder access can query the same conversations and get the same citations."},{"number":15,"id":"edb7039a67c3c6668632dcd7b14eec56","disposition":"cleared-in-context","layer":"A","term":"no bot","field":"Body paragraph","quote":"no bot","takeaway":"The term \"no bot\" is legitimate here. The concern in this sentence is the surrounding framing, which is reported separately with the remedy attached to the right span.","rewrite":""},{"number":16,"id":"2f55c12c362782bb41b79e8287307fe6","disposition":"cleared-in-context","layer":"B","term":"","field":"Body paragraph","quote":"Try Granola for free: download the Mac or Windows app, connect your calendar, and run your next pitch call through it.","takeaway":"A standard CTA with no claim about participant awareness or data storage.","rewrite":""},{"number":17,"id":"5a9e0a4453cb7235c8ce5ea67be56cda","disposition":"cleared-in-context","layer":"B","term":"","field":"Body paragraph","quote":"No, the Zapier integration can automatically push any call added to a specific folder to Notion as a database row without manual sending.","takeaway":"Automation described here concerns the user's data pipeline, not participant awareness or data storage location.","rewrite":""},{"number":18,"id":"c99941bb1b3c2a3369cd790f03611cfd","disposition":"cleared-in-context","layer":"A","term":"automatic","field":"Body paragraph","quote":"automatically","takeaway":"FAQ answer describing that Zapier can push notes to a Notion database without manual sending. A genuine automation claim about the user's own workflow; no disclosure implication.","rewrite":""},{"number":19,"id":"246c5b842251f75331cba5d63c65aecf","disposition":"amber","layer":"B","term":"","field":"Body paragraph","quote":"VoC mining applied to call archives surfaces patterns across hundreds of conversations that would be invisible from individual transcript review.","takeaway":"\"Invisible\" refers to patterns in transcript review rather than to the product, but per the context rules the term is treated as RED in every use and requires review.","rewrite":"VoC mining applied to call archives surfaces patterns across hundreds of conversations that individual transcript review would never reveal."},{"number":20,"id":"bf066ab38a09332dd60382e9344ad0fb","disposition":"cleared-in-context","layer":"A","term":"invisible","field":"Body paragraph","quote":"invisible","takeaway":"\"Invisible\" describes patterns that cannot be detected by reviewing transcripts one at a time — an analytical claim about aggregate research, not about Granola being unnoticeable to meeting participants.","rewrite":""}];
+  var API = '/api/seo-review/decisions';
+  var idOf = {}; FINDINGS.forEach(function(f){ idOf[f.number] = f.id; });
+
+  // ---- decisions persisted SERVER-SIDE ----
+  // Accepting writes the rewrite to the article's Sanity draft. localStorage is
+  // kept only as an offline mirror so a failed request is visibly unsaved
+  // rather than silently lost.
+  var state = {};
+  try { state = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch(e) { state = {}; }
+  function mirror(){ try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e){} }
+  function paint(num){
+    var el = document.getElementById('finding-' + num);
+    if (!el) return;
+    var d = state[num] || {};
+    var isAccept = d.decision === 'accept' || d.decision === 'accept-delete';
+    el.classList.toggle('decided-accept', isAccept);
+    el.classList.toggle('decided-dismiss', d.decision === 'dismiss');
+    // Collapse anything decided, unless the reviewer has reopened it.
+    if (d.decision && !el.dataset.reopened) el.classList.add('collapsed');
+    if (!d.decision) el.classList.remove('collapsed');
+  }
+  function setDone(num, text){
+    var el = document.getElementById('finding-' + num);
+    if (!el) return;
+    var d = el.querySelector('.fdone');
+    if (d) d.textContent = text;
+  }
+  // Clicking a collapsed card reopens it for review.
+  document.addEventListener('click', function(e){
+    var card = e.target.closest('.finding.collapsed');
+    if (!card) return;
+    if (e.target.closest('.fdecide') || e.target.closest('.fnote')) return;
+    card.dataset.reopened = '1';
+    card.classList.remove('collapsed');
+  });
+  function setStatus(num, text, cls){
+    var el = document.querySelector('.fstatus[data-num="' + num + '"]');
+    if (!el) return;
+    el.textContent = text || '';
+    el.className = 'fstatus' + (cls ? ' ' + cls : '');
+    el.setAttribute('data-num', num);
+  }
+
+  // Restore decisions from the server (authoritative), falling back to the
+  // local mirror if the API is unreachable.
+  function restore(){
+    fetch(API + '?slug=' + encodeURIComponent(SLUG), {credentials:'same-origin'})
+      .then(function(r){
+        if (!r.ok) {
+          return r.text().then(function(t){
+            throw new Error('HTTP ' + r.status + (t ? ' — ' + t.slice(0, 160) : ''));
+          });
+        }
+        return r.json();
+      })
+      .then(function(j){
+        var byId = {}; (j.findings||[]).forEach(function(x){ byId[x.id] = x; });
+        FINDINGS.forEach(function(f){
+          var s = byId[f.id]; if (!s) return;
+          state[f.number] = { decision: s.decision, note: s.note || '' };
+          if (s.decision) {
+            var r = document.querySelector('input[name="dec-' + f.number + '"][value="' + s.decision + '"]');
+            if (r) r.checked = true;
+          }
+          if (s.note) { var t = document.querySelector('.fnote[data-num="' + f.number + '"]'); if (t) t.value = s.note; }
+          if (s.decision === 'discard') { setStatus(f.number, 'Discarded', ''); hideFinding(f.number); }
+          else if (s.appliedToDraft) { setStatus(f.number, '✓ Written to the Sanity draft', 'ok'); setDone(f.number, '✓ Written to the Sanity draft'); }
+          else if (s.decision === 'dismiss') setDone(f.number, 'Dismissed — no change made');
+          else if (s.decision === 'accept') setStatus(f.number, '⚠ Accepted but not yet written to the draft — click Accept again to retry', 'warn');
+          paint(f.number);
+        });
+        mirror();
+        updateOutstanding();
+      })
+      .catch(function(e){
+        // Offline / not signed in: show local mirror but say it is unsaved.
+        // Say WHY, not just that it failed — a bare "not saved" gives no way to
+        // diagnose. Shown once at the top rather than on every finding.
+        var banner = document.getElementById('loadwarn');
+        if (banner) {
+          banner.style.display = 'block';
+          banner.textContent = '⚠ Could not load saved decisions: ' + e.message +
+            '  — anything you change now is stored in this browser only. Reload once you are signed in.';
+        }
+        FINDINGS.forEach(function(f){
+          var d = state[f.number]; if (!d) return;
+          if (d.decision) {
+            var r = document.querySelector('input[name="dec-' + f.number + '"][value="' + d.decision + '"]');
+            if (r) r.checked = true;
+          }
+          if (d.note) { var t = document.querySelector('.fnote[data-num="' + f.number + '"]'); if (t) t.value = d.note; }
+          paint(f.number);
+        });
+      });
+  }
+  restore();
+
+  function send(num, decision, note){
+    var id = idOf[num];
+    if (!id) { setStatus(num, '⚠ No server id for this finding', 'warn'); return; }
+    setStatus(num, 'Saving…', '');
+    fetch(API, {
+      method:'POST', credentials:'same-origin',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ id: id, decision: decision, note: note || null }),
+    })
+      .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
+      .then(function(res){
+        if (!res.ok) { setStatus(num, '⚠ ' + (res.j.error || 'save failed'), 'warn'); return; }
+        if (decision === 'accept' || decision === 'accept-delete') {
+          if (res.j.appliedToDraft) {
+            var msg = res.j.alreadyApplied
+              ? '✓ Already in the Sanity draft'
+              : (res.j.deleted
+                  ? '✓ ' + (res.j.scope === 'paragraph' ? 'Paragraph' : 'Sentence') + ' removed in the Sanity draft — not published'
+                  : '✓ Written to the Sanity draft — not published');
+            setStatus(num, msg, 'ok');
+            setDone(num, msg);
+          } else {
+            var w = '⚠ Saved, but NOT applied: ' + (res.j.warning || 'unknown reason');
+            setStatus(num, w, 'warn');
+            setDone(num, w);
+            // A failure must stay open — collapsing it would hide the problem.
+            var el = document.getElementById('finding-' + num);
+            if (el) { el.dataset.reopened = '1'; el.classList.remove('collapsed'); }
+          }
+        } else if (decision === 'dismiss') {
+          setStatus(num, res.j.warning ? '⚠ ' + res.j.warning : 'Dismissed', res.j.warning ? 'warn' : '');
+          setDone(num, res.j.warning ? '⚠ ' + res.j.warning : 'Dismissed — no change made');
+        } else {
+          setStatus(num, res.j.warning ? '⚠ ' + res.j.warning : '', res.j.warning ? 'warn' : '');
+        }
+      })
+      .catch(function(e){ setStatus(num, '⚠ Save failed: ' + e.message, 'warn'); });
+  }
+
+  // Use 'click' rather than 'change' so re-selecting an already-selected option
+  // retries. A previous attempt can fail (e.g. a bad token) leaving the choice
+  // selected but unapplied — with 'change' alone that is a dead end.
+  document.querySelectorAll('.fdecide input[type=radio]').forEach(function(r){
+    r.addEventListener('click', function(){
+      var n = r.getAttribute('data-num');
+      state[n] = state[n] || {}; state[n].decision = r.value; mirror(); paint(n);
+      send(n, r.value, (state[n] && state[n].note) || null);
+      updateOutstanding();
+    });
+  });
+  var noteTimer = {};
+  document.querySelectorAll('.fnote').forEach(function(t){
+    t.addEventListener('input', function(){
+      var n = t.getAttribute('data-num');
+      state[n] = state[n] || {}; state[n].note = t.value; mirror();
+      clearTimeout(noteTimer[n]);
+      noteTimer[n] = setTimeout(function(){
+        if (state[n] && state[n].decision) send(n, state[n].decision, t.value);
+      }, 900);
+    });
+  });
+  // Discard: record the suggestion as deliberately rejected, then remove it from
+  // the panel so what remains is what is still outstanding. It is NOT deleted —
+  // it stays in the log as a discarded decision.
+  function hideFinding(n){
+    var el = document.getElementById('finding-' + n);
+    if (el) el.classList.add('discarded');
+    document.querySelectorAll('mark.hl').forEach(function(m){
+      var nums = m.getAttribute('data-findings').split(',');
+      if (nums.indexOf(String(n)) !== -1 && nums.length === 1) m.classList.add('hl-discarded');
+    });
+    updateOutstanding();
+  }
+  function updateOutstanding(){
+    var needing = document.querySelectorAll('.finding:not(.is-cleared):not(.discarded)').length;
+    var decided = document.querySelectorAll(
+      '.finding:not(.is-cleared):not(.discarded).decided-accept, ' +
+      '.finding:not(.is-cleared):not(.discarded).decided-dismiss').length;
+    var el = document.getElementById('outstanding');
+    if (el) el.textContent = (needing - decided) + ' of ' + needing + ' needing a decision';
+    var c = document.getElementById('nclr');
+    if (c) c.textContent = document.querySelectorAll('.finding.is-cleared').length;
+    var d = document.getElementById('ndis');
+    if (d) d.textContent = document.querySelectorAll('.finding.discarded').length;
+  }
+  updateOutstanding();
+  document.querySelectorAll('.clearbtn').forEach(function(b){
+    b.addEventListener('click', function(){
+      var n = b.getAttribute('data-num');
+      state[n] = state[n] || {}; state[n].decision = 'discard'; mirror();
+      document.querySelectorAll('input[name="dec-' + n + '"]').forEach(function(r){ r.checked = false; });
+      setStatus(n, 'Discarded — recorded in the log', '');
+      send(n, 'discard', (state[n] && state[n].note) || null);
+      hideFinding(n);
+    });
+  });
+  // Cleared and discarded items stay in the DOM (and in the log) but are hidden
+  // by default so the panel shows only what still needs a decision.
+  var panel = document.querySelector('.panel');
+  var tglC = document.getElementById('tglcleared');
+  var tglD = document.getElementById('tgldiscarded');
+  function applyToggles(){
+    panel.classList.toggle('reveal-cleared', tglC && tglC.checked);
+    panel.classList.toggle('reveal-discarded', tglD && tglD.checked);
+    // Mute highlights whose only finding is hidden, so the prose matches.
+    document.querySelectorAll('mark.hl').forEach(function(m){
+      var nums = m.getAttribute('data-findings').split(',');
+      var anyVisible = nums.some(function(n){
+        var el = document.getElementById('finding-' + n);
+        return el && el.offsetParent !== null;
+      });
+      m.classList.toggle('hl-cleared-hidden', !anyVisible);
+    });
+    updateOutstanding();
+  }
+  if (tglC) tglC.addEventListener('change', applyToggles);
+  if (tglD) tglD.addEventListener('change', applyToggles);
+
+  // ---- highlight <-> panel linking ----
+  function activate(num){
+    document.querySelectorAll('.finding.active').forEach(function(e){ e.classList.remove('active'); });
+    var f = document.getElementById('finding-' + num);
+    if (f) { f.classList.add('active'); f.scrollIntoView({behavior:'smooth', block:'center'}); }
+  }
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    m.addEventListener('click', function(){ activate(m.getAttribute('data-findings').split(',')[0]); });
+  });
+  document.querySelectorAll('.finding').forEach(function(el){
+    el.addEventListener('click', function(e){
+      if (e.target.closest('.fdecide') || e.target.closest('.fnote')) return;
+      var num = el.getAttribute('data-num');
+      var hl = document.querySelector('mark.hl[data-findings~="' + num + '"]')
+            || document.getElementById('hl-' + num)
+            || Array.prototype.find.call(document.querySelectorAll('mark.hl'), function(m){
+                 return m.getAttribute('data-findings').split(',').indexOf(num) !== -1; });
+      if (hl) {
+        hl.scrollIntoView({behavior:'smooth', block:'center'});
+        hl.classList.remove('pulse'); void hl.offsetWidth; hl.classList.add('pulse');
+      }
+    });
+  });
+
+  // ---- re-prompt a rewrite ----
+  // The reviewer disagrees with the proposal but does not want a deletion.
+  // Their direction goes back to the model, which returns a revised rewrite.
+  // Nothing reaches Sanity until they then click Rewrite.
+  document.querySelectorAll('.regenbtn').forEach(function(b){
+    b.addEventListener('click', function(){
+      var n = b.getAttribute('data-num');
+      var ta = document.querySelector('.fdirect[data-num="' + n + '"]');
+      var out = document.querySelector('.regenout[data-num="' + n + '"]');
+      var feedback = (ta && ta.value || '').trim();
+      if (!feedback) {
+        out.innerHTML = '<div class="regenerr">Say what you want changed first.</div>';
+        return;
+      }
+      b.disabled = true; b.textContent = 'Generating…';
+      out.innerHTML = '';
+      fetch('/api/seo-review/regenerate', {
+        method:'POST', credentials:'same-origin',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ id: idOf[n], feedback: feedback }),
+      })
+        .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
+        .then(function(res){
+          b.disabled = false; b.textContent = 'Generate new rewrite';
+          if (!res.ok) {
+            out.innerHTML = '<div class="regenerr">' + esc2(res.j.error || 'Could not generate a rewrite.') + '</div>';
+            return;
+          }
+          out.innerHTML =
+            '<div class="newrw"><b>New rewrite (' + esc2(res.j.scope) + ' scope):</b> ' + esc2(res.j.rewrite) +
+            (res.j.explanation ? '<div class="why">' + esc2(res.j.explanation) + '</div>' : '') +
+            '<div class="acts">' +
+              '<button type="button" class="use" data-num="' + n + '">Use this rewrite</button>' +
+              '<button type="button" class="again" data-num="' + n + '">Try again</button>' +
+            '</div></div>';
+          out.querySelector('.use').addEventListener('click', function(){
+            // Store it as the proposal, then apply via the normal Rewrite path
+            // so there is still exactly one route into Sanity.
+            fetch('/api/seo-review/regenerate', {
+              method:'POST', credentials:'same-origin',
+              headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({ id: idOf[n], feedback: feedback, keep: true }),
+            }).then(function(){
+              var rw = document.querySelector('.frewrite[data-num="' + n + '"]');
+              if (rw) rw.innerHTML = '<b>Option B — rewrite (updated by you):</b> ' + esc2(res.j.rewrite);
+              out.innerHTML = '<div class="newrw">Saved as the proposed rewrite. Click <b>Rewrite</b> above to write it to the Sanity draft.</div>';
+            });
+          });
+          out.querySelector('.again').addEventListener('click', function(){
+            out.innerHTML = ''; if (ta) ta.focus();
+          });
+        })
+        .catch(function(e){
+          b.disabled = false; b.textContent = 'Generate new rewrite';
+          out.innerHTML = '<div class="regenerr">' + esc2(e.message) + '</div>';
+        });
+    });
+  });
+
+  // ---- draft verification ----
+  var vbtn = document.getElementById('verifybtn');
+  var vout = document.getElementById('verifyout');
+  var rbtn = document.getElementById('repairbtn');
+  var mbox = document.getElementById('manualbox');
+  var mout = document.getElementById('manualout');
+  var mcount = document.getElementById('manualcount');
+  function esc2(t){ return String(t == null ? '' : t)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function runVerify(){
+    vbtn.disabled = true;
+    vout.textContent = 'Reading the Sanity draft…';
+    fetch('/api/seo-review/verify?slug=' + encodeURIComponent(SLUG), {credentials:'same-origin'})
+      .then(function(r){
+        if (!r.ok) return r.text().then(function(t){ throw new Error('HTTP ' + r.status + ' — ' + t.slice(0,140)); });
+        return r.json();
+      })
+      .then(function(j){
+        var out = [];
+        if (!j.draftExists) {
+          out.push('<div class="vidle">Nothing applied yet. This check runs against the Sanity draft, ' +
+                   'which is created the first time you accept a change. Not a problem — there is just nothing to check so far.</div>');
+        } else {
+          out.push('<div style="margin-bottom:6px">Draft has <b>' + j.draftBlocks + '</b> blocks (published has ' + j.publishedBlocks + ').</div>');
+          if (j.issues.length === 0) {
+            out.push('<div class="vok">✓ No artifacts found — no stranded punctuation, duplicated sentences, empty blocks or fragments.</div>');
+          } else {
+            out.push('<div style="margin:8px 0 4px"><b>' + j.issues.length + ' issue(s) to fix in the Studio:</b></div>');
+            j.issues.forEach(function(i){
+              out.push('<div class="vissue"><b>' + esc2(i.where) + '</b> — ' + esc2(i.detail) +
+                       '<span class="vsnip">' + esc2(i.text) + '</span></div>');
+            });
+          }
+        }
+        if (j.manualActions.length) {
+          out.push('<div style="margin:10px 0 4px"><b>' + j.manualActions.length + ' edit(s) you accepted that must be made by hand:</b></div>');
+          j.manualActions.forEach(function(a){
+            out.push('<div class="vmanual"><b>' + esc2(a.fieldLabel) + '</b> — ' + esc2(a.reason) +
+                     '<span class="vsnip">' + esc2(a.text) + '</span></div>');
+          });
+        } else if (j.draftExists) {
+          out.push('<div class="vok" style="margin-top:8px">✓ Nothing left to do by hand.</div>');
+        }
+        if (j.draftExists) {
+          out.push('<div style="margin-top:8px"><a href="https://www.granola.ai/studio/structure/seoPosts;' +
+                   encodeURIComponent(j.postId) + '" target="_blank" rel="noopener">Open the draft in Sanity Studio ↗</a></div>');
+        }
+        vout.innerHTML = out.join('');
+        vbtn.disabled = false;
+
+        // Offer the automatic fix only when there is something it can fix.
+        var fixable = j.issues.filter(function(i){
+          return i.kind === 'duplication' || i.kind === 'punctuation';
+        }).length;
+        if (rbtn) rbtn.style.display = fixable ? 'inline-block' : 'none';
+
+        // ---- Manual Reviews ----
+        var manual = (j.manualActions || []).slice();
+        if (manual.length) {
+          mbox.style.display = 'block';
+          mcount.textContent = '(' + manual.length + ' item' + (manual.length === 1 ? '' : 's') + ' you must do by hand in Sanity)';
+          mout.innerHTML = manual.map(function(a){
+            return '<div class="manualitem"><b>' + esc2(a.fieldLabel) + '</b> — you chose ' +
+              (a.decision === 'accept-delete' ? 'delete' : 'rewrite') +
+              '<div class="why">' + esc2(a.reason) + '</div>' +
+              '<span class="txt">' + esc2(a.text) + '</span></div>';
+          }).join('') +
+          '<div style="font-size:12px"><a href="https://www.granola.ai/studio/structure/seoPosts;' +
+          encodeURIComponent(j.postId) + '" target="_blank" rel="noopener">Open in Sanity Studio to make these ↗</a></div>';
+        } else {
+          mbox.style.display = 'none';
+        }
+      })
+      .catch(function(e){
+        vout.innerHTML = '<div class="vissue">Check failed: ' + esc2(e.message) + '</div>';
+        vbtn.disabled = false;
+      });
+  }
+  if (vbtn) vbtn.addEventListener('click', runVerify);
+  // Run on load so Manual Reviews is visible without having to ask for it.
+  runVerify();
+
+  if (rbtn) rbtn.addEventListener('click', function(){
+    rbtn.disabled = true;
+    rbtn.textContent = 'Fixing…';
+    fetch('/api/seo-review/repair', {
+      method:'POST', credentials:'same-origin',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ slug: SLUG, apply: true }),
+    })
+      .then(function(r){ return r.json(); })
+      .then(function(j){
+        rbtn.textContent = 'Fix artifacts';
+        rbtn.disabled = false;
+        if (j.error) { vout.innerHTML = '<div class="vissue">Repair failed: ' + esc2(j.error) + '</div>'; return; }
+        runVerify();
+      })
+      .catch(function(e){
+        rbtn.textContent = 'Fix artifacts';
+        rbtn.disabled = false;
+        vout.innerHTML = '<div class="vissue">Repair failed: ' + esc2(e.message) + '</div>';
+      });
+  });
+
+  // ---- CSV export ----
+  function csv(v){ v = v == null ? '' : String(v); return /[",\n\r]/.test(v) ? '"' + v.replace(/"/g,'""') + '"' : v; }
+  document.getElementById('export').addEventListener('click', function(){
+    var head = ['slug','finding_number','disposition','layer','term','field','verbatim_quote','reader_takeaway','suggested_rewrite','decision','note'];
+    var lines = [head.join(',')];
+    FINDINGS.forEach(function(f){
+      var d = state[f.number] || {};
+      lines.push([SLUG,f.number,f.disposition,f.layer,f.term,f.field,f.quote,f.takeaway,f.rewrite,d.decision||'',d.note||''].map(csv).join(','));
+    });
+    var blob = new Blob([lines.join('\n')], {type:'text/csv'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'decisions-' + SLUG + '.csv';
+    a.click(); URL.revokeObjectURL(a.href);
+  });
+
+  // ---- arrow-key navigation ----
+  document.addEventListener('keydown', function(e){
+    var t = e.target.tagName;
+    if (t === 'TEXTAREA' || t === 'INPUT' || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.key === 'ArrowLeft')  { var p = document.getElementById('prevlink'); if (p) location.href = p.getAttribute('href'); }
+    if (e.key === 'ArrowRight') { var n = document.getElementById('nextlink'); if (n) location.href = n.getAttribute('href'); }
+  });
+})();
+</script>
+<footer style="max-width:1500px;margin:0 auto;padding:0 24px 40px;color:#6b7280;font-size:12px">
+  Generated 2026-08-04T09:03:45.052Z · RULES.md sha256 <code>4f158f1eb915653ca6d1348764792f68f4c89bc8cb9df6742985add6517e0f3c</code> · model claude-opus-5
+</footer>
+</body></html>
