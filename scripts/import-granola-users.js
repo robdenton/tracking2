@@ -84,12 +84,50 @@ function nullable(s) {
     console.error("CSV must have a header row and at least one data row");
     process.exit(1);
   }
-  const headers = parseCsvLine(lines[0]).map((h) => h.trim().toLowerCase());
-  console.log("Headers:", headers.join(", "));
+  // Header aliases so exports from different tools (Omni, Snowflake, etc.) work.
+  // Lowercased canonical name → list of acceptable column headings (lowercased).
+  const HEADER_ALIASES = {
+    user_id: ["user_id", "id", "user id", "userid"],
+    email: ["email", "email_address"],
+    signed_up_at: [
+      "signed_up_at",
+      "created at date",
+      "created_at",
+      "created_at_date",
+      "signup_date",
+      "signed_up",
+      "sign_up_date",
+    ],
+    gclid: ["gclid"],
+    utm_source: ["utm_source"],
+    utm_campaign: ["utm_campaign"],
+    utm_medium: ["utm_medium"],
+    utm_content: ["utm_content"],
+    utm_term: ["utm_term"],
+    referrer: ["referrer", "referer"],
+    first_activated_at: ["first_activated_at", "activated_at"],
+    became_paying_at: ["became_paying_at", "paying_at", "first_paid_at"],
+  };
+
+  const rawHeaders = parseCsvLine(lines[0]).map((h) => h.trim().toLowerCase());
+  console.log("Headers:", rawHeaders.join(", "));
+
+  // Build canonical → index map
+  const headerIdx = {};
+  for (const [canonical, aliases] of Object.entries(HEADER_ALIASES)) {
+    for (const a of aliases) {
+      const i = rawHeaders.indexOf(a);
+      if (i !== -1) {
+        headerIdx[canonical] = i;
+        break;
+      }
+    }
+  }
+  console.log("Mapped:", headerIdx);
 
   function get(row, name) {
-    const i = headers.indexOf(name);
-    return i === -1 ? "" : row[i];
+    const i = headerIdx[name];
+    return i === undefined ? "" : row[i];
   }
 
   let inserted = 0,
