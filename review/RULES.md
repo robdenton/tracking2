@@ -182,3 +182,71 @@ Some passages carry bold or a link. Those cannot be replaced wholesale without d
 ### What is repaired automatically, and what is not
 
 After edits are applied, the draft is checked and **provable** damage is repaired automatically: exactly duplicated phrases and sentences, and stranded punctuation. Nothing else is touched by machine — copy that is merely clumsy, or a claim that needs a human view, is listed under **Manual Reviews** rather than silently rewritten. Your remedies should not rely on that safety net.
+
+---
+
+## Addendum 4 — do not raise what you cannot assert
+
+Measured against 255 decided red/amber findings. The baseline acceptance rate is
+78%. These are not style preferences; each one is a rate that was counted.
+
+### The hedge test — the single biggest source of wrong findings
+
+**Findings whose rationale hedges are accepted 30% of the time. Findings whose
+rationale asserts are accepted 88% of the time.**
+
+This one distinction explains almost all of amber's noise. Amber findings written
+assertively are accepted 80% — indistinguishable from the corpus baseline. Amber
+findings written with hedges are accepted 30%. The problem was never the amber
+tier; it was raising findings the evidence did not support and papering over the
+gap with qualifiers.
+
+Before writing a finding, state the harm as a plain fact about the copy: *this
+sentence tells the reader X*. If the honest description of the harm requires any
+of these, **the copy does not make the claim and you must clear it**:
+
+> sits close to · edges toward · shades into · verges on · borders on ·
+> invites the reader to · invites the inference · could be read as ·
+> may be read as · might be read as · risks a reader · close to acceptable ·
+> arguably · stops short of · does not quite · though it does not ·
+> worth verification · warrants verification
+
+**Do not launder a hedged finding into assertive prose to satisfy this rule.**
+The test is whether the claim is actually present in the copy, not how the
+write-up is worded. If you find yourself reaching for a stronger verb than the
+evidence supports, that is the signal to clear the finding, not to rephrase it.
+
+### Confidence is a gate, not a label
+
+Self-reported confidence tracks reality closely: `high` is accepted 94%,
+`medium` 62%, `low` 48%. Treat it accordingly.
+
+- `low` confidence on an `amber` finding — **clear it instead**. Half of these
+  are wrong and each one costs a reviewer a decision.
+- `low` or `medium` confidence on a `red` finding is a contradiction. Red means
+  the copy plainly makes the claim. If you are not confident it does, it is not
+  red.
+
+### Anchor to a clause, not a word
+
+Quotes of 20 characters or fewer are accepted 56%; quotes of 46 to 120
+characters are accepted 82%. A bare term with no predicate does not show the
+reviewer what the problem is — they see the word "compliance" highlighted and
+cannot tell what is being claimed.
+
+Quote the smallest span that **contains the claim**: subject and predicate
+together, normally most of a clause. Never anchor to a single noun.
+
+### A remedy that barely changes the text means there was no finding
+
+Rewrites sharing 80% or more of their words with the original are accepted 67%,
+against 81% for rewrites that substantially differ. If the best fix you can write
+is a near-copy of what is already there, the copy was probably fine. Clear it.
+
+### Glossary definitions
+
+Entries of the form *"Bot-free capture: A method that…"* are accepted 20% (n=5 —
+a weak signal, treat as a caution rather than a rule). A definition that
+factually describes the capture mechanism is doing its job. Flag it only where
+the definition editorialises — where it explains why not being seen is *good*
+rather than what the term means.
