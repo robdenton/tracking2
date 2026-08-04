@@ -58,7 +58,8 @@ const FIELD_KIND = { title: 'title', slug: 'slug', summary: 'summary', paragraph
 const FIELD_LABEL = { title: 'Title', summary: 'Meta / summary', paragraph: 'Body paragraph', heading: 'Heading', blockquote: 'Blockquote / testimonial', listItem: 'List item', tableHeader: 'Table header cell', tableCell: 'Table cell', linkText: 'Link text', linkHref: 'Link URL' };
 
 // --- collect the 58 ---------------------------------------------------------
-const final = require(join(ROOT, 'review', 'change-log', '2026-08-04-verification-FINAL.json'));
+const reportArg = (() => { const i = process.argv.indexOf('--report'); return i >= 0 ? process.argv[i + 1] : null; })();
+const final = require(reportArg ? join(ROOT, reportArg) : join(ROOT, 'review', 'change-log', '2026-08-04-verification-FINAL.json'));
 const appliedRows = await prisma.$queryRawUnsafe(`
   SELECT slug, original_text, COALESCE(final_text, proposed_text) AS replacement
   FROM seo_review_findings WHERE applied_to_draft`);
