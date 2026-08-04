@@ -1,4 +1,5 @@
 import { getAppliedChanges, getDiscardedChanges, getPublishStatus } from "@/lib/seo-review";
+import { ChangesFilter, EditFeedback } from "./feedback";
 import { SeoNav } from "../nav";
 
 // Audit log of every copy change written to a Sanity DRAFT from the consent &
@@ -94,6 +95,8 @@ export default async function SeoChangeLogPage() {
         </div>
       </div>
 
+      <ChangesFilter />
+
       {rows.length === 0 && !loadError ? (
         <p className="text-text-muted">
           No changes applied yet. Accepting a finding on a review page writes the rewrite to
@@ -104,7 +107,14 @@ export default async function SeoChangeLogPage() {
           {rows.map((r) => {
             const published = isPublished(r.post_id);
             return (
-              <div key={r.id} className="bg-surface border border-border-light rounded-lg p-5">
+              <div
+                key={r.id}
+                data-change-id={r.id}
+                data-auto={String(r.decided_by === "auto-batch")}
+                data-flagged={String(Boolean(r.revert_requested))}
+                data-warned={String(Boolean(r.deletion_note))}
+                className="bg-surface border border-border-light rounded-lg p-5"
+              >
                 <div className="flex flex-wrap items-center gap-2 mb-3">
                   <span
                     className={`text-xs font-semibold uppercase tracking-wider px-2 py-0.5 rounded ${
@@ -119,6 +129,11 @@ export default async function SeoChangeLogPage() {
                     Layer {r.layer}
                     {r.term ? ` · “${r.term}”` : ""} · {r.field_label}
                   </span>
+                  {r.decided_by === "auto-batch" && (
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded bg-indigo-100 text-indigo-800">
+                      machine edit
+                    </span>
+                  )}
                   <span
                     className={`text-xs font-medium px-2 py-0.5 rounded ml-auto ${
                       published
@@ -163,7 +178,13 @@ export default async function SeoChangeLogPage() {
                   </div>
                 )}
 
-                <div className="flex flex-wrap gap-4 text-xs text-text-muted">
+                <EditFeedback
+                  id={r.id}
+                  initialFlagged={Boolean(r.revert_requested)}
+                  initialNote={r.note}
+                />
+
+                <div className="flex flex-wrap gap-4 text-xs text-text-muted mt-3">
                   <span>Applied {fmt(r.applied_at)}</span>
                   {r.decided_by && <span>by {r.decided_by}</span>}
                   {published && status[r.post_id]?.publishedUpdatedAt && (

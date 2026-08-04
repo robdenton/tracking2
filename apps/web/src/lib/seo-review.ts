@@ -33,6 +33,7 @@ export interface FindingRow {
   decision: string | null;
   note: string | null;
   decided_by: string | null;
+  revert_requested?: boolean;
   decided_at: Date | null;
   rules_hash: string;
   model: string;
@@ -265,7 +266,8 @@ export async function getAppliedChanges(): Promise<FindingRow[]> {
            disposition, confidence, original_text, proposed_text, final_text,
            reader_takeaway, decision, note, decided_by, decided_at,
            rules_hash, model, applied_to_draft, applied_at, sanity_path,
-           field_kind, block_key, rewrite_scope, deletion_scope, deletion_note, category
+           field_kind, block_key, rewrite_scope, deletion_scope, deletion_note, category,
+           revert_requested
     FROM seo_review_findings
     WHERE applied_to_draft = true
     ORDER BY applied_at DESC`;
@@ -953,4 +955,25 @@ export async function setProposedText(id: string, text: string): Promise<void> {
     UPDATE seo_review_findings
     SET proposed_text = ${text}, updated_at = NOW()
     WHERE id = ${id}`;
+}
+
+/**
+ * Reviewer feedback on an edit that is ALREADY in the draft: flag it for
+ * reversal (with an optional note saying what was wrong). The flag never
+ * touches Sanity by itself — reverts are processed as their own batch, so the
+ * reviewer can flag freely while reading without waiting on network writes.
+ */
+export async function setEditFeedback(opts: {
+  id: string;
+  revert: boolean;
+  note?: string | null;
+}): Promise<boolean> {
+  const { id, revert, note } = opts;
+  const rows = await prisma.$queryRaw<{ id: string }[]>`
+    UPDATE seo_review_findings
+    SET revert_requested = ${revert},
+        note = COALESCE(${note ?? null}, note)
+    WHERE id = ${id} AND applied_to_draft = true
+    RETURNING id`;
+  return rows.length > 0;
 }
