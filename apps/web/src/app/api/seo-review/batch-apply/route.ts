@@ -80,6 +80,7 @@ export async function POST(request: NextRequest) {
     FROM seo_review_findings
     WHERE decision IS NULL
       AND applied_to_draft = false
+      AND decided_by IS DISTINCT FROM 'auto-skip'
       AND (
         disposition = 'red'
         OR (disposition = 'amber' AND confidence = 'high')
@@ -134,6 +135,17 @@ export async function POST(request: NextRequest) {
           });
 
       if ("error" in plan) {
+        // Without a persistent marker the same rows head the eligibility query
+        // forever and the driver loops on them — measured at 9,400 rounds
+        // before this guard existed. decided_by carries the marker; decision
+        // stays NULL so the row remains in the human review queue.
+        if (!dryRun) {
+          await prisma.$executeRaw`
+            UPDATE seo_review_findings
+            SET decided_by = 'auto-skip',
+                note = COALESCE(note, ${"[auto-skip] " + plan.error})
+            WHERE id = ${f.id}`;
+        }
         changes.push({
           ...base, action: "skipped",
           scope: hasRewrite ? f.rewrite_scope : f.deletion_scope,
@@ -184,6 +196,7 @@ export async function POST(request: NextRequest) {
   const remaining = await prisma.$queryRaw<{ n: bigint }[]>`
     SELECT count(*) AS n FROM seo_review_findings
     WHERE decision IS NULL AND applied_to_draft = false
+      AND decided_by IS DISTINCT FROM 'auto-skip'
       AND (disposition = 'red' OR (disposition = 'amber' AND confidence = 'high'))
       AND ((proposed_text IS NOT NULL AND proposed_text <> '')
         OR (deletion_scope IS NOT NULL AND deletion_scope NOT IN ('none','not-advisable')))`;

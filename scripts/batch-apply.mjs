@@ -56,16 +56,36 @@ console.log(`== Auto-edit batch ==\nsite: ${BASE}\nmode: ${dryRun ? 'DRY RUN (no
 
 const all = [];
 let round = 0;
+let prevRemaining = Infinity;
 
 for (;;) {
   round++;
-  const res = await fetch(`${BASE}/api/seo-review/batch-apply`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${secret}` },
-    body: JSON.stringify({ limit: 25, dryRun, slugs: slugsArg ?? undefined }),
-  });
-  if (!res.ok) {
-    console.error(`Round ${round}: HTTP ${res.status} — stopping. ${await res.text()}`.slice(0, 300));
+  if (round > 400) { console.error('Round cap (400) reached — stopping.'); break; }
+  // 10 rows per round keeps each serverless invocation far from its timeout —
+  // 25 was ~5s per row of Sanity reads+writes, brushing the 120s ceiling.
+  // A failed round is retried: every row commits individually server-side, so
+  // re-requesting after a timeout resumes exactly where it stopped.
+  let res = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      res = await fetch(`${BASE}/api/seo-review/batch-apply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${secret}` },
+        body: JSON.stringify({ limit: 10, dryRun, slugs: slugsArg ?? undefined }),
+        // A request that never returns must not stall the whole batch — this
+        // run once sat 80 minutes on a single unanswered fetch.
+        signal: AbortSignal.timeout(150_000),
+      });
+      if (res.ok) break;
+      console.error(`round ${round} attempt ${attempt}: HTTP ${res.status}`);
+    } catch (e) {
+      console.error(`round ${round} attempt ${attempt}: ${e.message}`.slice(0, 160));
+      res = null;
+    }
+    await new Promise((r) => setTimeout(r, 5000 * attempt));
+  }
+  if (!res || !res.ok) {
+    console.error(`Round ${round}: failed after 3 attempts — stopping.`);
     break;
   }
   const json = await res.json();
@@ -78,6 +98,13 @@ for (;;) {
 
   if (json.errors > 0 && json.applied === 0) { console.error('Round produced only errors — stopping.'); break; }
   if (json.processed === 0 || json.remainingEligible === 0) break;
+  // No progress two rounds running means the server is re-serving the same
+  // rows — stop rather than loop on them.
+  if (json.applied === 0 && json.remainingEligible >= prevRemaining) {
+    console.error('No progress: nothing applied and the eligible pool did not shrink — stopping.');
+    break;
+  }
+  prevRemaining = json.remainingEligible;
   if (dryRun) {
     // Dry run applies nothing, so "remaining" never shrinks — one round shows
     // the plan; looping would repeat the same 25 forever.
