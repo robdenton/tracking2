@@ -10,6 +10,12 @@ import {
   SanityTokenMissing,
   SanityTokenInvalid,
 } from "@/lib/seo-review";
+import {
+  rebuildChildren,
+  editHtmlText,
+  blockText,
+  type PtBlockNode,
+} from "@/lib/pt-edit";
 
 export const dynamic = "force-dynamic";
 
@@ -122,16 +128,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true, decision, appliedToDraft: false, warning: plan.error }, { status: 200 });
     }
     try {
-      await applyToDraft({
-        postId: finding.post_id,
-        path: plan.path,
-        newValue: plan.newValue,
-        unset: plan.unset,
-      });
-      await markApplied(id, plan.path);
+      const primaryPath = "path" in plan ? plan.path : Object.keys(plan.sets)[0];
+      await applyToDraft(
+        "path" in plan
+          ? { postId: finding.post_id, path: plan.path, newValue: plan.newValue, unset: plan.unset }
+          : { postId: finding.post_id, sets: plan.sets },
+      );
+      await markApplied(id, primaryPath);
       return NextResponse.json({
         ok: true, decision, appliedToDraft: true, deleted: true, scope,
-        path: plan.path, draftId: `drafts.${finding.post_id}`,
+        path: primaryPath, draftId: `drafts.${finding.post_id}`,
+        warning: "warning" in plan ? plan.warning : undefined,
       });
     } catch (e) {
       if (e instanceof SanityTokenMissing || e instanceof SanityTokenInvalid) {
@@ -172,14 +179,20 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    await applyToDraft({ postId: finding.post_id, path: plan.path, newValue: plan.newValue });
-    await markApplied(id, plan.path);
+    const primaryPath = "path" in plan ? plan.path : Object.keys(plan.sets)[0];
+    await applyToDraft(
+      "path" in plan
+        ? { postId: finding.post_id, path: plan.path, newValue: plan.newValue }
+        : { postId: finding.post_id, sets: plan.sets },
+    );
+    await markApplied(id, primaryPath);
     return NextResponse.json({
       ok: true,
       decision,
       appliedToDraft: true,
-      path: plan.path,
+      path: primaryPath,
       draftId: `drafts.${finding.post_id}`,
+      warning: "warning" in plan ? plan.warning : undefined,
     });
   } catch (e) {
     if (e instanceof SanityTokenMissing || e instanceof SanityTokenInvalid) {
@@ -195,8 +208,70 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// A plan is either a single-path patch, a multi-path set (used when a
+// formatted block's children array must be rebuilt — children and markDefs
+// change together, atomically), or a refusal.
+type PatchPlan =
+  | { path: string; newValue?: string; unset?: boolean }
+  | { sets: Record<string, unknown>; warning?: string }
+  | { error: string };
+
+// Rebuild a block around [start, end) -> replacement, preserving marks. Links
+// whose text survives the rewrite are re-anchored; anything genuinely dropped
+// is reported in the warning so it reaches the UI rather than vanishing.
+function rebuildToSets(
+  block: PtBlockNode,
+  start: number,
+  end: number,
+  replacement: string,
+  blockKey: string,
+): PatchPlan {
+  try {
+    const r = rebuildChildren(block, start, end, replacement);
+    const warning = r.dropped.length
+      ? `Formatting could not be carried into the rewrite — re-add by hand in the Studio: ${r.dropped
+          .map((d) => (d.href ? `link "${d.text}" → ${d.href}` : `${d.type} on "${d.text}"`))
+          .join("; ")}`
+      : undefined;
+    return {
+      sets: {
+        [`body[_key=="${blockKey}"].children`]: r.children,
+        [`body[_key=="${blockKey}"].markDefs`]: r.markDefs,
+      },
+      warning,
+    };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "block rebuild failed" };
+  }
+}
+
+// Locate [start, end) inside a single span, if it fits in one.
+function soloSpanFor(
+  block: PtBlockNode,
+  start: number,
+  end: number,
+): { child: NonNullable<PtBlockNode["children"]>[number]; index: number; local: number } | null {
+  const children = block.children ?? [];
+  let off = 0;
+  for (let i = 0; i < children.length; i++) {
+    const t = children[i].text ?? "";
+    if (start >= off && end <= off + t.length) return { child: children[i], index: i, local: start - off };
+    off += t.length;
+  }
+  return null;
+}
+
+// Address a span by its _key, never by index. Sanity's own guidance: array
+// indices go stale the moment anything edits the block concurrently; a _key
+// path cannot land on the wrong span.
+function spanPath(blockKey: string, child: { _key?: string }, index: number): string {
+  return child._key
+    ? `body[_key=="${blockKey}"].children[_key=="${child._key}"].text`
+    : `body[_key=="${blockKey}"].children[${index}].text`;
+}
+
 // Locate the original text in the live document and compute the exact patch.
-// Mirrors review/draft.mjs: verbatim match only, single span only.
+// Verbatim match only. Formatted blocks are rebuilt with marks preserved.
 async function planPatch(opts: {
   postId: string;
   fieldKind: string | null;
@@ -204,7 +279,7 @@ async function planPatch(opts: {
   original: string;
   replacement: string;
   scope?: string | null;
-}): Promise<{ path: string; newValue: string } | { error: string }> {
+}): Promise<PatchPlan> {
   const { postId, fieldKind, blockKey, original, replacement, scope } = opts;
   if (!fieldKind) {
     return {
@@ -252,56 +327,49 @@ async function planPatch(opts: {
     return { error: "This finding has no block reference and cannot be applied safely. Re-run the review for this article." };
   }
 
-  // Portable-text blocks: the quote must sit inside exactly one span, or we
-  // refuse — splicing across spans would corrupt marks and link annotations.
+  // Portable-text blocks. A quote inside one clean span gets a minimal
+  // single-path patch; anything touching formatting is rebuilt span-by-span
+  // with marks preserved (and any genuinely lost link reported, not dropped
+  // silently).
   for (const node of doc.body ?? []) {
     if (!node || !node._key) continue;
     if (node._key !== blockKey) continue; // target exactly the recorded block
     if (node._type === "block" && Array.isArray(node.children)) {
-      const full = node.children.map((c) => c.text ?? "").join("");
+      const block = node as PtBlockNode;
+      const full = blockText(block);
 
-      // A paragraph-scope rewrite replaces the WHOLE block. Splicing it in at
-      // the quote's position instead inserts the new paragraph inside the old
-      // one, duplicating everything around it.
+      // A paragraph-scope rewrite replaces the WHOLE block — splicing it at the
+      // quote's position would nest the new paragraph inside the old one.
       if (scope === "paragraph") {
-        if (node.children.length !== 1) {
-          return {
-            error:
-              "This is a whole-paragraph rewrite, but the paragraph contains bold text or a link. Replacing it automatically would destroy that formatting — rewrite it by hand in the Studio.",
-          };
-        }
-        return {
-          path: `body[_key=="${node._key}"].children[0].text`,
-          newValue: tidySeam(replacement),
-        };
+        return rebuildToSets(block, 0, full.length, tidySeam(replacement), node._key);
       }
 
       const start = full.indexOf(original);
       if (start === -1) continue;
-      const stop = start + original.length;
-      let offset = 0;
-      for (let i = 0; i < node.children.length; i++) {
-        const t = node.children[i].text ?? "";
-        if (start >= offset && stop <= offset + t.length) {
-          return {
-            path: `body[_key=="${node._key}"].children[${i}].text`,
-            newValue: splice(t),
-          };
-        }
-        offset += t.length;
+      let stop = start + original.length;
+      // Avoid doubled punctuation at the seam.
+      if (/[.!?]$/.test(replacement) && /^[.!?]/.test(full.slice(stop))) stop += 1;
+
+      const solo = soloSpanFor(block, start, stop);
+      if (solo) {
+        const t = solo.child.text ?? "";
+        return {
+          path: spanPath(node._key, solo.child, solo.index),
+          newValue: tidySeam(t.slice(0, solo.local) + replacement + t.slice(solo.local + (stop - start))),
+        };
       }
-      return {
-        error:
-          "The flagged text spans multiple styled spans (bold or a link). Not applied automatically, to avoid corrupting the link markup — edit this one by hand in the Studio.",
-      };
+      // Crosses a link or bold boundary: rebuild the block.
+      return rebuildToSets(block, start, stop, replacement, node._key);
     }
     if (node._type === "rawHtml" && typeof node.html === "string") {
-      const count = node.html.split(original).length - 1;
-      if (count === 1) {
-        return { path: `body[_key=="${node._key}"].html`, newValue: splice(node.html) };
-      }
-      if (count > 1) {
-        return { error: `The text appears ${count}× in that table — ambiguous, edit by hand.` };
+      try {
+        const r = editHtmlText(node.html, original, replacement);
+        if (r.matches > 1) {
+          return { error: `The text appears ${r.matches}× in that table — ambiguous, edit by hand.` };
+        }
+        return { path: `body[_key=="${node._key}"].html`, newValue: r.html };
+      } catch (e) {
+        return { error: e instanceof Error ? e.message : "table edit failed" };
       }
     }
   }
@@ -342,7 +410,7 @@ async function planDeletion(opts: {
   blockKey: string | null;
   original: string;
   scope: string;
-}): Promise<{ path: string; newValue?: string; unset?: boolean } | { error: string }> {
+}): Promise<PatchPlan> {
   const { postId, fieldKind, blockKey, original, scope } = opts;
   if (fieldKind !== "block" && fieldKind !== "rawHtml") {
     return { error: `Deleting from the ${fieldKind ?? "unknown"} field is not automatic — do it by hand in the Studio.` };
@@ -359,35 +427,45 @@ async function planDeletion(opts: {
   const node = (doc?.body ?? []).find((b) => b._key === blockKey);
   if (!node) return { error: `Block ${blockKey} not found.` };
 
-  if (node._type === "rawHtml") {
-    return { error: "Deleting from table HTML is not automatic — do it by hand in the Studio." };
+  if (node._type === "rawHtml" && typeof node.html === "string") {
+    // Deletion from a table is a replacement with nothing; the tag-skeleton
+    // guard proves the table structure survived.
+    try {
+      const r = editHtmlText(node.html, original, "");
+      if (r.matches > 1) {
+        return { error: `The text appears ${r.matches}× in that table — ambiguous, edit by hand.` };
+      }
+      return { path: `body[_key=="${blockKey}"].html`, newValue: r.html };
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : "table delete failed" };
+    }
   }
-  const children = node.children ?? [];
-  const full = children.map((c) => c.text ?? "").join("");
+
+  const block = node as PtBlockNode;
+  const full = blockText(block);
   const start = full.indexOf(original);
   if (start === -1) return { error: "The flagged text is no longer present verbatim — re-run the review for this article." };
-  const stop = start + original.length;
-  let offset = 0;
-  for (let i = 0; i < children.length; i++) {
-    const t = children[i].text ?? "";
-    if (start >= offset && stop <= offset + t.length) {
-      const local = start - offset;
-      let cut = t.slice(0, local) + t.slice(local + original.length);
-      cut = tidySeam(cut);
-      if (local === 0) cut = cut.replace(/^\s+/, "");
-      return { path: `body[_key=="${blockKey}"].children[${i}].text`, newValue: cut };
-    }
-    offset += t.length;
+  let stop = start + original.length;
+  // Swallow one trailing space so the cut does not leave a double gap.
+  if (full[stop] === " " && (start === 0 || full[start - 1] === " ")) stop += 1;
+
+  const solo = soloSpanFor(block, start, stop);
+  if (solo) {
+    const t = solo.child.text ?? "";
+    const local = solo.local;
+    let cut = t.slice(0, local) + t.slice(local + (stop - start));
+    cut = tidySeam(cut);
+    if (local === 0) cut = cut.replace(/^\s+/, "");
+    return { path: spanPath(blockKey, solo.child, solo.index), newValue: cut };
   }
-  return {
-    error:
-      "The flagged text spans multiple styled spans (bold or a link). Deleting it automatically could corrupt the markup — remove it by hand in the Studio.",
-  };
+  // The passage crosses a link or bold boundary: rebuild the block without it.
+  return rebuildToSets(block, start, stop, "", blockKey);
 }
 
 interface PtNode {
   _key?: string;
   _type?: string;
   html?: string;
-  children?: { text?: string }[];
+  children?: { _key?: string; _type?: string; text?: string; marks?: string[] }[];
+  markDefs?: { _key?: string; _type?: string; href?: string }[];
 }

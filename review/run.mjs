@@ -425,6 +425,15 @@ async function main() {
   // articles the bucket comes from subject matter alone, so this selects on the
   // provisional bucket — which is the point, since it is the only signal that
   // exists before the review runs.
+  // --slugs-file <path>: restrict to an explicit slug list (JSON array). Used
+  // with --force to re-run under new rules ONLY the articles that carry no
+  // human decisions — re-running a decided article orphans its decisions, so
+  // the selection must be exact, not approximate.
+  const slugsFile = opt('--slugs-file');
+  if (slugsFile) {
+    const allowed = new Set(JSON.parse(readFileSync(slugsFile, 'utf8')));
+    queue = queue.filter((p) => allowed.has(p.slug));
+  }
   const bucket = opt('--bucket');
   if (bucket) {
     queue = queue.filter((p) => {

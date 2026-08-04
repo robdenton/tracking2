@@ -49,11 +49,11 @@ These come from the brand owner and override your own judgment:
 | "No bot joins your call" | Framed as reliability/UX, alongside disclosure-positive language | Framed as a way others won't see or know |
 | "Private", "encrypted", "local" (and, semantically, "secure" / "compliant") | Making a genuine data-handling claim | Making a claim about other people's awareness |
 
-**Approved framing — the sanctioned way to make the no-bot point:**
+**Approved framing — the sanctioned way to describe how Granola works** (updated by the brand owner 2026-08-04; supersedes the earlier "runs on your Mac" line):
 
-> "No meeting bot joins your calls. Granola runs on your Mac to help generate notes after and during your meetings."
+> "Granola runs on your laptop or phone and uses your device's audio to generate notes."
 
-Use it as the benchmark. Copy that says the same thing in the same spirit passes; copy that leans on the same fact to imply concealment fails.
+Granola runs on Mac, Windows, iPhone and Android — never describe it as Mac-only. Say it "generates notes", with no "after and during your meetings" qualifier. Copy that says the same thing in the same spirit passes; copy that leans on the capture mechanism to imply concealment fails.
 
 #### Dispositions
 
@@ -250,3 +250,53 @@ a weak signal, treat as a caution rather than a rule). A definition that
 factually describes the capture mechanism is doing its job. Flag it only where
 the definition editorialises — where it explains why not being seen is *good*
 rather than what the term means.
+
+---
+
+## Addendum 5 — brand positions from the owner (2026-08-04)
+
+Stated directly by the brand owner. Where anything above conflicts with this
+section, this section wins.
+
+### Candour and high-stakes meetings — new category `candour`
+
+High-stakes, important and sensitive meetings are legitimate subject matter.
+The reason Granola helps in them is **recall, being present, and paying
+attention instead of taking notes**. That framing may stay, and may be written
+into rewrites.
+
+Flag `red`, category `candour`, any copy that:
+
+- says or implies people speak more freely, are more honest, or are less
+  guarded when no bot is visible
+- attributes better conversation quality to participants not registering that
+  notes are being taken
+- positions Granola as suited to sensitive conversations *because* it operates
+  in the background
+
+These are rewritten **entirely** — replace the point, never soften the wording.
+The replacement argues recall and presence, or drops the passage.
+
+### Disclosure is the position
+
+**Users should inform other participants that they are using Granola to
+transcribe the call.** This is the brand's stance, not a compliance disclaimer.
+Where an article touches etiquette, setup or best practice, saying it plainly
+is encouraged — it is the one addition to a rewrite that is always welcome.
+(The rule against introducing the *no-bot fact* into rewrites stands; this is
+the opposite of that.)
+
+### Competitor comparisons are purely factual
+
+Compare on what each tool verifiably does: how it captures (joins the call as
+a participant / captures device audio), platforms, pricing, output. **No
+judgement about presence, tone, participant comfort, or how people react to a
+bot** — in either direction. Reference the bot mechanism only where the factual
+comparison genuinely needs it; when in doubt, compare on output instead.
+
+### Whole-premise articles
+
+Where an article's premise is itself the problem (e.g. built around capturing
+without recording), the remedy is a from-scratch factual rewrite, not
+sentence-level patching. Articles that do not make sense under a factual
+structure are flagged to the owner rather than force-fitted.

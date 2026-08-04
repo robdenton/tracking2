@@ -67,9 +67,9 @@ const FINDING_PROPS = {
   },
   category: {
     type: 'string',
-    enum: ['disclosure', 'accuracy', 'bot-denigration'],
+    enum: ['disclosure', 'accuracy', 'bot-denigration', 'candour'],
     description:
-      'Which failure mode this is. "accuracy" = a factually inaccurate data-handling claim (per Addendum 2: notes ARE cloud-stored, so any claim they stay on-device / off third-party servers / out of the cloud is false). "bot-denigration" = positions meeting bots as bad. "disclosure" = the governing consent test. Use the most specific one.',
+      'Which failure mode this is. "accuracy" = a factually inaccurate data-handling claim (per Addendum 2: notes ARE cloud-stored, so any claim they stay on-device / off third-party servers / out of the cloud is false). "bot-denigration" = positions meeting bots as bad. "candour" = claims that people speak more freely / are more honest / less guarded because no bot is visible, or that Granola suits sensitive meetings BECAUSE it operates unnoticed (per Addendum 5). "disclosure" = the governing consent test. Use the most specific one.',
   },
   confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
 };
@@ -112,7 +112,7 @@ const ADJUDICATE_TOOL = {
             rewrite_scope: { type: 'string', enum: ['sentence', 'paragraph', 'none'] },
             suggested_deletion_scope: { type: 'string', enum: ['sentence', 'paragraph', 'not-advisable', 'none'] },
             deletion_rationale: { type: 'string' },
-            category: { type: 'string', enum: ['disclosure', 'accuracy', 'bot-denigration'] },
+            category: { type: 'string', enum: ['disclosure', 'accuracy', 'bot-denigration', 'candour'] },
             confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
           },
           required: ['hit_index', 'disposition', 'reader_takeaway', 'suggested_rewrite', 'rewrite_scope', 'suggested_deletion_scope', 'deletion_rationale', 'category', 'confidence'],
