@@ -48,9 +48,10 @@ if (!secret) { console.error('CRON_SECRET not found in .env — cannot authentic
 const dryRun = flag('--dry-run');
 const maxArticles = opt('--max-articles') ? Number(opt('--max-articles')) : null;
 const slugsArg = opt('--slugs') ? opt('--slugs').split(',').map((s) => s.trim()).filter(Boolean) : null;
+const mode = opt('--mode'); // 'human-accepted' applies decisions humans made that were refused at the time
 
 const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 17);
-const label = dryRun ? 'dry-run' : maxArticles ? `first-${maxArticles}-articles` : 'batch';
+const label = dryRun ? 'dry-run' : mode === 'human-accepted' ? 'human-accepted' : maxArticles ? `first-${maxArticles}-articles` : 'batch';
 
 console.log(`== Auto-edit batch ==\nsite: ${BASE}\nmode: ${dryRun ? 'DRY RUN (nothing written)' : 'apply to drafts'}\n`);
 
@@ -71,7 +72,7 @@ for (;;) {
       res = await fetch(`${BASE}/api/seo-review/batch-apply`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${secret}` },
-        body: JSON.stringify({ limit: 10, dryRun, slugs: slugsArg ?? undefined }),
+        body: JSON.stringify({ limit: 10, dryRun, slugs: slugsArg ?? undefined, mode: mode ?? undefined }),
         // A request that never returns must not stall the whole batch — this
         // run once sat 80 minutes on a single unanswered fetch.
         signal: AbortSignal.timeout(150_000),
@@ -100,8 +101,12 @@ for (;;) {
   if (json.processed === 0 || json.remainingEligible === 0) break;
   // No progress two rounds running means the server is re-serving the same
   // rows — stop rather than loop on them.
-  if (json.applied === 0 && json.remainingEligible >= prevRemaining) {
+  if (json.applied === 0 && json.remainingEligible >= prevRemaining && mode !== 'human-accepted') {
     console.error('No progress: nothing applied and the eligible pool did not shrink — stopping.');
+    break;
+  }
+  if (mode === 'human-accepted' && json.applied === 0) {
+    console.error('Human-accepted mode made no progress this round — stopping to avoid a loop.');
     break;
   }
   prevRemaining = json.remainingEligible;

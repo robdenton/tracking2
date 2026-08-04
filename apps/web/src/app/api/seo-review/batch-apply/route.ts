@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  let body: { slugs?: string[]; limit?: number; dryRun?: boolean };
+  let body: { slugs?: string[]; limit?: number; dryRun?: boolean; mode?: string };
   try {
     body = await request.json();
   } catch {
@@ -71,6 +71,11 @@ export async function POST(request: NextRequest) {
   const limit = Math.min(Math.max(1, body.limit ?? BATCH_CAP), BATCH_CAP);
   const dryRun = Boolean(body.dryRun);
   const slugs = Array.isArray(body.slugs) ? body.slugs.filter((s) => typeof s === "string") : null;
+  // mode 'human-accepted': apply decisions a HUMAN already made that could not
+  // be written at the time (formatting refusals predating the span-rebuild
+  // work). The decision and decided_by are preserved — this fills in the
+  // missing apply, it does not re-decide anything.
+  const humanAccepted = body.mode === "human-accepted";
 
   // Eligible, oldest article first so a run walks the corpus in a stable order.
   const rows = await prisma.$queryRaw<
@@ -78,16 +83,21 @@ export async function POST(request: NextRequest) {
   >`
     SELECT id, slug, title
     FROM seo_review_findings
-    WHERE decision IS NULL
-      AND applied_to_draft = false
-      AND decided_by IS DISTINCT FROM 'auto-skip'
+    WHERE applied_to_draft = false
       AND (
-        disposition = 'red'
-        OR (disposition = 'amber' AND confidence = 'high')
+        (${humanAccepted} = true
+          AND decision IN ('accept','accept-delete')
+          AND decided_by NOT IN ('auto-batch','auto-skip'))
+        OR
+        (${humanAccepted} = false
+          AND decision IS NULL
+          AND decided_by IS DISTINCT FROM 'auto-skip'
+          AND (disposition = 'red' OR (disposition = 'amber' AND confidence = 'high')))
       )
       AND (
         (proposed_text IS NOT NULL AND proposed_text <> '')
         OR (deletion_scope IS NOT NULL AND deletion_scope NOT IN ('none','not-advisable'))
+        OR (${humanAccepted} = true AND final_text IS NOT NULL AND final_text <> '')
       )
       AND (${slugs}::text[] IS NULL OR slug = ANY(${slugs}::text[]))
     ORDER BY slug, id
@@ -112,9 +122,11 @@ export async function POST(request: NextRequest) {
     };
 
     // Rewrite is the default remedy (the human reviewer chose rewrite 64% of
-    // the time); deletion only when no rewrite was proposed.
-    const hasRewrite = Boolean(f.proposed_text && f.proposed_text.trim());
-    const decision = hasRewrite ? "accept" : "accept-delete";
+    // the time); deletion only when no rewrite was proposed. In human-accepted
+    // mode the recorded decision wins outright.
+    const replacementText = (f.final_text && f.final_text.trim()) || (f.proposed_text && f.proposed_text.trim()) || "";
+    const hasRewrite = humanAccepted ? f.decision === "accept" && Boolean(replacementText) : Boolean(replacementText);
+    const decision = humanAccepted ? (f.decision as string) : hasRewrite ? "accept" : "accept-delete";
 
     try {
       const plan = hasRewrite
@@ -123,7 +135,7 @@ export async function POST(request: NextRequest) {
             fieldKind: f.field_kind,
             blockKey: f.block_key,
             original: f.original_text,
-            replacement: f.proposed_text as string,
+            replacement: replacementText,
             scope: f.rewrite_scope,
           })
         : await planDeletion({
@@ -139,11 +151,19 @@ export async function POST(request: NextRequest) {
         // forever and the driver loops on them — measured at 9,400 rounds
         // before this guard existed. decided_by carries the marker; decision
         // stays NULL so the row remains in the human review queue.
-        if (!dryRun) {
+        // In human-accepted mode the row carries the REVIEWER's decided_by —
+        // never overwrite it with the skip marker; note the reason only. The
+        // driver's applied===0 stop condition prevents looping in that mode.
+        if (!dryRun && !humanAccepted) {
           await prisma.$executeRaw`
             UPDATE seo_review_findings
             SET decided_by = 'auto-skip',
                 note = COALESCE(note, ${"[auto-skip] " + plan.error})
+            WHERE id = ${f.id}`;
+        } else if (!dryRun) {
+          await prisma.$executeRaw`
+            UPDATE seo_review_findings
+            SET note = COALESCE(note, ${"[apply-failed] " + plan.error})
             WHERE id = ${f.id}`;
         }
         changes.push({
@@ -157,7 +177,9 @@ export async function POST(request: NextRequest) {
 
       const primaryPath = "path" in plan ? plan.path : Object.keys(plan.sets)[0];
       if (!dryRun) {
-        await recordDecision({ id: f.id, decision, note: null, finalText: null, decidedBy: "auto-batch" });
+        if (!humanAccepted) {
+          await recordDecision({ id: f.id, decision, note: null, finalText: null, decidedBy: "auto-batch" });
+        }
         await applyToDraft(
           "path" in plan
             ? { postId: f.post_id, path: plan.path, newValue: plan.newValue, unset: plan.unset }
@@ -170,7 +192,7 @@ export async function POST(request: NextRequest) {
         action: hasRewrite ? "rewrite" : "delete",
         scope: hasRewrite ? f.rewrite_scope : f.deletion_scope,
         original: f.original_text,
-        replacement: hasRewrite ? (f.proposed_text as string) : null,
+        replacement: hasRewrite ? replacementText : null,
         path: primaryPath,
         warning: "warning" in plan ? (plan.warning ?? null) : null,
         appliedAt: dryRun ? null : new Date().toISOString(),

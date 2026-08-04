@@ -112,6 +112,12 @@ function classifyResidual(slug, quote) {
 
 let targets = edited;
 if (opt('--limit')) targets = targets.slice(0, Number(opt('--limit')));
+// --slugs a,b,c: retry a subset (e.g. the articles a previous sweep errored on)
+// without re-paying the semantic pass for everything that already completed.
+if (opt('--slugs')) {
+  const only = new Set(opt('--slugs').split(',').map((x) => x.trim()).filter(Boolean));
+  targets = targets.filter((t) => only.has(t.slug));
+}
 
 const rulesText = readFileSync(join(ROOT, 'review', 'RULES.md'), 'utf8');
 const skipSemantic = flag('--skip-semantic');
