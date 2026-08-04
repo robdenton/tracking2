@@ -76,7 +76,39 @@ const edited = await prisma.$queryRawUnsafe(`
   SELECT slug, post_id, min(title) AS title, count(*)::int AS edits
   FROM seo_review_findings WHERE applied_to_draft = true
   GROUP BY slug, post_id ORDER BY slug`);
+
+// Everything known about these articles, for classifying residuals: a residual
+// matching an OPEN finding is queue backlog (the batch only applies red and
+// high-confidence amber — the rest is deliberately left for humans), not an
+// edit failure. Only residuals matching nothing are NEW.
+const known = await prisma.$queryRawUnsafe(`
+  SELECT slug, disposition, decision, applied_to_draft, decided_by, original_text
+  FROM seo_review_findings
+  WHERE slug IN (SELECT DISTINCT slug FROM seo_review_findings WHERE applied_to_draft = true)`);
+const knownBySlug = new Map();
+for (const k of known) {
+  if (!knownBySlug.has(k.slug)) knownBySlug.set(k.slug, []);
+  knownBySlug.get(k.slug).push(k);
+}
 await prisma.$disconnect();
+
+const norm = (x) => String(x || '').toLowerCase().replace(/\s+/g, ' ').trim();
+const overlaps = (a, b) => {
+  const na = norm(a), nb = norm(b);
+  if (na.length < 12 || nb.length < 12) return na === nb && na.length > 0;
+  return na.includes(nb) || nb.includes(na);
+};
+
+/** Classify a residual quote against what the review already knows. */
+function classifyResidual(slug, quote) {
+  for (const k of knownBySlug.get(slug) ?? []) {
+    if (!overlaps(quote, k.original_text)) continue;
+    if (k.applied_to_draft) return 'apply-mismatch';       // old text should be GONE — alarm
+    if (['red', 'amber'].includes(k.disposition)) return 'open-queue'; // known, awaiting a human
+    return 'previously-cleared';                            // dispositioned clear last review
+  }
+  return 'new';
+}
 
 let targets = edited;
 if (opt('--limit')) targets = targets.slice(0, Number(opt('--limit')));
@@ -103,8 +135,11 @@ for (const t of targets) {
       row.artifacts = (v.issues || []).map((i) => ({ kind: i.kind, where: i.where, detail: i.detail, text: (i.text || '').slice(0, 140) }));
       row.manual = (v.manualActions || []).map((m) => ({ reason: m.reason, field: m.fieldLabel, text: (m.text || '').slice(0, 140) }));
       if (row.artifacts.length) {
-        const r = await fetch(`${BASE}/api/seo-review/repair?slug=${encodeURIComponent(t.slug)}&apply=true`, {
-          method: 'POST', headers: HEADERS, signal: AbortSignal.timeout(60_000),
+        const r = await fetch(`${BASE}/api/seo-review/repair`, {
+          method: 'POST',
+          headers: { ...HEADERS, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ slug: t.slug, apply: true }),
+          signal: AbortSignal.timeout(60_000),
         }).then((x) => (x.ok ? x.json() : null)).catch(() => null);
         if (r) {
           row.repaired = (r.repaired || []).map((x) => ({ where: x.where, removed: (x.removed || '').slice(0, 120) }));
@@ -118,7 +153,11 @@ for (const t of targets) {
     if (dd && dd.doc) {
       const post = { ...dd.doc, slug: { current: t.slug } };
       const segments = extractSegments(post);
-      const aHits = scanPost(post).filter((h) => h.tier === 'red');
+      // URL fragments trip the lexicon ("hidden" inside a slug); the original
+      // pipeline clears these via adjudication, which this scan skips — so
+      // filter them here instead of reporting noise.
+      const urlish = /https?:\/\/|www\.|[a-z0-9-]+\.(com|ai|io|so|net|org)\//i;
+      const aHits = scanPost(post).filter((h) => h.tier === 'red' && !urlish.test(h.sentence || h.quote || ''));
       let bFindings = [];
       if (!skipSemantic) {
         const sem = await semanticPass({ rulesText, post, segments });
@@ -127,7 +166,7 @@ for (const t of targets) {
       row.residuals = [
         ...aHits.map((h) => ({ layer: 'A', severity: 'red', term: h.term, quote: (h.sentence || h.quote || '').slice(0, 160) })),
         ...bFindings.map((f) => ({ layer: 'B', severity: f.disposition, category: f.category || 'disclosure', quote: (f.quote || '').slice(0, 160), why: (f.reader_takeaway || '').slice(0, 140) })),
-      ];
+      ].map((x) => ({ ...x, class: classifyResidual(t.slug, x.quote) }));
     } else {
       row.error = 'could not read the draft document';
     }
@@ -136,8 +175,10 @@ for (const t of targets) {
   }
   report.push(row);
   done++;
-  const flagged = row.artifacts.length + row.residuals.length + row.manual.length;
-  console.log(`[${done}/${targets.length}] ${t.slug.slice(0, 55)}  ${row.error ? 'ERROR: ' + row.error.slice(0, 60) : flagged === 0 ? 'clean' : `artifacts:${row.artifacts.length} repaired:${row.repaired.length} residuals:${row.residuals.length} manual:${row.manual.length}`}`);
+  const newRes = row.residuals.filter((x) => x.class === 'new' || x.class === 'apply-mismatch').length;
+  const queueRes = row.residuals.length - newRes;
+  const flagged = row.artifacts.length + newRes + row.manual.length;
+  console.log(`[${done}/${targets.length}] ${t.slug.slice(0, 55)}  ${row.error ? 'ERROR: ' + row.error.slice(0, 60) : flagged === 0 ? (queueRes ? `clean (queue backlog ${queueRes})` : 'clean') : `NEW:${newRes} queue:${queueRes} artifacts:${row.artifacts.length} repaired:${row.repaired.length} manual:${row.manual.length}`}`);
 }
 
 // --- write the report -------------------------------------------------------
@@ -145,11 +186,14 @@ const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 17);
 const dir = join(ROOT, 'review', 'change-log');
 mkdirSync(dir, { recursive: true });
 
+const isNew = (x) => x.class === 'new' || x.class === 'apply-mismatch';
 const totals = {
   articles: report.length,
-  clean: report.filter((r) => !r.error && r.artifacts.length + r.residuals.length + r.manual.length === 0).length,
-  withResiduals: report.filter((r) => r.residuals.length).length,
-  residuals: report.reduce((a, r) => a + r.residuals.length, 0),
+  clean: report.filter((r) => !r.error && r.artifacts.length + r.residuals.filter(isNew).length + r.manual.length === 0).length,
+  newResiduals: report.reduce((a, r) => a + r.residuals.filter(isNew).length, 0),
+  applyMismatches: report.reduce((a, r) => a + r.residuals.filter((x) => x.class === 'apply-mismatch').length, 0),
+  queueBacklog: report.reduce((a, r) => a + r.residuals.filter((x) => x.class === 'open-queue').length, 0),
+  previouslyCleared: report.reduce((a, r) => a + r.residuals.filter((x) => x.class === 'previously-cleared').length, 0),
   repaired: report.reduce((a, r) => a + r.repaired.length, 0),
   manual: report.reduce((a, r) => a + r.manual.length, 0),
   errors: report.filter((r) => r.error).length,
@@ -159,23 +203,29 @@ writeFileSync(join(dir, `${stamp}-verification.json`), JSON.stringify({ ranAt: n
 
 const lines = [
   `# Post-edit verification — ${stamp}`, '',
-  `${totals.articles} edited article(s). **${totals.clean} fully clean.** ` +
-  `${totals.residuals} residual finding(s) in ${totals.withResiduals} article(s) · ` +
-  `${totals.repaired} artifact(s) auto-repaired · ${totals.manual} item(s) need a hand · ${totals.errors} error(s).`, '',
-  `A *residual* is red/amber language still present in the edited draft — the "no trace remains" check read the draft as it stands, not the edit list.`, '',
+  `${totals.articles} edited article(s). **${totals.clean} clean of new problems.**`,
+  ``,
+  `- **${totals.newResiduals} NEW residual(s)** — flagged language not matching any known finding: either introduced by a rewrite or missed before. These are the ones that matter.`,
+  `- **${totals.applyMismatches} apply mismatch(es)** — text an applied edit should have removed but which still reads in the draft.`,
+  `- ${totals.queueBacklog} residual(s) match findings already sitting OPEN in the review queue (amber below the auto-apply bar, or batch-skipped) — expected, not edit failures.`,
+  `- ${totals.previouslyCleared} match previously-cleared findings (suppressed).`,
+  `- ${totals.repaired} artifact(s) auto-repaired · ${totals.manual} item(s) for the manual list · ${totals.errors} error(s).`, '',
 ];
 for (const r of report) {
-  const flagged = r.artifacts.length + r.residuals.length + r.manual.length;
+  const newOnes = r.residuals.filter(isNew);
+  const flagged = r.artifacts.length + newOnes.length + r.manual.length;
   if (!flagged && !r.error) continue; // clean articles are counted, not listed
   lines.push(`## ${r.title || r.slug}`);
   lines.push(`page: \`${r.slug}\` · ${r.edits} edit(s) · [live](${r.liveUrl}) · [draft in Studio](${r.studioUrl})`);
   if (r.error) lines.push(`- **ERROR**: ${r.error}`);
-  for (const x of r.residuals) lines.push(`- **RESIDUAL ${x.severity}** (${x.layer}${x.category ? '/' + x.category : ''}): “${x.quote}”${x.why ? ` — ${x.why}` : ''}`);
+  for (const x of newOnes) lines.push(`- **${x.class === 'apply-mismatch' ? 'APPLY MISMATCH' : 'NEW RESIDUAL'} ${x.severity}** (${x.layer}${x.category ? '/' + x.category : ''}): “${x.quote}”${x.why ? ` — ${x.why}` : ''}`);
   for (const x of r.repaired) lines.push(`- repaired: ${x.where} — removed “${x.removed}”`);
   for (const x of r.manual) lines.push(`- **manual**: ${x.field} — ${x.reason} — “${x.text}”`);
+  const queueOnes = r.residuals.filter((x) => x.class === 'open-queue').length;
+  if (queueOnes) lines.push(`- (${queueOnes} further finding(s) already open in the review queue — not listed)`);
   lines.push('');
 }
 writeFileSync(join(dir, `${stamp}-verification.md`), lines.join('\n'));
 
-console.log(`\nClean: ${totals.clean}/${totals.articles} · residuals ${totals.residuals} · repaired ${totals.repaired} · manual ${totals.manual} · errors ${totals.errors}`);
+console.log(`\nClean of new problems: ${totals.clean}/${totals.articles} · NEW residuals ${totals.newResiduals} (${totals.applyMismatches} apply mismatches) · queue backlog ${totals.queueBacklog} · repaired ${totals.repaired} · manual ${totals.manual} · errors ${totals.errors}`);
 console.log(`Report: review/change-log/${stamp}-verification.md`);
