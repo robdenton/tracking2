@@ -113,8 +113,9 @@ async function generateRewrite(item, segText) {
           properties: {
             rewrite: { type: 'string', description: 'Replacement for the FLAGGED SPAN only — must fit grammatically where the flagged text sits.' },
             delete_instead: { type: 'boolean', description: 'True when removal is the better remedy and the surrounding copy reads cleanly without it.' },
+            no_change_needed: { type: 'boolean', description: 'True when the flagged span is actually FINE under the current rules (e.g. Addendum 7: the bare no-bot fact without any secrecy coupling is sanctioned). The span is left untouched.' },
           },
-          required: ['rewrite', 'delete_instead'],
+          required: ['rewrite', 'delete_instead', 'no_change_needed'],
         },
       }],
       tool_choice: { type: 'tool', name: 'submit_fix' },
@@ -157,6 +158,7 @@ for (const item of work) {
     } else {
       const fix = await generateRewrite(item, seg.text);
       if (!fix) throw new Error('no tool output');
+      if (fix.no_change_needed) { manual.length; console.log(`[${done}/${work.length}] sanctioned  ${item.slug.slice(0,45)} — left as-is (Addendum 7)`); continue; }
       if (fix.delete_instead) { deletion = 'sentence'; replacement = ''; }
       else replacement = fix.rewrite;
     }
