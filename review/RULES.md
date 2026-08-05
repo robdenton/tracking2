@@ -338,3 +338,29 @@ The owner has authorized auto-applying the remaining medium-confidence amber
 findings, on the measured basis that assertive-rationale amber matches his
 own decisions ~80% of the time, with the Changes-page flag as the correction
 loop. Hedged or low-confidence findings remain excluded by Addendum 4.
+
+---
+
+## Addendum 7 — the no-bot line, settled (2026-08-05)
+
+The owner's clarification, verbatim in spirit: **"I'm fine making the point
+that there's no bots. I just don't want to couple that point with secrecy."**
+
+Stating that no bot joins the call is sanctioned — plainly, even prominently,
+including in testimonials ("no bots joining calls", "it doesn't join your
+calls", "no bot needs to join your meeting"). It is a factual product
+property, like running on device audio.
+
+What fails is the **coupling**: the no-bot fact joined to any suggestion that
+participants won't know, won't notice, needn't be told, or will speak
+differently. "No bots joining calls" passes; "no bots joining calls, so
+nothing appears for participants" fails; "no bot in the room, so people speak
+freely" fails on candour. Judge the sentence and its immediate surroundings
+for the coupling, not for the fact.
+
+A comparison-table axis like "Bot presence" is likewise factual and may
+stand; the Granola cell may read "No bot — uses your device audio".
+
+Earlier remedies erred stricter than this line. That over-caution is safe and
+stands, but from this addendum forward the test is the coupling, never the
+bare fact.
