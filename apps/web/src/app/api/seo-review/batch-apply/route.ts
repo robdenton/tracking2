@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  let body: { slugs?: string[]; limit?: number; dryRun?: boolean; mode?: string };
+  let body: { slugs?: string[]; limit?: number; dryRun?: boolean; mode?: string; includeMediumAmber?: boolean };
   try {
     body = await request.json();
   } catch {
@@ -76,6 +76,9 @@ export async function POST(request: NextRequest) {
   // work). The decision and decided_by are preserved — this fills in the
   // missing apply, it does not re-decide anything.
   const humanAccepted = body.mode === "human-accepted";
+  // Owner-authorized (Addendum 6): medium-confidence amber joins the auto
+  // pool. Rows held for cluster sign-off are excluded until released.
+  const includeMediumAmber = body.includeMediumAmber === true;
 
   // Eligible, oldest article first so a run walks the corpus in a stable order.
   const rows = await prisma.$queryRaw<
@@ -91,8 +94,10 @@ export async function POST(request: NextRequest) {
         OR
         (${humanAccepted} = false
           AND decision IS NULL
-          AND decided_by IS DISTINCT FROM 'auto-skip'
-          AND (disposition = 'red' OR (disposition = 'amber' AND confidence = 'high')))
+          AND (decided_by IS NULL OR decided_by NOT IN ('auto-skip','cluster-hold'))
+          AND (disposition = 'red'
+            OR (disposition = 'amber' AND confidence = 'high')
+            OR (${includeMediumAmber} = true AND disposition = 'amber' AND confidence = 'medium')))
       )
       AND (
         (proposed_text IS NOT NULL AND proposed_text <> '')
@@ -218,8 +223,10 @@ export async function POST(request: NextRequest) {
   const remaining = await prisma.$queryRaw<{ n: bigint }[]>`
     SELECT count(*) AS n FROM seo_review_findings
     WHERE decision IS NULL AND applied_to_draft = false
-      AND decided_by IS DISTINCT FROM 'auto-skip'
-      AND (disposition = 'red' OR (disposition = 'amber' AND confidence = 'high'))
+      AND (decided_by IS NULL OR decided_by NOT IN ('auto-skip','cluster-hold'))
+      AND (disposition = 'red'
+        OR (disposition = 'amber' AND confidence = 'high')
+        OR (${includeMediumAmber} = true AND disposition = 'amber' AND confidence = 'medium'))
       AND ((proposed_text IS NOT NULL AND proposed_text <> '')
         OR (deletion_scope IS NOT NULL AND deletion_scope NOT IN ('none','not-advisable')))`;
 

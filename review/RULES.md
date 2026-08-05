@@ -300,3 +300,41 @@ Where an article's premise is itself the problem (e.g. built around capturing
 without recording), the remedy is a from-scratch factual rewrite, not
 sentence-level patching. Articles that do not make sense under a factual
 structure are flagged to the owner rather than force-fitted.
+
+---
+
+## Addendum 6 — owner rulings, second round (2026-08-04)
+
+### Testimonials: verbatim or gone
+
+A customer's quoted words are **never reworded**. When a testimonial (a)
+alludes to bots changing the nature of the conversation — people hedging,
+holding back, speaking differently — or (b) endorses using a no-bot tool
+without being transparent with participants, the remedy is:
+
+1. **Trim.** Remove whole contiguous parts — clauses or sentences. Every word
+   that remains must appear verbatim, in order, in the original quote. Trim
+   only when what remains still reads as a natural quote and no longer makes
+   the offending point.
+2. **Delete the quote entirely** when no such trim exists.
+
+Never paraphrase inside quotation marks; a trimmed quote is still that
+person's words, a paraphrased one is not. Quotes that make neither point are
+left alone. TL;DR callout blocks formatted as blockquotes are not
+testimonials — normal rewrite rules apply to them.
+
+### Tables may be restructured
+
+The comparison axis is often the finding — a row named "Participant
+visibility" is the problem even when every cell in it is factual. Renaming a
+row or column header, dropping a row, or merging rows is allowed when the
+axis itself makes perceptibility or participant reaction the basis of
+comparison. Restructure toward factual axes: capture method, platforms,
+price, output.
+
+### Amber automation is authorized
+
+The owner has authorized auto-applying the remaining medium-confidence amber
+findings, on the measured basis that assertive-rationale amber matches his
+own decisions ~80% of the time, with the Changes-page flag as the correction
+loop. Hedged or low-confidence findings remain excluded by Addendum 4.

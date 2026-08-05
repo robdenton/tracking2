@@ -49,6 +49,7 @@ const dryRun = flag('--dry-run');
 const maxArticles = opt('--max-articles') ? Number(opt('--max-articles')) : null;
 const slugsArg = opt('--slugs') ? opt('--slugs').split(',').map((s) => s.trim()).filter(Boolean) : null;
 const mode = opt('--mode'); // 'human-accepted' applies decisions humans made that were refused at the time
+const includeMediumAmber = flag('--include-medium-amber'); // owner-authorized amber-medium pool (Addendum 6)
 
 const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 17);
 const label = dryRun ? 'dry-run' : mode === 'human-accepted' ? 'human-accepted' : maxArticles ? `first-${maxArticles}-articles` : 'batch';
@@ -72,7 +73,7 @@ for (;;) {
       res = await fetch(`${BASE}/api/seo-review/batch-apply`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${secret}` },
-        body: JSON.stringify({ limit: 10, dryRun, slugs: slugsArg ?? undefined, mode: mode ?? undefined }),
+        body: JSON.stringify({ limit: 10, dryRun, slugs: slugsArg ?? undefined, mode: mode ?? undefined, includeMediumAmber: includeMediumAmber || undefined }),
         // A request that never returns must not stall the whole batch — this
         // run once sat 80 minutes on a single unanswered fetch.
         signal: AbortSignal.timeout(150_000),
